@@ -9,14 +9,20 @@ import {
   Alert,
   ScrollView,
   KeyboardAvoidingView,
-  Platform,
+  Platform,  // ✅ Only import Platform ONCE
   ActivityIndicator,
+  Dimensions,  // Add this if you need it
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { login, checkBackendConnection } from './services/api';
 
+
+ const { width, height } = Dimensions.get('window');
+
 export default function LoginScreen({ navigation }) {
+
+  
   const nav = navigation || useNavigation();
 
   const [username, setUsername] = useState('');
@@ -352,6 +358,11 @@ const styles = StyleSheet.create({
     flex: 1, 
     justifyContent: 'center', 
     alignItems: 'center' 
+  },
+  loadingText: { 
+    color: '#cbd5e1', 
+    marginTop: 16, 
+    fontSize: 14 
   },
   loadingText: { 
     color: '#cbd5e1', 

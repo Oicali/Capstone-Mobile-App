@@ -1,4 +1,6 @@
 import React from 'react';
+import { Dimensions, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -7,8 +9,10 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
+ const { width, height } = Dimensions.get('window');
 
 export default function AssignmentsScreen({ navigation }) {
+
   const assignments = [
     {
       id: 'PTR-001',
@@ -35,15 +39,15 @@ export default function AssignmentsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Assignments</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('PatrolLog')}>
-          <Text style={styles.patrolLogButton}>📝 Log</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.header}>
+  <Text style={styles.headerTitle}>My Assignments</Text>
+  <TouchableOpacity onPress={() => navigation.navigate('PatrolLog')}>
+    <View style={styles.patrolLogButton}>
+      <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+      <Text style={styles.patrolLogText}>Log</Text>
+    </View>
+  </TouchableOpacity>
+</View>
 
       <ScrollView style={styles.content}>
         <Text style={styles.sectionTitle}>Today's Patrols</Text>
@@ -74,34 +78,38 @@ export default function AssignmentsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#0a285c',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e3a5f',
-  },
-  backButton: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  patrolLogButton: {
-    fontSize: 14,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
+container: {
+  flex: 1,
+  backgroundColor: '#f8f9fa',
+  paddingBottom: Platform.OS === 'ios' ? 0 : 10, // Extra padding for Android
+},
+
+// Update content padding:
+content: {
+  flex: 1,
+  padding: width > 768 ? 30 : 20, // More padding on tablets
+  paddingBottom: 100, // Space for bottom navbar
+},
+
+header: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: 20,
+  backgroundColor: '#0a285c',
+  borderBottomWidth: 1,
+  borderBottomColor: '#1e3a5f',
+},
+patrolLogButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+},
+patrolLogText: {
+  fontSize: 14,
+  color: '#FFFFFF',
+  fontWeight: '600',
+},
   content: {
     flex: 1,
     padding: 20,

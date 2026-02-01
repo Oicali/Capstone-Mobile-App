@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Dimensions, Platform } from 'react-native';
 import {
   View,
   Text,
@@ -10,10 +11,16 @@ import {
   Alert,
 } from 'react-native';
 
+ const { width, height } = Dimensions.get('window');
+
 export default function PatrolLogScreen({ navigation }) {
   const [isOnPatrol, setIsOnPatrol] = useState(false);
   const [patrolStartTime, setPatrolStartTime] = useState(null);
   const [remarks, setRemarks] = useState('');
+
+
+
+
 
   const handleStartPatrol = () => {
     Alert.alert(
@@ -161,10 +168,18 @@ export default function PatrolLogScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
+container: {
+  flex: 1,
+  backgroundColor: '#f8f9fa',
+  paddingBottom: Platform.OS === 'ios' ? 0 : 10, // Extra padding for Android
+},
+
+// Update content padding:
+content: {
+  flex: 1,
+  padding: width > 768 ? 30 : 20, // More padding on tablets
+  paddingBottom: 100, // Space for bottom navbar
+},
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
