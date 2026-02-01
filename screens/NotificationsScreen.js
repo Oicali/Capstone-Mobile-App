@@ -12,6 +12,14 @@ import {
 export default function NotificationsScreen({ navigation }) {
   const notifications = [
     {
+      id: 5,
+      type: 'Referral',
+      title: 'New Barangay Referral',
+      message: 'Noise Complaint - Brgy. Molino III',
+      time: '5 minutes ago',
+      read: false,
+    },
+    {
       id: 1,
       type: 'Patrol',
       title: 'New Patrol Assignment',
@@ -62,6 +70,7 @@ export default function NotificationsScreen({ navigation }) {
       case 'Schedule': return '📅';
       case 'Case': return '📋';
       case 'Alert': return '⚠️';
+      case 'Referral': return '📄';  // ✅ NEW: Referral icon
       default: return '📢';
     }
   };
