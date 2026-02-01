@@ -33,6 +33,12 @@ export default function ReferralsScreen({ navigation }) {
     },
   ];
 
+  const getStatusStyle = (status) => {
+    if (status === 'New') return styles.statusNew;
+    if (status === 'In Review') return styles.statusReview;
+    return styles.statusResolved;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -50,12 +56,7 @@ export default function ReferralsScreen({ navigation }) {
           <TouchableOpacity key={referral.id} style={styles.referralCard}>
             <View style={styles.referralHeader}>
               <Text style={styles.referralId}>{referral.id}</Text>
-              <View style={[
-                styles.statusBadge,
-                referral.status === 'New' && styles.statusNew,
-                referral.status === 'In Review' && styles.statusReview,
-                referral.status === 'Resolved' && styles.statusResolved,
-              ]}>
+              <View style={[styles.statusBadge, getStatusStyle(referral.status)]}>
                 <Text style={styles.statusText}>{referral.status}</Text>
               </View>
             </View>
@@ -77,26 +78,26 @@ export default function ReferralsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0a285c',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: '#1e3a5f',
   },
   backButton: {
     fontSize: 16,
-    color: '#2d5aa8',
+    color: '#ffffff',
     fontWeight: '600',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a3a6b',
+    color: '#ffffff',
   },
   content: {
     flex: 1,
@@ -105,16 +106,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1a3a6b',
+    color: '#0a1628',
     marginBottom: 16,
   },
   referralCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 20,
     marginBottom: 16,
     borderLeftWidth: 4,
-    borderLeftColor: '#f59e0b',
+    borderLeftColor: '#c1272d',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
   },
   referralHeader: {
     flexDirection: 'row',
@@ -133,23 +136,23 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusNew: {
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#f0f2f5',
   },
   statusReview: {
-    backgroundColor: '#fef3c7',
+    backgroundColor: '#f0f2f5',
   },
   statusResolved: {
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f0f2f5',
   },
   statusText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#1a3a6b',
+    color: '#1e3a5f',
   },
   referralType: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a3a6b',
+    color: '#0a1628',
     marginBottom: 8,
   },
   referralBarangay: {
@@ -163,7 +166,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   viewButton: {
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#c1272d',
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',

@@ -16,7 +16,6 @@ export default function AssignmentsScreen({ navigation }) {
       time: '08:00 - 12:00',
       establishments: 5,
       status: 'In Progress',
-      statusColor: '#3b82f6',
     },
     {
       id: 'PTR-002',
@@ -24,7 +23,6 @@ export default function AssignmentsScreen({ navigation }) {
       time: '13:00 - 17:00',
       establishments: 4,
       status: 'Pending',
-      statusColor: '#f59e0b',
     },
     {
       id: 'PTR-003',
@@ -32,7 +30,6 @@ export default function AssignmentsScreen({ navigation }) {
       time: 'Tomorrow 09:00',
       establishments: 6,
       status: 'Scheduled',
-      statusColor: '#10b981',
     },
   ];
 
@@ -43,7 +40,9 @@ export default function AssignmentsScreen({ navigation }) {
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Assignments</Text>
-        <View style={{ width: 60 }} />
+        <TouchableOpacity onPress={() => navigation.navigate('PatrolLog')}>
+          <Text style={styles.patrolLogButton}>📝 Log</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
@@ -53,10 +52,8 @@ export default function AssignmentsScreen({ navigation }) {
           <TouchableOpacity key={assignment.id} style={styles.assignmentCard}>
             <View style={styles.assignmentHeader}>
               <Text style={styles.assignmentId}>{assignment.id}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: assignment.statusColor + '20' }]}>
-                <Text style={[styles.statusText, { color: assignment.statusColor }]}>
-                  {assignment.status}
-                </Text>
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusText}>{assignment.status}</Text>
               </View>
             </View>
 
@@ -79,26 +76,31 @@ export default function AssignmentsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0a285c',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: '#1e3a5f',
   },
   backButton: {
     fontSize: 16,
-    color: '#2d5aa8',
+    color: '#ffffff',
     fontWeight: '600',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a3a6b',
+    color: '#ffffff',
+  },
+  patrolLogButton: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '600',
   },
   content: {
     flex: 1,
@@ -107,14 +109,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1a3a6b',
+    color: '#0a1628',
     marginBottom: 16,
   },
   assignmentCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 20,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    borderLeftWidth: 4,
+    borderLeftColor: '#c1272d',
   },
   assignmentHeader: {
     flexDirection: 'row',
@@ -125,21 +131,23 @@ const styles = StyleSheet.create({
   assignmentId: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1a3a6b',
+    color: '#0a1628',
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
+    backgroundColor: '#f0f2f5',
   },
   statusText: {
     fontSize: 11,
     fontWeight: '700',
+    color: '#1e3a5f',
   },
   assignmentArea: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a3a6b',
+    color: '#0a1628',
     marginBottom: 8,
   },
   assignmentTime: {
@@ -153,7 +161,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   startButton: {
-    backgroundColor: '#2d5aa8',
+    backgroundColor: '#c1272d',
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',

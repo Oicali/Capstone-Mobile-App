@@ -28,6 +28,7 @@ export default function CrimeMappingScreen({ navigation }) {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Crime Hotspots</Text>
+          
           <View style={styles.hotspotItem}>
             <Text style={styles.hotspotIcon}>🔥</Text>
             <View style={styles.hotspotInfo}>
@@ -69,26 +70,26 @@ export default function CrimeMappingScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0a285c',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: '#1e3a5f',
   },
   backButton: {
     fontSize: 16,
-    color: '#2d5aa8',
+    color: '#ffffff',
     fontWeight: '600',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a3a6b',
+    color: '#ffffff',
   },
   content: {
     flex: 1,
@@ -97,10 +98,12 @@ const styles = StyleSheet.create({
   mapPlaceholder: {
     height: 300,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#dee2e6',
   },
   mapIcon: {
     fontSize: 60,
@@ -109,7 +112,7 @@ const styles = StyleSheet.create({
   mapText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a3a6b',
+    color: '#0a1628',
     marginBottom: 4,
   },
   mapSubtext: {
@@ -118,13 +121,15 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 20,
+    borderWidth: 1,
+    borderColor: '#dee2e6',
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a3a6b',
+    color: '#0a1628',
     marginBottom: 16,
   },
   hotspotItem: {
@@ -132,8 +137,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     backgroundColor: '#f8f9fa',
-    borderRadius: 12,
+    borderRadius: 8,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   hotspotIcon: {
     fontSize: 28,
@@ -145,7 +152,7 @@ const styles = StyleSheet.create({
   hotspotName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a3a6b',
+    color: '#0a1628',
     marginBottom: 4,
   },
   hotspotDescription: {
@@ -158,17 +165,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   riskHigh: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: 'rgba(193, 39, 45, 0.1)',
   },
   riskMedium: {
-    backgroundColor: '#fef3c7',
+    backgroundColor: '#f0f2f5',
   },
   riskLow: {
-    backgroundColor: '#d1fae5',
+    backgroundColor: '#f0f2f5',
   },
   riskText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#1a3a6b',
+    color: '#1e3a5f',
   },
 });
