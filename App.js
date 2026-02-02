@@ -1,8 +1,11 @@
+// FILE: App.js - FINAL PROFESSIONAL VERSION
+
 import React from 'react';
-import { Text } from 'react-native';  // ✅ FIXED: Import Text
+import { View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 
 // Import all screens
 import SplashScreen from './screens/SplashScreen';
@@ -11,6 +14,7 @@ import DashboardScreen from './screens/DashboardScreen';
 import CrimeMappingScreen from './screens/CrimeMappingScreen';
 import AssignmentsScreen from './screens/AssignmentsScreen';
 import ReferralsScreen from './screens/ReferralsScreen';
+import BarangayReportScreen from './screens/BarangayReportScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import PatrolLogScreen from './screens/PatrolLogScreen';
@@ -18,58 +22,117 @@ import PatrolLogScreen from './screens/PatrolLogScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Bottom Tab Navigator
+// Professional Tab Icons using Ionicons
+function TabIcon({ focused, iconName, label }) {
+  return (
+    <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 8 }}>
+      <View
+        style={{
+          width: 50,
+          height: 50,
+          borderRadius: 14,
+          backgroundColor: focused ? '#1e3a5f' : 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 2,
+        }}
+      >
+        <Ionicons 
+          name={iconName} 
+          size={24} 
+          color={focused ? '#FFFFFF' : '#6c757d'} 
+        />
+      </View>
+      <Text
+        style={{
+          fontSize: 10,
+          fontWeight: focused ? '700' : '600',
+          color: focused ? '#1e3a5f' : '#6c757d',
+          marginTop: 2,
+        }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+// Bottom Tab Navigator - 6 TABS - PROFESSIONAL
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={{
         headerShown: false,
-        tabBarIcon: ({ focused }) => {
-          let iconText = '';
-
-          if (route.name === 'Dashboard') {
-            iconText = '🏠';
-          } else if (route.name === 'CrimeMap') {
-            iconText = '🗺️';
-          } else if (route.name === 'Assignments') {
-            iconText = '📋';
-          } else if (route.name === 'Referrals') {
-            iconText = '📄';
-          } else if (route.name === 'Profile') {
-            iconText = '👤';
-          }
-
-          return (
-            <Text style={{ 
-              fontSize: focused ? 26 : 24, 
-              opacity: focused ? 1 : 0.6,
-            }}>
-              {iconText}
-            </Text>
-          );
-        },
-        tabBarActiveTintColor: '#1e3a5f',
-        tabBarInactiveTintColor: '#6c757d',
+        tabBarShowLabel: false,
         tabBarStyle: {
-          height: 70,
-          paddingBottom: 10,
-          paddingTop: 10,
+          height: 80,
+          paddingBottom: 8,
+          paddingTop: 4,
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#dee2e6',
+          elevation: 10,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.1,
+          shadowRadius: 10,
         },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          marginTop: 4,
-        },
-      })}
+      }}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarLabel: 'Home' }} />
-      <Tab.Screen name="CrimeMap" component={CrimeMappingScreen} options={{ tabBarLabel: 'Map' }} />
-      <Tab.Screen name="Assignments" component={AssignmentsScreen} options={{ tabBarLabel: 'Patrols' }} />
-      <Tab.Screen name="Referrals" component={ReferralsScreen} options={{ tabBarLabel: 'Reports' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName={focused ? 'home' : 'home-outline'} label="Home" />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="CrimeMap"
+        component={CrimeMappingScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName={focused ? 'map' : 'map-outline'} label="Crime Map" />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Assignments"
+        component={AssignmentsScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName={focused ? 'clipboard' : 'clipboard-outline'} label="Patrols" />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Referrals"
+        component={ReferralsScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName={focused ? 'document-text' : 'document-text-outline'} label="Referrals" />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="BarangayReport"
+        component={BarangayReportScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName={focused ? 'create' : 'create-outline'} label="Brgy Report" />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName={focused ? 'person' : 'person-outline'} label="Profile" />
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -85,11 +148,31 @@ export default function App() {
           animation: 'slide_from_right',
         }}
       >
-        <Stack.Screen name="Splash" component={SplashScreen} options={{ animation: 'fade' }} />
-        <Stack.Screen name="Login" component={LoginScreen} options={{ animation: 'fade' }} />
-        <Stack.Screen name="Main" component={MainTabs} options={{ gestureEnabled: false }} />
-        <Stack.Screen name="Notifications" component={NotificationsScreen} />
-        <Stack.Screen name="PatrolLog" component={PatrolLogScreen} />
+        <Stack.Screen
+          name="Splash"
+          component={SplashScreen}
+          options={{ animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{ animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="Main"
+          component={MainTabs}
+          options={{
+            gestureEnabled: false,
+          }}
+        />
+        <Stack.Screen
+          name="Notifications"
+          component={NotificationsScreen}
+        />
+        <Stack.Screen
+          name="PatrolLog"
+          component={PatrolLogScreen}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

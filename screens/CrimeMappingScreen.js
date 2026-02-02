@@ -1,4 +1,5 @@
 import React from 'react';
+import { Dimensions, Platform } from 'react-native';
 import {
   View,
   Text,
@@ -7,17 +8,15 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
-
+ const { width, height } = Dimensions.get('window');
 export default function CrimeMappingScreen({ navigation }) {
+ 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Crime Mapping</Text>
-        <View style={{ width: 60 }} />
-      </View>
+    <View style={styles.header}>
+  <Text style={styles.headerTitle}>Crime Mapping</Text>
+  <Text style={styles.headerSubtitle}>DBSCAN Hotspot Analysis</Text>
+</View>
 
       <ScrollView style={styles.content}>
         <View style={styles.mapPlaceholder}>
@@ -68,10 +67,18 @@ export default function CrimeMappingScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
+ container: {
+  flex: 1,
+  backgroundColor: '#f8f9fa',
+  paddingBottom: Platform.OS === 'ios' ? 0 : 10, // Extra padding for Android
+},
+
+// Update content padding:
+content: {
+  flex: 1,
+  padding: width > 768 ? 30 : 20, // More padding on tablets
+  paddingBottom: 100, // Space for bottom navbar
+},
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -178,4 +185,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1e3a5f',
   },
+  headerSubtitle: {
+  fontSize: 13,
+  color: 'rgba(255, 255, 255, 0.8)',
+},
 });

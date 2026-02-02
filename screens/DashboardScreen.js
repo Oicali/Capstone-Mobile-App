@@ -1,3 +1,6 @@
+// FILE: screens/DashboardScreen.js - UPDATED & PROFESSIONAL
+import { Ionicons } from '@expo/vector-icons';
+import { Dimensions, Platform } from 'react-native';
 import React from 'react';
 import {
   View,
@@ -6,64 +9,19 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
-  Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 
-export default function DashboardScreen({ navigation: propNav }) {
-  const navigation = propNav || useNavigation();
+ const { width, height } = Dimensions.get('window');
+
+export default function DashboardScreen({ navigation }) {
+
 
   const quickStats = [
-    { icon: '📍', value: '8', label: 'Active Patrols' },
-    { icon: '🔥', value: '5', label: 'Hotspots' },
-    { icon: '✅ ', value: '12', label: 'Completed' },
-    { icon: '📝', value: '4', label: 'Pending' },
+    { icon: '📍', value: '8', label: 'Active Patrols', color: '#1e3a5f' },
+    { icon: '🔥', value: '5', label: 'Hotspots', color: '#c1272d' },
+    { icon: '✓', value: '12', label: 'Completed', color: '#28a745' },
+    { icon: '📝', value: '4', label: 'Pending', color: '#ffc107' },
   ];
-
-  const mainFeatures = [
-    {
-      title: 'Crime Mapping',
-      description: 'View hotspots, crime clusters & AI analysis',
-      icon: '🗺️',
-      screen: 'CrimeMapping',
-    },
-    {
-      title: 'My Assignments',
-      description: 'View patrol schedules & establishment visits',
-      icon: '📋',
-      badge: '3 New',
-      screen: 'Assignments',
-    },
-    {
-      title: 'Referral Reports',
-      description: 'Barangay incident referrals & reports',
-      icon: '📄',
-      screen: 'Referrals',
-    },
-    {
-      title: 'My Profile',
-      description: 'Account settings & preferences',
-      icon: '👤',
-      screen: 'Profile',
-    },
-  ];
-
-  const handleFeaturePress = (screen) => {
-    if (!screen) {
-      Alert.alert('Navigation error', 'No screen specified for this feature.');
-      return;
-    }
-
-    try {
-      navigation.navigate(screen);
-    } catch (err) {
-      console.error('Navigation error:', err);
-      Alert.alert(
-        'Navigation error',
-        `Unable to navigate to "${screen}". Make sure the screen is registered in your navigator.`
-      );
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -74,22 +32,21 @@ export default function DashboardScreen({ navigation: propNav }) {
             <Text style={styles.greetingText}>Good Morning!</Text>
             <Text style={styles.officerName}>Off. Juan Dela Cruz</Text>
           </View>
+<TouchableOpacity 
+  style={styles.notificationIcon}
+  onPress={() => navigation.navigate('Notifications')}
+>
+  <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
+  <View style={styles.notificationBadge}>
+    <Text style={styles.notificationBadgeText}>3</Text>
+  </View>
+</TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.notificationIcon}
-            onPress={() => navigation.navigate('Notifications')}
-          >
-            <Text style={styles.notificationIconText}>🔔</Text>
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationBadgeText}>3</Text>
-            </View>
-          </TouchableOpacity>
         </View>
-
-        <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <Text style={styles.searchPlaceholder}>Search patrols, incidents...</Text>
-        </View>
+<TouchableOpacity style={styles.searchBar}>
+  <Ionicons name="search-outline" size={18} color="#6c757d" />
+  <Text style={styles.searchPlaceholder}>Search patrols, incidents...</Text>
+</TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -98,7 +55,9 @@ export default function DashboardScreen({ navigation: propNav }) {
           <Text style={styles.alertIcon}>⚠️</Text>
           <View style={styles.alertText}>
             <Text style={styles.alertTitle}>High Alert Area</Text>
-            <Text style={styles.alertDescription}>New hotspot detected in Brgy. Molino III</Text>
+            <Text style={styles.alertDescription}>
+              New hotspot detected in Brgy. Molino III
+            </Text>
           </View>
         </View>
 
@@ -106,7 +65,7 @@ export default function DashboardScreen({ navigation: propNav }) {
         <View style={styles.quickStats}>
           {quickStats.map((stat, index) => (
             <View key={index} style={styles.statCard}>
-              <View style={styles.statIcon}>
+              <View style={[styles.statIcon, { backgroundColor: stat.color }]}>
                 <Text style={styles.statIconText}>{stat.icon}</Text>
               </View>
               <Text style={styles.statValue}>{stat.value}</Text>
@@ -118,40 +77,113 @@ export default function DashboardScreen({ navigation: propNav }) {
         {/* Main Features */}
         <Text style={styles.sectionTitle}>Main Features</Text>
 
-        {mainFeatures.map((feature, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.featureCard}
-            onPress={() => handleFeaturePress(feature.screen)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.featureIcon}>
-              <Text style={styles.featureIconText}>{feature.icon}</Text>
-            </View>
+        {/* Crime Mapping - FIXED NAVIGATION */}
+        <TouchableOpacity
+          style={[styles.featureCard, { borderLeftColor: '#c1272d' }]}
+          onPress={() => navigation.navigate('CrimeMap')}
+        >
+          <View style={[styles.featureIcon, { backgroundColor: '#c1272d' }]}>
+            <Text style={styles.featureIconText}>🗺️</Text>
+          </View>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureTitle}>Crime Mapping</Text>
+            <Text style={styles.featureDescription}>
+              View hotspots, crime clusters & AI analysis
+            </Text>
+          </View>
+          <Text style={styles.featureArrow}>›</Text>
+        </TouchableOpacity>
 
-            <View style={styles.featureContent}>
-              <Text style={styles.featureTitle}>{feature.title}</Text>
-              <Text style={styles.featureDescription}>{feature.description}</Text>
-              {feature.badge && (
-                <View style={styles.featureBadge}>
-                  <Text style={styles.featureBadgeText}>{feature.badge}</Text>
-                </View>
-              )}
+        {/* My Assignments */}
+        <TouchableOpacity
+          style={[styles.featureCard, { borderLeftColor: '#1e3a5f' }]}
+          onPress={() => navigation.navigate('Assignments')}
+        >
+          <View style={[styles.featureIcon, { backgroundColor: '#1e3a5f' }]}>
+            <Text style={styles.featureIconText}>📋</Text>
+          </View>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureTitle}>My Assignments</Text>
+            <Text style={styles.featureDescription}>
+              View patrol schedules & establishment visits
+            </Text>
+            <View style={styles.featureBadge}>
+              <Text style={styles.featureBadgeText}>3 New</Text>
             </View>
+          </View>
+          <Text style={styles.featureArrow}>›</Text>
+        </TouchableOpacity>
 
-            <Text style={styles.featureArrow}>›</Text>
-          </TouchableOpacity>
-        ))}
+        {/* Referral Reports */}
+        <TouchableOpacity
+          style={[styles.featureCard, { borderLeftColor: '#ffc107' }]}
+          onPress={() => navigation.navigate('Referrals')}
+        >
+          <View style={[styles.featureIcon, { backgroundColor: '#ffc107' }]}>
+            <Text style={styles.featureIconText}>📄</Text>
+          </View>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureTitle}>Referral Reports</Text>
+            <Text style={styles.featureDescription}>
+              PNP incident referrals & reports
+            </Text>
+          </View>
+          <Text style={styles.featureArrow}>›</Text>
+        </TouchableOpacity>
+
+        {/* Barangay Report - NEW */}
+        <TouchableOpacity
+          style={[styles.featureCard, { borderLeftColor: '#28a745' }]}
+          onPress={() => navigation.navigate('BarangayReport')}
+        >
+          <View style={[styles.featureIcon, { backgroundColor: '#28a745' }]}>
+            <Text style={styles.featureIconText}>📝</Text>
+          </View>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureTitle}>Barangay Reports</Text>
+            <Text style={styles.featureDescription}>
+              Submit barangay incident reports
+            </Text>
+          </View>
+          <Text style={styles.featureArrow}>›</Text>
+        </TouchableOpacity>
+
+        {/* My Profile */}
+        <TouchableOpacity
+          style={[styles.featureCard, { borderLeftColor: '#6c757d' }]}
+          onPress={() => navigation.navigate('Profile')}
+        >
+          <View style={[styles.featureIcon, { backgroundColor: '#6c757d' }]}>
+            <Text style={styles.featureIconText}>👤</Text>
+          </View>
+          <View style={styles.featureContent}>
+            <Text style={styles.featureTitle}>My Profile</Text>
+            <Text style={styles.featureDescription}>
+              Account settings & preferences
+            </Text>
+          </View>
+          <Text style={styles.featureArrow}>›</Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 30 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
+container: {
+  flex: 1,
+  backgroundColor: '#f8f9fa',
+  paddingBottom: Platform.OS === 'ios' ? 0 : 10, // Extra padding for Android
+},
+
+// Update content padding:
+content: {
+  flex: 1,
+  padding: width > 768 ? 30 : 20, // More padding on tablets
+  paddingBottom: 100, // Space for bottom navbar
+},
   header: {
     padding: 20,
     paddingTop: 10,
@@ -179,7 +211,7 @@ const styles = StyleSheet.create({
   notificationIcon: {
     width: 44,
     height: 44,
-    backgroundColor: 'rgba(255, 255, 255, 0)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -199,7 +231,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#0a1628',
+    borderColor: '#0a285c',
   },
   notificationBadgeText: {
     color: '#FFFFFF',
@@ -209,7 +241,7 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 12,
     padding: 12,
   },
@@ -218,7 +250,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   searchPlaceholder: {
-    color: 'rgba(2, 0, 0, 0.91)',
+    color: '#6c757d',
     fontSize: 14,
   },
   content: {
@@ -229,11 +261,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#fff3cd',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 20,
     alignItems: 'center',
     borderLeftWidth: 4,
-    borderLeftColor: '#c1272d',
+    borderLeftColor: '#ffc107',
   },
   alertIcon: {
     fontSize: 24,
@@ -270,11 +302,10 @@ const styles = StyleSheet.create({
   statIcon: {
     width: 40,
     height: 40,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
-    backgroundColor: '#294d7d',
   },
   statIconText: {
     fontSize: 20,
@@ -305,7 +336,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#dee2e6',
     borderLeftWidth: 4,
-    borderLeftColor: '#c1272d',
   },
   featureIcon: {
     width: 60,
@@ -314,7 +344,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
-    backgroundColor: '#294d7d',
   },
   featureIconText: {
     fontSize: 28,
@@ -347,7 +376,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   featureArrow: {
-    fontSize: 24,
+    fontSize: 28,
     color: '#cbd5e1',
     marginLeft: 12,
   },
