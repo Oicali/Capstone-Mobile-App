@@ -1,8 +1,7 @@
-// Complete API service with error handling and validation
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = 'http://localhost:5000';
 
-// Validation helpers
 const validateResponse = async (response) => {
   if (!response.ok) {
     const error = await response.json();
@@ -13,7 +12,6 @@ const validateResponse = async (response) => {
 
 export const login = async (username, password) => {
   try {
-    // Input validation
     if (!username || !password) {
       return {
         success: false,
@@ -35,7 +33,6 @@ export const login = async (username, password) => {
       };
     }
 
-    // API call
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: { 
@@ -50,15 +47,10 @@ export const login = async (username, password) => {
 
     const data = await validateResponse(response);
 
-    // ✅ ALL ROLES ALLOWED - No role restriction
     if (data.success && data.user) {
-      console.log('User logged in:', data.user.username);
-      console.log('User role:', data.user.role);
-      
-      // Store user data for later use
-      if (data.token) {
-        console.log('Login successful - Token received');
-      }
+      await AsyncStorage.setItem('token', data.token);
+      await AsyncStorage.setItem('user', JSON.stringify(data.user));
+      console.log('Login successful - Token stored');
     }
 
     return data;
@@ -66,7 +58,6 @@ export const login = async (username, password) => {
   } catch (error) {
     console.error('Login API Error:', error);
     
-    // Network error handling
     if (error.message === 'Failed to fetch' || error.message.includes('Network')) {
       return {
         success: false,
@@ -81,7 +72,6 @@ export const login = async (username, password) => {
   }
 };
 
-// Get user profile
 export const getProfile = async (token) => {
   try {
     const response = await fetch(`${API_URL}/auth/profile`, {
@@ -99,7 +89,6 @@ export const getProfile = async (token) => {
   }
 };
 
-// Logout
 export const logout = async (token) => {
   try {
     if (token) {
@@ -112,7 +101,7 @@ export const logout = async (token) => {
       });
     }
     
-    // Clear storage when you implement it
+    await AsyncStorage.clear();
     console.log('Logout successful');
     return { success: true };
     
@@ -122,7 +111,6 @@ export const logout = async (token) => {
   }
 };
 
-// Check if backend is reachable
 export const checkBackendConnection = async () => {
   try {
     const response = await fetch(`${API_URL}/`, {

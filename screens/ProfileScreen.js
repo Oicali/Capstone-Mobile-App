@@ -1,8 +1,7 @@
-// FILE: screens/ProfileScreen.js - FIXED LOGOUT
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dimensions, Platform } from 'react-native';
 import { CommonActions } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -13,56 +12,78 @@ import {
   Alert,
 } from 'react-native';
 
-
- const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function ProfileScreen({ navigation }) {
+  const [userData, setUserData] = useState(null);
 
+  useEffect(() => {
+    loadUserData();
+  }, []);
 
-const handleLogout = () => {
-  Alert.alert(
-    'Confirm Logout',
-    'Are you sure you want to logout from BANTAY?',
-    [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: () => {
-          navigation.dispatch(
-            CommonActions.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            })
-          );
-        },
-      },
-    ],
-    { cancelable: true }
-  );
+    const loadUserData = async () => {
+      const user = await AsyncStorage.getItem('user');
+      if (user) {
+        const parsed = JSON.parse(user);
+        console.log('📦 USER DATA FROM STORAGE:', parsed);  // ADD THIS
+        setUserData(parsed);
+      }
+    };
+
+  const handleLogout = async () => {
+  console.log('🚪 Logout button pressed');
+  
+  const confirmed = window.confirm('Are you sure you want to logout?');
+  console.log('User confirmed:', confirmed);
+  
+  if (confirmed) {
+    try {
+      console.log('✅ User confirmed logout');
+      console.log('📦 Clearing AsyncStorage...');
+      await AsyncStorage.clear();
+      console.log('✅ AsyncStorage cleared');
+      
+      console.log('🔄 Resetting navigation to Login...');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+      console.log('✅ Navigation reset complete');
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+    }
+  } else {
+    console.log('❌ Logout cancelled');
+  }
 };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Profile</Text>
         <Text style={styles.headerSubtitle}>PNP Bacoor Officer</Text>
       </View>
-
       <ScrollView style={styles.content}>
-        {/* Profile Info */}
         <View style={styles.profileSection}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>JD</Text>
-          </View>
-          <Text style={styles.officerName}>Off. Juan Dela Cruz</Text>
-          <Text style={styles.officerRole}>Patrol Officer</Text>
-          <Text style={styles.officerBadge}>Badge #12345</Text>
-          <Text style={styles.officerStation}>PNP Bacoor Station</Text>
-        </View>
+            <Text style={styles.avatarText}>
+          {userData?.first_name && userData?.last_name 
+            ? `${userData.first_name[0]}${userData.last_name[0]}` 
+            : 'JD'}
+        </Text>
+      </View>
+      <Text style={styles.officerName}>
+        {userData?.first_name && userData?.last_name 
+          ? `${userData.first_name} ${userData.last_name}` 
+          : 'Loading...'}
+      </Text>
+      <Text style={styles.officerRole}>{userData?.role || 'Loading...'}</Text>
+      <Text style={styles.officerBadge}>
+        {userData?.badge_number ? `Badge #${userData.badge_number}` : 'N/A'}
+  </Text>
+      <Text style={styles.officerStation}>PNP Bacoor Station</Text>
+    </View>
 
-        {/* Menu Options */}
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>Account Settings</Text>
 
@@ -119,13 +140,11 @@ const handleLogout = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutIcon}>🚪</Text>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
-        {/* App Info */}
         <View style={styles.appInfo}>
           <Text style={styles.appInfoText}>PNP BANTAY v1.0.0</Text>
           <Text style={styles.appInfoText}>
@@ -141,18 +160,11 @@ const handleLogout = () => {
 }
 
 const styles = StyleSheet.create({
- container: {
-  flex: 1,
-  backgroundColor: '#f8f9fa',
-  paddingBottom: Platform.OS === 'ios' ? 0 : 10, // Extra padding for Android
-},
-
-// Update content padding:
-content: {
-  flex: 1,
-  padding: width > 768 ? 30 : 20, // More padding on tablets
-  paddingBottom: 100, // Space for bottom navbar
-},
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    paddingBottom: Platform.OS === 'ios' ? 0 : 10,
+  },
   header: {
     padding: 20,
     backgroundColor: '#0a285c',
@@ -169,16 +181,13 @@ content: {
     fontSize: 13,
     color: 'rgba(255, 255, 255, 0.8)',
   },
-  content: {
-    flex: 1,
-  },
   profileSection: {
-    backgroundColor: '#FFFFFF',
-    padding: 30,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#dee2e6',
-  },
+  backgroundColor: '#FFFFFF',
+  padding: 30,
+  alignItems: 'center',
+  borderBottomWidth: 1,
+  borderBottomColor: '#dee2e6',
+},
   avatar: {
     width: 100,
     height: 100,
@@ -200,21 +209,25 @@ content: {
     fontWeight: '700',
     color: '#0a1628',
     marginBottom: 4,
+    textAlign: 'center'
   },
   officerRole: {
     fontSize: 16,
     color: '#6c757d',
     marginBottom: 4,
+    textAlign: 'center'
   },
   officerBadge: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1e3a5f',
     marginBottom: 4,
+    textAlign: 'center'
   },
   officerStation: {
     fontSize: 13,
     color: '#adb5bd',
+    textAlign: 'center'
   },
   menuSection: {
     backgroundColor: '#FFFFFF',

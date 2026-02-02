@@ -9,20 +9,14 @@ import {
   Alert,
   ScrollView,
   KeyboardAvoidingView,
-  Platform,  // ✅ Only import Platform ONCE
+  Platform,
   ActivityIndicator,
-  Dimensions,  // Add this if you need it
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { login, checkBackendConnection } from './services/api';
 
-
- const { width, height } = Dimensions.get('window');
-
 export default function LoginScreen({ navigation }) {
-
-  
   const nav = navigation || useNavigation();
 
   const [username, setUsername] = useState('');
@@ -32,14 +26,15 @@ export default function LoginScreen({ navigation }) {
   const [backendConnected, setBackendConnected] = useState(false);
   const [checkingBackend, setCheckingBackend] = useState(true);
   
-  // Validation errors
-  const [errors, setErrors] = useState({
-    username: '',
-    password: '',
-    general: ''
-  });
+      const [errors, setErrors] = useState({
+        general: ''
+      });
+    useEffect(() => {
+      if (errors.general !== '') {
+        setErrors({ general: '' });
+      }
+    }, [username, password]);
 
-  // Check backend connection on mount
   useEffect(() => {
     const checkConnection = async () => {
       setCheckingBackend(true);
@@ -59,126 +54,80 @@ export default function LoginScreen({ navigation }) {
     checkConnection();
   }, []);
 
-  // Real-time validation
-  const validateUsername = (value) => {
-    if (!value || value.trim() === '') {
-      return 'Username is required';
-    }
-    if (value.length < 4) {
-      return 'Username must be at least 4 characters';
-    }
-    return '';
-  };
-
-  const validatePassword = (value) => {
-    if (!value || value.trim() === '') {
-      return 'Password is required';
-    }
-    if (value.length < 8) {
-      return 'Password must be at least 8 characters';
-    }
-    return '';
-  };
-
-  // Handle username change with validation
-  const handleUsernameChange = (text) => {
-    setUsername(text);
-    const error = validateUsername(text);
-    setErrors(prev => ({ ...prev, username: error, general: '' }));
-  };
-
-  // Handle password change with validation
-  const handlePasswordChange = (text) => {
-    setPassword(text);
-    const error = validatePassword(text);
-    setErrors(prev => ({ ...prev, password: error, general: '' }));
-  };
-
   const validateForm = () => {
-    const usernameError = validateUsername(username);
-    const passwordError = validatePassword(password);
-    
-    setErrors({
-      username: usernameError,
-      password: passwordError,
-      general: ''
-    });
-
-    return !usernameError && !passwordError;
+    if (!username || username.trim() === '') {
+      return false;
+    }
+    if (username.length < 4) {
+      return false;
+    }
+    if (!password || password.trim() === '') {
+      return false;
+    }
+    if (password.length < 8) {
+      return false;
+    }
+    return true;
   };
 
   const handleLogin = async () => {
-    console.log('=== Login Attempt Started ===');
-    console.log('Username:', username);
-    console.log('Password length:', password.length);
+  console.log('=== Login Attempt Started ===');
 
-    // Clear previous errors
-    setErrors({ username: '', password: '', general: '' });
+  setErrors({ general: '' });
 
-    // Validate form
-    if (!validateForm()) {
-      console.log('Form validation failed');
-      return;
-    }
+  await new Promise(resolve => setTimeout(resolve, 100));
 
-    // Check backend connection first
-    if (!backendConnected) {
-      setErrors(prev => ({
-        ...prev,
-        general: 'Backend server is not responding. Please start the backend.'
-      }));
-      return;
-    }
+  if (!username || username.trim() === '' || username.length < 4 ||
+      !password || password.trim() === '' || password.length < 8) {
+    setErrors({ general: 'Login Failed!' });
+    console.log('Form validation failed');
+    return;
+  }
 
-    try {
-      setLoading(true);
-      console.log('Calling login API...');
+  if (!backendConnected) {
+    setErrors({ general: 'Backend server is not responding. Please start the backend.' });
+    return;
+  }
+
+  try {
+    setLoading(true);
+    console.log('Calling login API...');
+    
+    const data = await login(username, password);
+    
+    console.log('Login API response:', {
+      success: data.success,
+      message: data.message,
+      hasUser: !!data.user,
+      role: data.user?.role
+    });
+
+    if (data.success) {
+      console.log('✅ Login successful!');
       
-      // Call real backend API
-      const data = await login(username, password);
+      setUsername('');
+      setPassword('');
+      setErrors({ general: '' });
       
-      console.log('Login API response:', {
-        success: data.success,
-        message: data.message,
-        hasUser: !!data.user,
-        role: data.user?.role
+      nav.reset({
+        index: 0,
+        routes: [{ name: 'Main', params: { screen: 'Dashboard' } }],
       });
-
-      if (data.success) {
-        console.log('✅ Login successful!');
-        console.log('User data:', data.user);
-        
-        // Clear form
-        setUsername('');
-        setPassword('');
-        setErrors({ username: '', password: '', general: '' });
-        
-        // Navigate to Main tabs
-        nav.reset({
-          index: 0,
-          routes: [{ name: 'Main', params: { screen: 'Dashboard' } }],
-        });
-      } else {
-        console.log('❌ Login failed:', data.message);
-        setErrors(prev => ({
-          ...prev,
-          general: data.message || 'Invalid credentials'
-        }));
-      }
-      
-    } catch (err) {
-      console.error('❌ Login error:', err);
-      setErrors(prev => ({
-        ...prev,
-        general: 'Failed to connect to server. Please check if backend is running.'
-      }));
-    } finally {
-      setLoading(false);
-      console.log('=== Login Attempt Ended ===\n');
+    } else {
+      console.log('❌ Login failed:', data.message);
+      // Show backend's actual error (e.g., "Account does not exist", "Invalid password")
+      setErrors({ general: data.message || 'Invalid credentials' });
     }
-  };
+    
+  } catch (err) {
+    console.error('❌ Login error:', err);
+    setErrors({ general: 'Failed to connect to server. Please check if backend is running.' });
+  } finally {
+    setLoading(false);
+    console.log('=== Login Attempt Ended ===\n');
+  }
+};
 
-  // Show loading screen while checking backend
   if (checkingBackend) {
     return (
       <LinearGradient colors={['#1e293b', '#0f172a', '#1e3a8a']} style={styles.gradient}>
@@ -203,7 +152,6 @@ export default function LoginScreen({ navigation }) {
             contentContainerStyle={styles.scrollContent} 
             keyboardShouldPersistTaps="handled"
           >
-            {/* Backend Status Indicator */}
             <View style={[
               styles.statusBadge, 
               { backgroundColor: backendConnected ? '#22c55e' : '#ef4444' }
@@ -220,7 +168,6 @@ export default function LoginScreen({ navigation }) {
               </Text>
             </View>
 
-            {/* General Error Alert (like web) */}
             {errors.general !== '' && (
               <View style={styles.alertError}>
                 <Text style={styles.alertIcon}>⚠</Text>
@@ -228,58 +175,40 @@ export default function LoginScreen({ navigation }) {
               </View>
             )}
 
-            {/* Username Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>USERNAME</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  errors.username !== '' && styles.inputError
-                ]}
+                style={styles.input}
                 placeholder="Enter your username"
                 placeholderTextColor="#94a3b8"
                 value={username}
-                onChangeText={handleUsernameChange}
+                onChangeText={setUsername}
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="next"
-                accessible
-                accessibilityLabel="Username input"
                 editable={!loading}
               />
-              {errors.username !== '' && (
-                <Text style={styles.errorText}>{errors.username}</Text>
-              )}
             </View>
 
-            {/* Password Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>PASSWORD</Text>
               <View style={styles.passwordWrapper}>
                 <TextInput
-                  style={[
-                    styles.input, 
-                    { paddingRight: 80 },
-                    errors.password !== '' && styles.inputError
-                  ]}
+                  style={[styles.input, { paddingRight: 80 }]}
                   placeholder="Enter your password"
                   placeholderTextColor="#94a3b8"
                   value={password}
-                  onChangeText={handlePasswordChange}
+                  onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
                   returnKeyType="done"
                   onSubmitEditing={handleLogin}
-                  accessible
-                  accessibilityLabel="Password input"
                   editable={!loading}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword((s) => !s)}
                   style={styles.showButton}
-                  accessibilityRole="button"
-                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
                   disabled={loading}
                 >
                   <Text style={styles.showButtonText}>
@@ -287,9 +216,6 @@ export default function LoginScreen({ navigation }) {
                   </Text>
                 </TouchableOpacity>
               </View>
-              {errors.password !== '' && (
-                <Text style={styles.errorText}>{errors.password}</Text>
-              )}
             </View>
 
             <TouchableOpacity
@@ -310,8 +236,6 @@ export default function LoginScreen({ navigation }) {
               ]}
               onPress={handleLogin}
               disabled={loading || !backendConnected}
-              accessibilityRole="button"
-              accessibilityLabel="Login"
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
@@ -331,7 +255,6 @@ export default function LoginScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Development Info */}
             <View style={styles.devInfo}>
               <Text style={styles.devInfoText}>
                 Backend: http://localhost:5000
@@ -364,11 +287,6 @@ const styles = StyleSheet.create({
     marginTop: 16, 
     fontSize: 14 
   },
-  loadingText: { 
-    color: '#cbd5e1', 
-    marginTop: 16, 
-    fontSize: 14 
-  },
   statusBadge: {
     alignSelf: 'center',
     paddingHorizontal: 16,
@@ -393,8 +311,6 @@ const styles = StyleSheet.create({
     color: '#cbd5e1', 
     lineHeight: 20 
   },
-  
-  // Alert Error (like web)
   alertError: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -416,7 +332,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
-  
   inputGroup: { marginBottom: 20 },
   label: { 
     fontSize: 11, 
@@ -435,21 +350,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FFFFFF',
   },
-  
-  // Input Error State (like web)
-  inputError: {
-    borderColor: 'rgba(239, 68, 68, 0.6)',
-    backgroundColor: 'rgba(254, 242, 242, 0.1)',
-  },
-  
-  // Error Text Below Input (like web)
-  errorText: {
-    color: '#fca5a5',
-    fontSize: 12,
-    marginTop: 6,
-    marginLeft: 4,
-  },
-  
   passwordWrapper: { position: 'relative' },
   showButton: { 
     position: 'absolute', 
@@ -470,15 +370,9 @@ const styles = StyleSheet.create({
     padding: 16, 
     borderRadius: 10, 
     alignItems: 'center',
-    shadowColor: 'rgba(220, 38, 38, 0.35)',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 20,
-    elevation: 6,
   },
   loginButtonDisabled: { 
     opacity: 0.6,
-    shadowOpacity: 0.3,
   },
   loginButtonText: { 
     color: '#FFFFFF', 
@@ -502,7 +396,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(30, 41, 59, 0.6)', 
     padding: 18, 
     borderRadius: 6,
-    backdropFilter: 'blur(10px)',
   },
   noticeText: { 
     color: '#cbd5e1', 

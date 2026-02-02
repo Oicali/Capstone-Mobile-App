@@ -1,7 +1,7 @@
-// FILE: screens/DashboardScreen.js - UPDATED & PROFESSIONAL
 import { Ionicons } from '@expo/vector-icons';
 import { Dimensions, Platform } from 'react-native';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -11,10 +11,19 @@ import {
   SafeAreaView,
 } from 'react-native';
 
- const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function DashboardScreen({ navigation }) {
+  const [userData, setUserData] = useState(null);
 
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  const loadUserData = async () => {
+    const user = await AsyncStorage.getItem('user');
+    if (user) setUserData(JSON.parse(user));
+  };
 
   const quickStats = [
     { icon: '📍', value: '8', label: 'Active Patrols', color: '#1e3a5f' },
@@ -25,32 +34,33 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.greeting}>
-            <Text style={styles.greetingText}>Good Morning!</Text>
-            <Text style={styles.officerName}>Off. Juan Dela Cruz</Text>
+            <Text style={styles.greetingText}>Welcome back,</Text>
+            <Text style={styles.officerName}>
+              {userData?.first_name && userData?.last_name 
+                ? `${userData.first_name} ${userData.last_name}` 
+                : 'Loading...'}
+            </Text>
           </View>
-<TouchableOpacity 
-  style={styles.notificationIcon}
-  onPress={() => navigation.navigate('Notifications')}
->
-  <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
-  <View style={styles.notificationBadge}>
-    <Text style={styles.notificationBadgeText}>3</Text>
-  </View>
-</TouchableOpacity>
-
+          <TouchableOpacity 
+            style={styles.notificationIcon}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>3</Text>
+            </View>
+          </TouchableOpacity>
         </View>
-<TouchableOpacity style={styles.searchBar}>
-  <Ionicons name="search-outline" size={18} color="#6c757d" />
-  <Text style={styles.searchPlaceholder}>Search patrols, incidents...</Text>
-</TouchableOpacity>
+        <TouchableOpacity style={styles.searchBar}>
+          <Ionicons name="search-outline" size={18} color="#6c757d" />
+          <Text style={styles.searchPlaceholder}>Search patrols, incidents...</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Alert Banner */}
         <View style={styles.alertBanner}>
           <Text style={styles.alertIcon}>⚠️</Text>
           <View style={styles.alertText}>
@@ -61,7 +71,6 @@ export default function DashboardScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Quick Stats */}
         <View style={styles.quickStats}>
           {quickStats.map((stat, index) => (
             <View key={index} style={styles.statCard}>
@@ -74,10 +83,8 @@ export default function DashboardScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Main Features */}
         <Text style={styles.sectionTitle}>Main Features</Text>
 
-        {/* Crime Mapping - FIXED NAVIGATION */}
         <TouchableOpacity
           style={[styles.featureCard, { borderLeftColor: '#c1272d' }]}
           onPress={() => navigation.navigate('CrimeMap')}
@@ -94,7 +101,6 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.featureArrow}>›</Text>
         </TouchableOpacity>
 
-        {/* My Assignments */}
         <TouchableOpacity
           style={[styles.featureCard, { borderLeftColor: '#1e3a5f' }]}
           onPress={() => navigation.navigate('Assignments')}
@@ -114,7 +120,6 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.featureArrow}>›</Text>
         </TouchableOpacity>
 
-        {/* Referral Reports */}
         <TouchableOpacity
           style={[styles.featureCard, { borderLeftColor: '#ffc107' }]}
           onPress={() => navigation.navigate('Referrals')}
@@ -131,7 +136,6 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.featureArrow}>›</Text>
         </TouchableOpacity>
 
-        {/* Barangay Report - NEW */}
         <TouchableOpacity
           style={[styles.featureCard, { borderLeftColor: '#28a745' }]}
           onPress={() => navigation.navigate('BarangayReport')}
@@ -148,7 +152,6 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.featureArrow}>›</Text>
         </TouchableOpacity>
 
-        {/* My Profile */}
         <TouchableOpacity
           style={[styles.featureCard, { borderLeftColor: '#6c757d' }]}
           onPress={() => navigation.navigate('Profile')}
@@ -172,18 +175,15 @@ export default function DashboardScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-container: {
-  flex: 1,
-  backgroundColor: '#f8f9fa',
-  paddingBottom: Platform.OS === 'ios' ? 0 : 10, // Extra padding for Android
-},
-
-// Update content padding:
-content: {
-  flex: 1,
-  padding: width > 768 ? 30 : 20, // More padding on tablets
-  paddingBottom: 100, // Space for bottom navbar
-},
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    paddingBottom: Platform.OS === 'ios' ? 0 : 10,
+  },
+  content: {
+    padding: width > 768 ? 30 : 20,
+    paddingBottom: 100,
+  },
   header: {
     padding: 20,
     paddingTop: 10,
@@ -217,9 +217,6 @@ content: {
     justifyContent: 'center',
     position: 'relative',
   },
-  notificationIconText: {
-    fontSize: 20,
-  },
   notificationBadge: {
     position: 'absolute',
     top: 6,
@@ -245,17 +242,9 @@ content: {
     borderRadius: 12,
     padding: 12,
   },
-  searchIcon: {
-    fontSize: 16,
-    marginRight: 10,
-  },
   searchPlaceholder: {
     color: '#6c757d',
     fontSize: 14,
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 40,
   },
   alertBanner: {
     flexDirection: 'row',

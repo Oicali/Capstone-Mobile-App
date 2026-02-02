@@ -1,13 +1,12 @@
-// FILE: App.js - FINAL PROFESSIONAL VERSION
 
-import React from 'react';
-import { View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-
-// Import all screens
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState, useEffect } from 'react';
+import { Text, View } from 'react-native';  // ADD View HERE
+// Import screens (keep existing imports)
 import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
@@ -22,7 +21,6 @@ import PatrolLogScreen from './screens/PatrolLogScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Professional Tab Icons using Ionicons
 function TabIcon({ focused, iconName, label }) {
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 8 }}>
@@ -57,7 +55,6 @@ function TabIcon({ focused, iconName, label }) {
   );
 }
 
-// Bottom Tab Navigator - 6 TABS - PROFESSIONAL
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -137,8 +134,20 @@ function MainTabs() {
   );
 }
 
-// Main App Navigator
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(null);
+
+  useEffect(() => {
+    checkLogin();
+  }, []);
+
+  const checkLogin = async () => {
+    const token = await AsyncStorage.getItem('token');
+    setIsLoggedIn(!!token);
+  };
+
+  if (isLoggedIn === null) return null;
+
   return (
     <NavigationContainer>
       <Stack.Navigator
