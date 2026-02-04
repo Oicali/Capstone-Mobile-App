@@ -13,7 +13,7 @@ import DashboardScreen from './screens/DashboardScreen';
 import CrimeMappingScreen from './screens/CrimeMappingScreen';
 import AssignmentsScreen from './screens/AssignmentsScreen';
 import ReferralsScreen from './screens/ReferralsScreen';
-import BarangayReportScreen from './screens/BarangayReportScreen';
+// import BarangayReportScreen from './screens/BarangayReportScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import PatrolLogScreen from './screens/PatrolLogScreen';
@@ -42,11 +42,14 @@ function TabIcon({ focused, iconName, label }) {
         />
       </View>
       <Text
+        numberOfLines={1}
         style={{
           fontSize: 10,
           fontWeight: focused ? '700' : '600',
           color: focused ? '#1e3a5f' : '#6c757d',
           marginTop: 2,
+          textAlign: 'center',
+          maxWidth: 70,
         }}
       >
         {label}
@@ -112,15 +115,7 @@ function MainTabs() {
           ),
         }}
       />
-      <Tab.Screen
-        name="BarangayReport"
-        component={BarangayReportScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? 'create' : 'create-outline'} label="Brgy Report" />
-          ),
-        }}
-      />
+    
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}

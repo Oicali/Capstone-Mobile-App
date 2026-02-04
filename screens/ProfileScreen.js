@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dimensions, Platform } from 'react-native';
-import { CommonActions } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -9,7 +9,6 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
-  Alert,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -21,41 +20,41 @@ export default function ProfileScreen({ navigation }) {
     loadUserData();
   }, []);
 
-    const loadUserData = async () => {
-      const user = await AsyncStorage.getItem('user');
-      if (user) {
-        const parsed = JSON.parse(user);
-        console.log('📦 USER DATA FROM STORAGE:', parsed);  // ADD THIS
-        setUserData(parsed);
-      }
-    };
+  const loadUserData = async () => {
+    const user = await AsyncStorage.getItem('user');
+    if (user) {
+      const parsed = JSON.parse(user);
+      console.log('📦 USER DATA FROM STORAGE:', parsed);
+      setUserData(parsed);
+    }
+  };
 
   const handleLogout = async () => {
-  console.log('🚪 Logout button pressed');
-  
-  const confirmed = window.confirm('Are you sure you want to logout?');
-  console.log('User confirmed:', confirmed);
-  
-  if (confirmed) {
-    try {
-      console.log('✅ User confirmed logout');
-      console.log('📦 Clearing AsyncStorage...');
-      await AsyncStorage.clear();
-      console.log('✅ AsyncStorage cleared');
-      
-      console.log('🔄 Resetting navigation to Login...');
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
-      console.log('✅ Navigation reset complete');
-    } catch (error) {
-      console.error('❌ Logout error:', error);
+    console.log('🚪 Logout button pressed');
+    
+    const confirmed = window.confirm('Are you sure you want to logout?');
+    console.log('User confirmed:', confirmed);
+    
+    if (confirmed) {
+      try {
+        console.log('✅ User confirmed logout');
+        console.log('📦 Clearing AsyncStorage...');
+        await AsyncStorage.clear();
+        console.log('✅ AsyncStorage cleared');
+        
+        console.log('🔄 Resetting navigation to Login...');
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+        console.log('✅ Navigation reset complete');
+      } catch (error) {
+        console.error('❌ Logout error:', error);
+      }
+    } else {
+      console.log('❌ Logout cancelled');
     }
-  } else {
-    console.log('❌ Logout cancelled');
-  }
-};
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -63,52 +62,53 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.headerTitle}>My Profile</Text>
         <Text style={styles.headerSubtitle}>PNP Bacoor Officer</Text>
       </View>
+
       <ScrollView style={styles.content}>
         <View style={styles.profileSection}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-          {userData?.first_name && userData?.last_name 
-            ? `${userData.first_name[0]}${userData.last_name[0]}` 
-            : 'JD'}
-        </Text>
-      </View>
-      <Text style={styles.officerName}>
-        {userData?.first_name && userData?.last_name 
-          ? `${userData.first_name} ${userData.last_name}` 
-          : 'Loading...'}
-      </Text>
-      <Text style={styles.officerRole}>{userData?.role || 'Loading...'}</Text>
-      <Text style={styles.officerBadge}>
-        {userData?.badge_number ? `Badge #${userData.badge_number}` : ''}
-  </Text>
-      <Text style={styles.officerStation}>PNP Bacoor Station</Text>
-    </View>
+              {userData?.first_name && userData?.last_name 
+                ? `${userData.first_name[0]}${userData.last_name[0]}` 
+                : 'JD'}
+            </Text>
+          </View>
+          <Text style={styles.officerName}>
+            {userData?.first_name && userData?.last_name 
+              ? `${userData.first_name} ${userData.last_name}` 
+              : 'Loading...'}
+          </Text>
+          <Text style={styles.officerRole}>{userData?.role || 'Loading...'}</Text>
+          <Text style={styles.officerBadge}>
+            {userData?.badge_number ? `Badge #${userData.badge_number}` : ''}
+          </Text>
+          <Text style={styles.officerStation}>PNP Bacoor Station</Text>
+        </View>
 
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>Account Settings</Text>
 
           <TouchableOpacity style={styles.menuItem}>
             <View style={styles.menuIconContainer}>
-              <Text style={styles.menuIcon}>👤</Text>
+              <Ionicons name="person-circle-outline" size={24} color="#0a285c" />
             </View>
             <Text style={styles.menuText}>Edit Profile</Text>
-            <Text style={styles.menuArrow}>›</Text>
+            <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem}>
             <View style={styles.menuIconContainer}>
-              <Text style={styles.menuIcon}>🔒</Text>
+              <Ionicons name="lock-closed-outline" size={24} color="#0a285c" />
             </View>
             <Text style={styles.menuText}>Change Password</Text>
-            <Text style={styles.menuArrow}>›</Text>
+            <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem}>
             <View style={styles.menuIconContainer}>
-              <Text style={styles.menuIcon}>🔔</Text>
+              <Ionicons name="notifications-outline" size={24} color="#0a285c" />
             </View>
             <Text style={styles.menuText}>Notifications</Text>
-            <Text style={styles.menuArrow}>›</Text>
+            <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
           </TouchableOpacity>
         </View>
 
@@ -117,31 +117,31 @@ export default function ProfileScreen({ navigation }) {
 
           <TouchableOpacity style={styles.menuItem}>
             <View style={styles.menuIconContainer}>
-              <Text style={styles.menuIcon}>⚙️</Text>
+              <Ionicons name="settings-outline" size={24} color="#0a285c" />
             </View>
             <Text style={styles.menuText}>Settings</Text>
-            <Text style={styles.menuArrow}>›</Text>
+            <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem}>
             <View style={styles.menuIconContainer}>
-              <Text style={styles.menuIcon}>ℹ️</Text>
+              <Ionicons name="information-circle-outline" size={24} color="#0a285c" />
             </View>
             <Text style={styles.menuText}>About BANTAY</Text>
-            <Text style={styles.menuArrow}>›</Text>
+            <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem}>
             <View style={styles.menuIconContainer}>
-              <Text style={styles.menuIcon}>📋</Text>
+              <Ionicons name="document-text-outline" size={24} color="#0a285c" />
             </View>
             <Text style={styles.menuText}>Terms & Privacy</Text>
-            <Text style={styles.menuArrow}>›</Text>
+            <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutIcon}>🚪</Text>
+          <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
@@ -165,6 +165,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
     paddingBottom: Platform.OS === 'ios' ? 0 : 10,
   },
+  content: {
+    flex: 1,
+  },
   header: {
     padding: 20,
     backgroundColor: '#0a285c',
@@ -182,12 +185,12 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
   },
   profileSection: {
-  backgroundColor: '#FFFFFF',
-  padding: 30,
-  alignItems: 'center',
-  borderBottomWidth: 1,
-  borderBottomColor: '#dee2e6',
-},
+    backgroundColor: '#FFFFFF',
+    padding: 30,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#dee2e6',
+  },
   avatar: {
     width: 100,
     height: 100,
@@ -209,25 +212,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0a1628',
     marginBottom: 4,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   officerRole: {
     fontSize: 16,
     color: '#6c757d',
     marginBottom: 4,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   officerBadge: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1e3a5f',
     marginBottom: 4,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   officerStation: {
     fontSize: 13,
     color: '#adb5bd',
-    textAlign: 'center'
+    textAlign: 'center',
   },
   menuSection: {
     backgroundColor: '#FFFFFF',
@@ -260,18 +263,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  menuIcon: {
-    fontSize: 20,
-  },
   menuText: {
     flex: 1,
     fontSize: 16,
     color: '#0a1628',
     fontWeight: '600',
-  },
-  menuArrow: {
-    fontSize: 24,
-    color: '#cbd5e1',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -282,10 +278,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  logoutIcon: {
-    fontSize: 20,
-    marginRight: 8,
+    gap: 8,
   },
   logoutText: {
     color: '#FFFFFF',

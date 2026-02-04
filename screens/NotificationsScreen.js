@@ -1,5 +1,6 @@
 import React from 'react';
 import { Dimensions, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -10,10 +11,9 @@ import {
   Alert,
 } from 'react-native';
 
- const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function NotificationsScreen({ navigation }) {
-
   const notifications = [
     {
       id: 5,
@@ -22,6 +22,7 @@ export default function NotificationsScreen({ navigation }) {
       message: 'Noise Complaint - Brgy. Molino III',
       time: '5 minutes ago',
       read: false,
+      icon: 'document-text',
     },
     {
       id: 1,
@@ -30,6 +31,7 @@ export default function NotificationsScreen({ navigation }) {
       message: 'Brgy. Molino III - Tomorrow 08:00 AM',
       time: '2 hours ago',
       read: false,
+      icon: 'shield-checkmark',
     },
     {
       id: 2,
@@ -38,6 +40,7 @@ export default function NotificationsScreen({ navigation }) {
       message: 'Your patrol schedule has been modified',
       time: '5 hours ago',
       read: false,
+      icon: 'calendar',
     },
     {
       id: 3,
@@ -46,6 +49,7 @@ export default function NotificationsScreen({ navigation }) {
       message: 'You have been assigned to Case #2024-089',
       time: '1 day ago',
       read: true,
+      icon: 'clipboard',
     },
     {
       id: 4,
@@ -54,6 +58,7 @@ export default function NotificationsScreen({ navigation }) {
       message: 'New hotspot detected in your patrol area',
       time: '2 days ago',
       read: true,
+      icon: 'warning',
     },
   ];
 
@@ -68,22 +73,11 @@ export default function NotificationsScreen({ navigation }) {
     );
   };
 
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case 'Patrol': return '🛡️';
-      case 'Schedule': return '📅';
-      case 'Case': return '📋';
-      case 'Alert': return '⚠️';
-      case 'Referral': return '📄';  // ✅ NEW: Referral icon
-      default: return '📢';
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Back</Text>
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
         <TouchableOpacity>
@@ -92,7 +86,9 @@ export default function NotificationsScreen({ navigation }) {
       </View>
 
       <ScrollView style={styles.content}>
-        <Text style={styles.sectionTitle}>New ({notifications.filter(n => !n.read).length})</Text>
+        <Text style={styles.sectionTitle}>
+          New ({notifications.filter(n => !n.read).length})
+        </Text>
 
         {notifications
           .filter((n) => !n.read)
@@ -103,9 +99,9 @@ export default function NotificationsScreen({ navigation }) {
               onPress={() => handleNotificationPress(notification)}
             >
               <View style={styles.notificationLeft}>
-                <Text style={styles.notificationIcon}>
-                  {getTypeIcon(notification.type)}
-                </Text>
+                <View style={styles.iconContainer}>
+                  <Ionicons name={notification.icon} size={24} color="#c1272d" />
+                </View>
               </View>
 
               <View style={styles.notificationContent}>
@@ -120,7 +116,8 @@ export default function NotificationsScreen({ navigation }) {
                 <Text style={styles.notificationMessage}>{notification.message}</Text>
 
                 <View style={styles.notificationActions}>
-                  <Text style={styles.actionText}>View Details →</Text>
+                  <Text style={styles.actionText}>View Details</Text>
+                  <Ionicons name="arrow-forward" size={14} color="#c1272d" />
                 </View>
               </View>
 
@@ -139,9 +136,9 @@ export default function NotificationsScreen({ navigation }) {
               onPress={() => handleNotificationPress(notification)}
             >
               <View style={styles.notificationLeft}>
-                <Text style={styles.notificationIcon}>
-                  {getTypeIcon(notification.type)}
-                </Text>
+                <View style={[styles.iconContainer, styles.iconContainerRead]}>
+                  <Ionicons name={notification.icon} size={24} color="#6c757d" />
+                </View>
               </View>
 
               <View style={styles.notificationContent}>
@@ -165,18 +162,16 @@ export default function NotificationsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
- container: {
-  flex: 1,
-  backgroundColor: '#f8f9fa',
-  paddingBottom: Platform.OS === 'ios' ? 0 : 10, // Extra padding for Android
-},
-
-// Update content padding:
-content: {
-  flex: 1,
-  padding: width > 768 ? 30 : 20, // More padding on tablets
-  paddingBottom: 100, // Space for bottom navbar
-},
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    paddingBottom: Platform.OS === 'ios' ? 0 : 10,
+  },
+  content: {
+    flex: 1,
+    padding: width > 768 ? 30 : 20,
+    paddingBottom: 100,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -185,11 +180,6 @@ content: {
     backgroundColor: '#0a285c',
     borderBottomWidth: 1,
     borderBottomColor: '#1e3a5f',
-  },
-  backButton: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '600',
   },
   headerTitle: {
     fontSize: 18,
@@ -200,10 +190,6 @@ content: {
     fontSize: 13,
     color: '#ffffff',
     fontWeight: '600',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
   },
   sectionTitle: {
     fontSize: 16,
@@ -230,8 +216,16 @@ content: {
   notificationLeft: {
     marginRight: 12,
   },
-  notificationIcon: {
-    fontSize: 28,
+  iconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: 'rgba(193, 39, 45, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainerRead: {
+    backgroundColor: '#f8f9fa',
   },
   notificationContent: {
     flex: 1,
@@ -272,6 +266,9 @@ content: {
   },
   notificationActions: {
     marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   actionText: {
     fontSize: 13,

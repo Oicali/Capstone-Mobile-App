@@ -1,150 +1,193 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, Image } from 'react-native';
 
 export default function SplashScreen({ navigation }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+
   useEffect(() => {
-    // Navigate to Login after 3 seconds
+    // Smooth fade-in animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 20,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Navigate to Login after 3 seconds with fade-out
     const timer = setTimeout(() => {
-      navigation.replace('Login');
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }).start(() => {
+        navigation.replace('Login');
+      });
     }, 3000);
 
     return () => clearTimeout(timer);
   }, [navigation]);
 
   return (
-    <View style={styles.container}>
-      {/* Top Logos */}
+    <Animated.View 
+      style={[
+        styles.container,
+        {
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }]
+        }
+      ]}
+    >
+      {/* Top Logos - Side by Side with overlap like web */}
       <View style={styles.topLogosContainer}>
-        <View style={styles.logoPlaceholder}>
-          <Text style={styles.logoText}>PNP Logo</Text>
-        </View>
-        
-        <View style={styles.logoPlaceholder}>
-          <Text style={styles.logoText}>Cavite Logo</Text>
-        </View>
+        <Image 
+          source={require('../assets/logo2.png')} 
+          style={styles.logoPNP}
+          resizeMode="contain"
+        />
+        <Image 
+          source={require('../assets/logo1.png')} 
+          style={styles.logoCavite}
+          resizeMode="contain"
+        />
       </View>
 
-      {/* Title */}
+      {/* Title Section */}
       <View style={styles.titleContainer}>
         <Text style={styles.mainTitle}>PHILIPPINE NATIONAL POLICE</Text>
         <Text style={styles.subtitle}>Bacoor City Station</Text>
       </View>
 
-      {/* Red Line */}
-      <View style={styles.redLine} />
-
-      {/* BANTAY Logo */}
-      <View style={styles.bantayContainer}>
-        <Text style={styles.bantayText}>BANTAY</Text>
+      {/* BANTAY Logo Container - Matching Web Design */}
+      <View style={styles.bantayOuterContainer}>
+        <Image 
+          source={require('../assets/logo3.png')} 
+          style={styles.bantayLogoImage}
+          resizeMode="contain"
+        />
       </View>
 
       {/* Tagline */}
       <Text style={styles.tagline}>
-        Empowering Law Enforcement{'\n'}Through Intelligence
+        Empowering Law Enforcement Through Intelligence
       </Text>
 
-      {/* Bottom Line */}
-      <View style={styles.bottomLine} />
+      {/* Bottom Divider */}
+      <View style={styles.bottomDivider} />
 
       {/* Republic Text */}
       <Text style={styles.republicText}>REPUBLIC OF THE PHILIPPINES</Text>
-
-      {/* Loading Dots */}
-      <View style={styles.loadingContainer}>
-        <View style={styles.loadingDot} />
-        <View style={[styles.loadingDot, { opacity: 0.6 }]} />
-        <View style={[styles.loadingDot, { opacity: 0.3 }]} />
-      </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FAFAFA',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
   },
+  
+  // Top Logos - Side by Side with Overlap
   topLogosContainer: {
     flexDirection: 'row',
-    marginBottom: 30,
-  },
-  logoPlaceholder: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 40,
-    justifyContent: 'center',
+    marginBottom: 32,
     alignItems: 'center',
-    margin: 15,
+    justifyContent: 'center',
   },
-  logoText: {
-    fontSize: 10,
-    color: '#6B7280',
-    fontWeight: '600',
-    textAlign: 'center',
+  
+  // PNP Logo (Left) - 140x160px with right overlap
+  logoPNP: {
+    width: 100,
+    height: 160,
+    marginRight: -10,
   },
+  
+  // Cavite Logo (Right) - 140x160px
+  logoCavite: {
+    width: 100,
+    height: 160,
+  },
+  
+  // Title Section
   titleContainer: {
     alignItems: 'center',
-    marginBottom: 25,
+    marginTop: -29,
+    marginBottom: 32,
   },
   mainTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#0F172A',
     textAlign: 'center',
+    letterSpacing: -0.5,
+    lineHeight: 30,
+    marginBottom: 12,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#4B5563',
-    marginTop: 5,
+    fontSize: 16,
+    color: '#0F172A',
+    fontWeight: '600',
+    letterSpacing: -0.3,
   },
-  redLine: {
-    width: 100,
-    height: 4,
-    backgroundColor: '#DC2626',
-    marginBottom: 35,
+  
+  // BANTAY Logo Container
+  bantayOuterContainer: {
+    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+    borderRadius: 20,
+    padding: 10,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 32,
+    elevation: 5,
   },
-  bantayContainer: {
-    borderWidth: 4,
-    borderColor: '#1E3A8A',
-    paddingHorizontal: 60,
-    paddingVertical: 30,
-    marginBottom: 30,
+  
+  // BANTAY Logo Image
+  bantayLogoImage: {
+    width: 350,
+    height: 150,
   },
-  bantayText: {
-    fontSize: 60,
-    fontWeight: '900',
-    color: '#1E3A8A',
-  },
+  
+  // Tagline
   tagline: {
-    fontSize: 12,
-    color: '#4B5563',
+    fontSize: 13,
+    color: '#475569',
     textAlign: 'center',
-    marginBottom: 25,
-    lineHeight: 18,
+    marginBottom: 30,
+    marginTop: 10,
+    lineHeight: 20,
+    fontWeight: '500',
+    maxWidth: 320,
   },
-  bottomLine: {
-    width: 150,
+  
+  // Bottom Divider
+  bottomDivider: {
+    width: 240,
     height: 1,
-    backgroundColor: '#D1D5DB',
-    marginBottom: 15,
+    backgroundColor: '#CBD5E1',
+    marginBottom: 22,
+    opacity: 0.5,
   },
+  
+  // Republic Text
   republicText: {
     fontSize: 10,
-    color: '#9CA3AF',
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    marginTop: 40,
-  },
-  loadingDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#1E3A8A',
-    margin: 4,
+    color: '#94A3B8',
+    fontWeight: '600',
+    letterSpacing: 2,
+    textAlign: 'center',
   },
 });

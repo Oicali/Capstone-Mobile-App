@@ -9,10 +9,10 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
- const { width, height } = Dimensions.get('window');
+
+const { width } = Dimensions.get('window');
 
 export default function AssignmentsScreen({ navigation }) {
-
   const assignments = [
     {
       id: 'PTR-001',
@@ -39,15 +39,15 @@ export default function AssignmentsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-    <View style={styles.header}>
-  <Text style={styles.headerTitle}>My Assignments</Text>
-  <TouchableOpacity onPress={() => navigation.navigate('PatrolLog')}>
-    <View style={styles.patrolLogButton}>
-      <Ionicons name="create-outline" size={20} color="#FFFFFF" />
-      <Text style={styles.patrolLogText}>Log</Text>
-    </View>
-  </TouchableOpacity>
-</View>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Assignments</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('PatrolLog')}>
+          <View style={styles.patrolLogButton}>
+            <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.patrolLogText}>Log</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
 
       <ScrollView style={styles.content}>
         <Text style={styles.sectionTitle}>Today's Patrols</Text>
@@ -61,14 +61,26 @@ export default function AssignmentsScreen({ navigation }) {
               </View>
             </View>
 
-            <Text style={styles.assignmentArea}>📍 {assignment.area}</Text>
-            <Text style={styles.assignmentTime}>🕐 {assignment.time}</Text>
-            <Text style={styles.assignmentEstablishments}>
-              🏢 {assignment.establishments} establishments to visit
-            </Text>
+            <View style={styles.infoRow}>
+              <Ionicons name="location" size={16} color="#c1272d" />
+              <Text style={styles.assignmentArea}>{assignment.area}</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="time" size={16} color="#6c757d" />
+              <Text style={styles.assignmentTime}>{assignment.time}</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="business" size={16} color="#6c757d" />
+              <Text style={styles.assignmentEstablishments}>
+                {assignment.establishments} establishments to visit
+              </Text>
+            </View>
 
             <TouchableOpacity style={styles.startButton}>
               <Text style={styles.startButtonText}>View Details</Text>
+              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </TouchableOpacity>
         ))}
@@ -78,41 +90,39 @@ export default function AssignmentsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-container: {
-  flex: 1,
-  backgroundColor: '#f8f9fa',
-  paddingBottom: Platform.OS === 'ios' ? 0 : 10, // Extra padding for Android
-},
-
-// Update content padding:
-content: {
-  flex: 1,
-  padding: width > 768 ? 30 : 20, // More padding on tablets
-  paddingBottom: 100, // Space for bottom navbar
-},
-
-header: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: 20,
-  backgroundColor: '#0a285c',
-  borderBottomWidth: 1,
-  borderBottomColor: '#1e3a5f',
-},
-patrolLogButton: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 6,
-},
-patrolLogText: {
-  fontSize: 14,
-  color: '#FFFFFF',
-  fontWeight: '600',
-},
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    paddingBottom: Platform.OS === 'ios' ? 0 : 10,
+  },
   content: {
     flex: 1,
+    padding: width > 768 ? 30 : 20,
+    paddingBottom: 100,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 20,
+    backgroundColor: '#0a285c',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e3a5f',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  patrolLogButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  patrolLogText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 20,
@@ -152,27 +162,34 @@ patrolLogText: {
     fontWeight: '700',
     color: '#1e3a5f',
   },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
   assignmentArea: {
     fontSize: 16,
     fontWeight: '600',
     color: '#0a1628',
-    marginBottom: 8,
   },
   assignmentTime: {
     fontSize: 14,
     color: '#6c757d',
-    marginBottom: 4,
   },
   assignmentEstablishments: {
     fontSize: 14,
     color: '#6c757d',
-    marginBottom: 16,
   },
   startButton: {
     backgroundColor: '#c1272d',
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   startButtonText: {
     color: '#FFFFFF',
