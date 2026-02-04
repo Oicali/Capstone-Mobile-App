@@ -152,14 +152,14 @@ export default function LoginScreen({ navigation }) {
             contentContainerStyle={styles.scrollContent} 
             keyboardShouldPersistTaps="handled"
           >
-            <View style={[
+            {/* <View style={[
               styles.statusBadge, 
               { backgroundColor: backendConnected ? '#22c55e' : '#ef4444' }
             ]}>
               <Text style={styles.statusText}>
                 {backendConnected ? '● Server Connected' : '● Server Offline'}
               </Text>
-            </View>
+            </View> */}
 
             <View style={styles.header}>
               <Text style={styles.title}>Secure Access</Text>
@@ -255,14 +255,14 @@ export default function LoginScreen({ navigation }) {
               </View>
             </View>
 
-            <View style={styles.devInfo}>
+            {/* <View style={styles.devInfo}>
               <Text style={styles.devInfoText}>
                 Backend: http://localhost:5000
               </Text>
               <Text style={styles.devInfoText}>
                 Status: {backendConnected ? 'Connected ✓' : 'Disconnected ✗'}
               </Text>
-            </View>
+            </View> */}
 
             <View style={{ height: 40 }} />
           </ScrollView>
