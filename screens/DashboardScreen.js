@@ -26,10 +26,10 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const quickStats = [
-    { icon: '📍', value: '8', label: 'Active Patrols', color: '#1e3a5f' },
-    { icon: '🔥', value: '5', label: 'Hotspots', color: '#c1272d' },
-    { icon: '✓', value: '12', label: 'Completed', color: '#28a745' },
-    { icon: '📝', value: '4', label: 'Pending', color: '#ffc107' },
+    { icon: 'shield-checkmark', value: '8', label: 'Active Patrols', color: '#1e3a5f' },
+    { icon: 'flame', value: '5', label: 'Hotspots', color: '#c1272d' },
+    { icon: 'checkmark-circle', value: '12', label: 'Completed', color: '#28a745' },
+    { icon: 'time', value: '4', label: 'Pending', color: '#ffc107' },
   ];
 
   return (
@@ -61,8 +61,9 @@ export default function DashboardScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Alert Banner */}
         <View style={styles.alertBanner}>
-          <Text style={styles.alertIcon}>⚠️</Text>
+          <Ionicons name="warning" size={24} color="#856404" />
           <View style={styles.alertText}>
             <Text style={styles.alertTitle}>High Alert Area</Text>
             <Text style={styles.alertDescription}>
@@ -71,11 +72,12 @@ export default function DashboardScreen({ navigation }) {
           </View>
         </View>
 
+        {/* Quick Stats */}
         <View style={styles.quickStats}>
           {quickStats.map((stat, index) => (
             <View key={index} style={styles.statCard}>
               <View style={[styles.statIcon, { backgroundColor: stat.color }]}>
-                <Text style={styles.statIconText}>{stat.icon}</Text>
+                <Ionicons name={stat.icon} size={22} color="#FFFFFF" />
               </View>
               <Text style={styles.statValue}>{stat.value}</Text>
               <Text style={styles.statLabel}>{stat.label}</Text>
@@ -85,12 +87,13 @@ export default function DashboardScreen({ navigation }) {
 
         <Text style={styles.sectionTitle}>Main Features</Text>
 
+        {/* Crime Mapping */}
         <TouchableOpacity
           style={[styles.featureCard, { borderLeftColor: '#c1272d' }]}
           onPress={() => navigation.navigate('CrimeMap')}
         >
           <View style={[styles.featureIcon, { backgroundColor: '#c1272d' }]}>
-            <Text style={styles.featureIconText}>🗺️</Text>
+            <Ionicons name="map" size={28} color="#FFFFFF" />
           </View>
           <View style={styles.featureContent}>
             <Text style={styles.featureTitle}>Crime Mapping</Text>
@@ -98,15 +101,16 @@ export default function DashboardScreen({ navigation }) {
               View hotspots, crime clusters & AI analysis
             </Text>
           </View>
-          <Text style={styles.featureArrow}>›</Text>
+          <Ionicons name="chevron-forward" size={24} color="#cbd5e1" />
         </TouchableOpacity>
 
+        {/* My Assignments */}
         <TouchableOpacity
           style={[styles.featureCard, { borderLeftColor: '#1e3a5f' }]}
           onPress={() => navigation.navigate('Assignments')}
         >
           <View style={[styles.featureIcon, { backgroundColor: '#1e3a5f' }]}>
-            <Text style={styles.featureIconText}>📋</Text>
+            <Ionicons name="clipboard" size={28} color="#FFFFFF" />
           </View>
           <View style={styles.featureContent}>
             <Text style={styles.featureTitle}>My Assignments</Text>
@@ -117,15 +121,16 @@ export default function DashboardScreen({ navigation }) {
               <Text style={styles.featureBadgeText}>3 New</Text>
             </View>
           </View>
-          <Text style={styles.featureArrow}>›</Text>
+          <Ionicons name="chevron-forward" size={24} color="#cbd5e1" />
         </TouchableOpacity>
 
+        {/* Referral Reports */}
         <TouchableOpacity
           style={[styles.featureCard, { borderLeftColor: '#ffc107' }]}
           onPress={() => navigation.navigate('Referrals')}
         >
           <View style={[styles.featureIcon, { backgroundColor: '#ffc107' }]}>
-            <Text style={styles.featureIconText}>📄</Text>
+            <Ionicons name="document-text" size={28} color="#FFFFFF" />
           </View>
           <View style={styles.featureContent}>
             <Text style={styles.featureTitle}>Referral Reports</Text>
@@ -133,31 +138,16 @@ export default function DashboardScreen({ navigation }) {
               PNP incident referrals & reports
             </Text>
           </View>
-          <Text style={styles.featureArrow}>›</Text>
+          <Ionicons name="chevron-forward" size={24} color="#cbd5e1" />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.featureCard, { borderLeftColor: '#28a745' }]}
-          onPress={() => navigation.navigate('BarangayReport')}
-        >
-          <View style={[styles.featureIcon, { backgroundColor: '#28a745' }]}>
-            <Text style={styles.featureIconText}>📝</Text>
-          </View>
-          <View style={styles.featureContent}>
-            <Text style={styles.featureTitle}>Barangay Reports</Text>
-            <Text style={styles.featureDescription}>
-              Submit barangay incident reports
-            </Text>
-          </View>
-          <Text style={styles.featureArrow}>›</Text>
-        </TouchableOpacity>
-
+        {/* My Profile */}
         <TouchableOpacity
           style={[styles.featureCard, { borderLeftColor: '#6c757d' }]}
           onPress={() => navigation.navigate('Profile')}
         >
           <View style={[styles.featureIcon, { backgroundColor: '#6c757d' }]}>
-            <Text style={styles.featureIconText}>👤</Text>
+            <Ionicons name="person" size={28} color="#FFFFFF" />
           </View>
           <View style={styles.featureContent}>
             <Text style={styles.featureTitle}>My Profile</Text>
@@ -165,7 +155,7 @@ export default function DashboardScreen({ navigation }) {
               Account settings & preferences
             </Text>
           </View>
-          <Text style={styles.featureArrow}>›</Text>
+          <Ionicons name="chevron-forward" size={24} color="#cbd5e1" />
         </TouchableOpacity>
 
         <View style={{ height: 30 }} />
@@ -241,6 +231,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 12,
     padding: 12,
+    gap: 8,
   },
   searchPlaceholder: {
     color: '#6c757d',
@@ -255,10 +246,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderLeftWidth: 4,
     borderLeftColor: '#ffc107',
-  },
-  alertIcon: {
-    fontSize: 24,
-    marginRight: 12,
+    gap: 12,
   },
   alertText: {
     flex: 1,
@@ -296,9 +284,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 10,
   },
-  statIconText: {
-    fontSize: 20,
-  },
   statValue: {
     fontSize: 24,
     fontWeight: '700',
@@ -334,9 +319,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 16,
   },
-  featureIconText: {
-    fontSize: 28,
-  },
   featureContent: {
     flex: 1,
   },
@@ -363,10 +345,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '600',
-  },
-  featureArrow: {
-    fontSize: 28,
-    color: '#cbd5e1',
-    marginLeft: 12,
   },
 });

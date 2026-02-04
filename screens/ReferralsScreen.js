@@ -1,5 +1,6 @@
 import React from 'react';
 import { Dimensions, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -9,13 +10,9 @@ import {
   SafeAreaView,
 } from 'react-native';
 
-
- const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function ReferralsScreen({ navigation }) {
-
-
-
   const referrals = [
     {
       id: 'REF-2024-001',
@@ -48,10 +45,10 @@ export default function ReferralsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-   <View style={styles.header}>
-  <Text style={styles.headerTitle}>Referral Reports</Text>
-  <Text style={styles.headerSubtitle}></Text>
-</View>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Referral Reports</Text>
+      </View>
+
       <ScrollView style={styles.content}>
         <Text style={styles.sectionTitle}>Barangay Referrals</Text>
 
@@ -65,11 +62,20 @@ export default function ReferralsScreen({ navigation }) {
             </View>
 
             <Text style={styles.referralType}>{referral.type}</Text>
-            <Text style={styles.referralBarangay}>📍 {referral.barangay}</Text>
-            <Text style={styles.referralDate}>📅 {referral.date}</Text>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="location" size={14} color="#6c757d" />
+              <Text style={styles.referralBarangay}>{referral.barangay}</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="calendar" size={14} color="#6c757d" />
+              <Text style={styles.referralDate}>{referral.date}</Text>
+            </View>
 
             <TouchableOpacity style={styles.viewButton}>
               <Text style={styles.viewButtonText}>View Details</Text>
+              <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </TouchableOpacity>
         ))}
@@ -79,40 +85,27 @@ export default function ReferralsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-container: {
-  flex: 1,
-  backgroundColor: '#f8f9fa',
-  paddingBottom: Platform.OS === 'ios' ? 0 : 10, // Extra padding for Android
-},
-
-// Update content padding:
-content: {
-  flex: 1,
-  padding: width > 768 ? 30 : 20, // More padding on tablets
-  paddingBottom: 100, // Space for bottom navbar
-},
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    paddingBottom: Platform.OS === 'ios' ? 0 : 10,
+  },
+  content: {
+    flex: 1,
+    padding: width > 768 ? 30 : 20,
+    paddingBottom: 100,
+  },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 20,
     backgroundColor: '#0a285c',
     borderBottomWidth: 1,
     borderBottomColor: '#1e3a5f',
-  },
-  backButton: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '600',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#ffffff',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
   },
   sectionTitle: {
     fontSize: 20,
@@ -164,23 +157,31 @@ content: {
     fontSize: 18,
     fontWeight: '700',
     color: '#0a1628',
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6,
   },
   referralBarangay: {
     fontSize: 14,
     color: '#6c757d',
-    marginBottom: 4,
   },
   referralDate: {
     fontSize: 14,
     color: '#6c757d',
-    marginBottom: 16,
   },
   viewButton: {
     backgroundColor: '#c1272d',
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   viewButtonText: {
     color: '#FFFFFF',

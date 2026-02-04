@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Dimensions, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -11,16 +12,12 @@ import {
   Alert,
 } from 'react-native';
 
- const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function PatrolLogScreen({ navigation }) {
   const [isOnPatrol, setIsOnPatrol] = useState(false);
   const [patrolStartTime, setPatrolStartTime] = useState(null);
   const [remarks, setRemarks] = useState('');
-
-
-
-
 
   const handleStartPatrol = () => {
     Alert.alert(
@@ -63,10 +60,10 @@ export default function PatrolLogScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Back</Text>
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Patrol Log</Text>
-        <View style={{ width: 60 }} />
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView style={styles.content}>
@@ -85,12 +82,14 @@ export default function PatrolLogScreen({ navigation }) {
           {isOnPatrol && (
             <>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>📍 GPS Tracking:</Text>
+                <Ionicons name="navigate-circle" size={18} color="#28a745" />
+                <Text style={styles.infoLabel}>GPS Tracking:</Text>
                 <Text style={styles.infoValue}>Active</Text>
               </View>
 
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>🕐 Started:</Text>
+                <Ionicons name="time" size={18} color="#6c757d" />
+                <Text style={styles.infoLabel}>Started:</Text>
                 <Text style={styles.infoValue}>
                   {patrolStartTime?.toLocaleTimeString()}
                 </Text>
@@ -102,7 +101,7 @@ export default function PatrolLogScreen({ navigation }) {
         {/* Action Button */}
         {!isOnPatrol ? (
           <TouchableOpacity style={styles.startButton} onPress={handleStartPatrol}>
-            <Text style={styles.startButtonIcon}>▶️</Text>
+            <Ionicons name="play-circle" size={24} color="#FFFFFF" />
             <Text style={styles.startButtonText}>START PATROL</Text>
           </TouchableOpacity>
         ) : (
@@ -123,7 +122,7 @@ export default function PatrolLogScreen({ navigation }) {
             </View>
 
             <TouchableOpacity style={styles.endButton} onPress={handleEndPatrol}>
-              <Text style={styles.endButtonIcon}>⏹️</Text>
+              <Ionicons name="stop-circle" size={24} color="#FFFFFF" />
               <Text style={styles.endButtonText}>END PATROL</Text>
             </TouchableOpacity>
           </View>
@@ -135,8 +134,14 @@ export default function PatrolLogScreen({ navigation }) {
 
           <View style={styles.historyCard}>
             <View style={styles.historyHeader}>
-              <Text style={styles.historyDate}>Jan 20, 2026</Text>
-              <Text style={styles.historyDuration}>4h 30m</Text>
+              <View style={styles.historyDateRow}>
+                <Ionicons name="calendar" size={16} color="#6c757d" />
+                <Text style={styles.historyDate}>Jan 20, 2026</Text>
+              </View>
+              <View style={styles.durationBadge}>
+                <Ionicons name="time" size={12} color="#1e3a5f" />
+                <Text style={styles.historyDuration}>4h 30m</Text>
+              </View>
             </View>
             <Text style={styles.historyTime}>08:00 AM - 12:30 PM</Text>
             <Text style={styles.historyRemarks}>Routine patrol completed</Text>
@@ -144,8 +149,14 @@ export default function PatrolLogScreen({ navigation }) {
 
           <View style={styles.historyCard}>
             <View style={styles.historyHeader}>
-              <Text style={styles.historyDate}>Jan 19, 2026</Text>
-              <Text style={styles.historyDuration}>3h 45m</Text>
+              <View style={styles.historyDateRow}>
+                <Ionicons name="calendar" size={16} color="#6c757d" />
+                <Text style={styles.historyDate}>Jan 19, 2026</Text>
+              </View>
+              <View style={styles.durationBadge}>
+                <Ionicons name="time" size={12} color="#1e3a5f" />
+                <Text style={styles.historyDuration}>3h 45m</Text>
+              </View>
             </View>
             <Text style={styles.historyTime}>02:00 PM - 05:45 PM</Text>
             <Text style={styles.historyRemarks}>No incidents reported</Text>
@@ -153,8 +164,14 @@ export default function PatrolLogScreen({ navigation }) {
 
           <View style={styles.historyCard}>
             <View style={styles.historyHeader}>
-              <Text style={styles.historyDate}>Jan 18, 2026</Text>
-              <Text style={styles.historyDuration}>5h 15m</Text>
+              <View style={styles.historyDateRow}>
+                <Ionicons name="calendar" size={16} color="#6c757d" />
+                <Text style={styles.historyDate}>Jan 18, 2026</Text>
+              </View>
+              <View style={styles.durationBadge}>
+                <Ionicons name="time" size={12} color="#1e3a5f" />
+                <Text style={styles.historyDuration}>5h 15m</Text>
+              </View>
             </View>
             <Text style={styles.historyTime}>09:00 AM - 02:15 PM</Text>
             <Text style={styles.historyRemarks}>Community engagement activities</Text>
@@ -168,18 +185,16 @@ export default function PatrolLogScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-container: {
-  flex: 1,
-  backgroundColor: '#f8f9fa',
-  paddingBottom: Platform.OS === 'ios' ? 0 : 10, // Extra padding for Android
-},
-
-// Update content padding:
-content: {
-  flex: 1,
-  padding: width > 768 ? 30 : 20, // More padding on tablets
-  paddingBottom: 100, // Space for bottom navbar
-},
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    paddingBottom: Platform.OS === 'ios' ? 0 : 10,
+  },
+  content: {
+    flex: 1,
+    padding: width > 768 ? 30 : 20,
+    paddingBottom: 100,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -189,19 +204,10 @@ content: {
     borderBottomWidth: 1,
     borderBottomColor: '#1e3a5f',
   },
-  backButton: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#ffffff',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
   },
   statusCard: {
     backgroundColor: '#FFFFFF',
@@ -235,6 +241,7 @@ content: {
     paddingVertical: 6,
     borderRadius: 20,
     backgroundColor: '#e9ecef',
+    gap: 6,
   },
   statusBadgeActive: {
     backgroundColor: '#c1272d',
@@ -244,7 +251,6 @@ content: {
     height: 8,
     borderRadius: 4,
     backgroundColor: '#6c757d',
-    marginRight: 6,
   },
   statusDotActive: {
     backgroundColor: '#ffffff',
@@ -259,8 +265,9 @@ content: {
   },
   infoRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
+    gap: 8,
   },
   infoLabel: {
     fontSize: 14,
@@ -279,10 +286,7 @@ content: {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
-  },
-  startButtonIcon: {
-    fontSize: 20,
-    marginRight: 12,
+    gap: 12,
   },
   startButtonText: {
     color: '#ffffff',
@@ -323,10 +327,7 @@ content: {
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 32,
-  },
-  endButtonIcon: {
-    fontSize: 20,
-    marginRight: 12,
+    gap: 12,
   },
   endButtonText: {
     color: '#ffffff',
@@ -358,15 +359,29 @@ content: {
     justifyContent: 'space-between',
     marginBottom: 8,
   },
+  historyDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   historyDate: {
     fontSize: 14,
     fontWeight: '700',
     color: '#0a1628',
   },
+  durationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f0f2f5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
   historyDuration: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#6c757d',
+    color: '#1e3a5f',
   },
   historyTime: {
     fontSize: 13,

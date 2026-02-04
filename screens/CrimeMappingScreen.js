@@ -1,5 +1,6 @@
 import React from 'react';
 import { Dimensions, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -8,50 +9,56 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
- const { width, height } = Dimensions.get('window');
+
+const { width } = Dimensions.get('window');
+
 export default function CrimeMappingScreen({ navigation }) {
- 
   return (
     <SafeAreaView style={styles.container}>
     <View style={styles.header}>
   <Text style={styles.headerTitle}>Crime Mapping</Text>
-  <Text style={styles.headerSubtitle}></Text>
 </View>
 
       <ScrollView style={styles.content}>
         <View style={styles.mapPlaceholder}>
-          <Text style={styles.mapIcon}>🗺️</Text>
+          <Ionicons name="map-outline" size={60} color="#6c757d" />
           <Text style={styles.mapText}>Interactive Crime Map</Text>
-          <Text style={styles.mapSubtext}></Text>
+          <Text style={styles.mapSubtext}>Tap to view full map</Text>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Crime Hotspots</Text>
           
           <View style={styles.hotspotItem}>
-            <Text style={styles.hotspotIcon}>🔥</Text>
+            <View style={styles.hotspotIconContainer}>
+              <Ionicons name="flame" size={24} color="#c1272d" />
+            </View>
             <View style={styles.hotspotInfo}>
               <Text style={styles.hotspotName}>Brgy. Molino III</Text>
               <Text style={styles.hotspotDescription}>15 incidents this week</Text>
             </View>
             <View style={[styles.riskBadge, styles.riskHigh]}>
-              <Text style={styles.riskText}>HIGH</Text>
+              <Text style={[styles.riskText, { color: '#c1272d' }]}>HIGH</Text>
             </View>
           </View>
 
           <View style={styles.hotspotItem}>
-            <Text style={styles.hotspotIcon}>🔥</Text>
+            <View style={styles.hotspotIconContainer}>
+              <Ionicons name="flame" size={24} color="#ffc107" />
+            </View>
             <View style={styles.hotspotInfo}>
               <Text style={styles.hotspotName}>Brgy. Niog</Text>
               <Text style={styles.hotspotDescription}>8 incidents this week</Text>
             </View>
             <View style={[styles.riskBadge, styles.riskMedium]}>
-              <Text style={styles.riskText}>MEDIUM</Text>
+              <Text style={[styles.riskText, { color: '#ffc107' }]}>MEDIUM</Text>
             </View>
           </View>
 
           <View style={styles.hotspotItem}>
-            <Text style={styles.hotspotIcon}>🔥</Text>
+            <View style={styles.hotspotIconContainer}>
+              <Ionicons name="flame-outline" size={24} color="#6c757d" />
+            </View>
             <View style={styles.hotspotInfo}>
               <Text style={styles.hotspotName}>Brgy. Salinas</Text>
               <Text style={styles.hotspotDescription}>5 incidents this week</Text>
@@ -67,41 +74,32 @@ export default function CrimeMappingScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
- container: {
-  flex: 1,
-  backgroundColor: '#f8f9fa',
-  paddingBottom: Platform.OS === 'ios' ? 0 : 10, // Extra padding for Android
-},
-
-// Update content padding:
-content: {
-  flex: 1,
-  padding: width > 768 ? 30 : 20, // More padding on tablets
-  paddingBottom: 100, // Space for bottom navbar
-},
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#0a285c',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e3a5f',
-  },
-  backButton: {
-    fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    paddingBottom: Platform.OS === 'ios' ? 0 : 10,
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: width > 768 ? 30 : 20,
+    paddingBottom: 100,
   },
+header: {
+  paddingVertical: 20,
+  paddingHorizontal: 20,
+  backgroundColor: '#0a285c',
+  borderBottomWidth: 1,
+  borderBottomColor: '#1e3a5f',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+headerTitle: {
+  fontSize: 18,
+  fontWeight: '700',
+  color: '#ffffff',
+  textAlign: 'center',
+},
+
   mapPlaceholder: {
     height: 300,
     backgroundColor: '#FFFFFF',
@@ -112,14 +110,11 @@ content: {
     borderWidth: 1,
     borderColor: '#dee2e6',
   },
-  mapIcon: {
-    fontSize: 60,
-    marginBottom: 10,
-  },
   mapText: {
     fontSize: 18,
     fontWeight: '700',
     color: '#0a1628',
+    marginTop: 16,
     marginBottom: 4,
   },
   mapSubtext: {
@@ -149,8 +144,13 @@ content: {
     borderWidth: 1,
     borderColor: '#e9ecef',
   },
-  hotspotIcon: {
-    fontSize: 28,
+  hotspotIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   hotspotInfo: {
@@ -175,7 +175,7 @@ content: {
     backgroundColor: 'rgba(193, 39, 45, 0.1)',
   },
   riskMedium: {
-    backgroundColor: '#f0f2f5',
+    backgroundColor: 'rgba(255, 193, 7, 0.1)',
   },
   riskLow: {
     backgroundColor: '#f0f2f5',
@@ -185,8 +185,4 @@ content: {
     fontWeight: '700',
     color: '#1e3a5f',
   },
-  headerSubtitle: {
-  fontSize: 13,
-  color: 'rgba(255, 255, 255, 0.8)',
-},
 });
