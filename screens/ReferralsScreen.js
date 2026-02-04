@@ -50,7 +50,7 @@ export default function ReferralsScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
    <View style={styles.header}>
   <Text style={styles.headerTitle}>Referral Reports</Text>
-  <Text style={styles.headerSubtitle}>Barangay Incident Referrals</Text>
+  <Text style={styles.headerSubtitle}></Text>
 </View>
       <ScrollView style={styles.content}>
         <Text style={styles.sectionTitle}>Barangay Referrals</Text>

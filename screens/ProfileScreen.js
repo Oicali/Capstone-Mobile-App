@@ -79,7 +79,7 @@ export default function ProfileScreen({ navigation }) {
       </Text>
       <Text style={styles.officerRole}>{userData?.role || 'Loading...'}</Text>
       <Text style={styles.officerBadge}>
-        {userData?.badge_number ? `Badge #${userData.badge_number}` : 'N/A'}
+        {userData?.badge_number ? `Badge #${userData.badge_number}` : ''}
   </Text>
       <Text style={styles.officerStation}>PNP Bacoor Station</Text>
     </View>

@@ -15,14 +15,14 @@ export default function CrimeMappingScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
     <View style={styles.header}>
   <Text style={styles.headerTitle}>Crime Mapping</Text>
-  <Text style={styles.headerSubtitle}>DBSCAN Hotspot Analysis</Text>
+  <Text style={styles.headerSubtitle}></Text>
 </View>
 
       <ScrollView style={styles.content}>
         <View style={styles.mapPlaceholder}>
           <Text style={styles.mapIcon}>🗺️</Text>
           <Text style={styles.mapText}>Interactive Crime Map</Text>
-          <Text style={styles.mapSubtext}>DBSCAN Hotspot Clusters</Text>
+          <Text style={styles.mapSubtext}></Text>
         </View>
 
         <View style={styles.card}>
