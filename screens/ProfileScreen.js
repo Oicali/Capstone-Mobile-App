@@ -136,6 +136,7 @@ export default function ProfileScreen({navigation}){
       if(!token)return;
       setRefreshing(true);
       const res=await fetch(`${BASE_URL}/users/profile`,{headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'}});
+      if(res.status===401){stopPolling();await AsyncStorage.clear();navigation.reset({index:0,routes:[{name:'Login'}]});return;}
       if(!res.ok)return;
       const json=await res.json();
       if(!json.success||!json.user)return;
@@ -412,21 +413,18 @@ export default function ProfileScreen({navigation}){
         </View>
 
         <View style={styles.card}>
-          <TouchableOpacity onPress={()=>!uploadingPhoto&&setShowPhotoModal(true)} style={styles.avatarWrap} disabled={uploadingPhoto}>
+          <View style={styles.avatarWrap}>
             {profileData.profile_picture
               ?<Image source={{uri:profileData.profile_picture}} style={styles.avatarImg}/>
               :<View style={styles.avatar}><Text style={styles.avatarTxt}>{profileData.first_name?.[0]??''}{profileData.last_name?.[0]??''}</Text></View>
             }
-            {uploadingPhoto
-              ?<View style={styles.avatarSpinner}><ActivityIndicator size="small" color="#fff"/></View>
-              :<View style={styles.avatarCam}><Ionicons name="camera" size={14} color="#fff"/></View>
-            }
-          </TouchableOpacity>
+          </View>
           <Text style={styles.cardName}>{[profileData.first_name,profileData.middle_name,profileData.last_name,profileData.suffix].filter(Boolean).join(' ')||'Officer Name'}</Text>
           <Text style={styles.cardRole}>{profileData.role||'Position'}</Text>
           {!!profileData.rank&&<Text style={styles.cardRank}>{profileData.rank}</Text>}
           <TouchableOpacity style={[styles.photoBtn,uploadingPhoto&&styles.btnDisabled]} onPress={()=>!uploadingPhoto&&setShowPhotoModal(true)}>
-            {uploadingPhoto?<><ActivityIndicator size="small" color="#fff"/><Text style={styles.photoBtnTxt}>Uploading...</Text></>:<><Ionicons name="camera" size={16} color="#fff"/><Text style={styles.photoBtnTxt}>Update Photo</Text></>}
+            <Ionicons name="camera" size={16} color="#fff"/>
+            <Text style={styles.photoBtnTxt}>Update Photo</Text>
           </TouchableOpacity>
         </View>
 
@@ -454,7 +452,7 @@ export default function ProfileScreen({navigation}){
 
         <View style={styles.btnRow}>
           <TouchableOpacity style={styles.btn} onPress={startEdit}><Ionicons name="create-outline" size={18} color="#fff"/><Text style={styles.btnText}>Edit Profile</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.btnOutline}><Ionicons name="lock-closed-outline" size={18} color="#0a285c"/><Text style={styles.btnOutlineTxt}>Change Password</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.btnOutline} onPress={() => navigation.navigate('ChangePassword')}><Ionicons name="lock-closed-outline" size={18} color="#0a285c"/><Text style={styles.btnOutlineTxt}>Change Password</Text></TouchableOpacity>
         </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={logout}><Ionicons name="log-out-outline" size={18} color="#fff"/><Text style={styles.btnText}>Logout</Text></TouchableOpacity>
 
@@ -474,7 +472,7 @@ export default function ProfileScreen({navigation}){
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={cancelEdit} hitSlop={{top:10,bottom:10,left:10,right:10}}><Ionicons name="chevron-back" size={24} color="#0a285c"/></TouchableOpacity>
             <Text style={styles.modalTitle}>Edit Profile</Text>
-            <TouchableOpacity onPress={onSavePress} disabled={isSaving} hitSlop={{top:10,bottom:10,left:10,right:10}}><Text style={[styles.modalSave,isSaving&&{opacity:0.4}]}>{isSaving?'Saving...':'Save'}</Text></TouchableOpacity>
+            <View style={{width:40}}/>
           </View>
           <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
             <SectionTitle>Personal Information</SectionTitle>
@@ -536,7 +534,8 @@ export default function ProfileScreen({navigation}){
             </View>
             <View style={styles.modalBtnRow}>
               <TouchableOpacity style={[styles.btn,{flex:1},isSaving&&{opacity:0.6}]} onPress={onSavePress} disabled={isSaving}>
-                {isSaving?<><ActivityIndicator size="small" color="#fff"/><Text style={styles.btnText}>Saving...</Text></>:<><Ionicons name="checkmark" size={18} color="#fff"/><Text style={styles.btnText}>Save Changes</Text></>}
+                <Ionicons name="checkmark" size={18} color="#fff"/>
+                <Text style={styles.btnText}>Save Changes</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.btnOutline,{flex:1}]} onPress={cancelEdit} disabled={isSaving}><Text style={styles.btnOutlineTxt}>Cancel</Text></TouchableOpacity>
             </View>

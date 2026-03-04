@@ -17,6 +17,7 @@ import ReferralsScreen from './screens/ReferralsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import PatrolLogScreen from './screens/PatrolLogScreen';
+import ChangePasswordScreen from './screens/ChangePasswordScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -177,6 +178,11 @@ export default function App() {
           name="PatrolLog"
           component={PatrolLogScreen}
         />
+
+        <Stack.Screen
+         name="ChangePassword" 
+         component={ChangePasswordScreen} 
+         />
       </Stack.Navigator>
     </NavigationContainer>
   );
