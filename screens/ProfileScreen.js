@@ -224,12 +224,21 @@ export default function ProfileScreen({navigation}){
     }catch(e){console.error('resolveAddressNames:',e);}
   };
 
-  const resolveFromArrays=(rc,pc,mc,bc)=>{
+  const resolveFromArrays=async(rc,pc,mc,bc)=>{
+    // After save, barangays array is already loaded from the edit session - use it
+    // But if user changed municipality, we need to re-fetch barangays for the new one
+    let bArr=barangays;
+    // Check if barangays array matches the municipality code we saved
+    const bMatch=bArr.find(x=>x.code===bc);
+    if(!bMatch&&mc){
+      // Re-fetch barangays for this municipality to get the correct name
+      bArr=await loadBarangays(mc);
+    }
     setResolvedAddr({
       region:regions.find(x=>x.code===rc)?.name||'',
       province:provinces.find(x=>x.code===pc)?.name||'',
       municipality:municipalities.find(x=>x.code===mc)?.name||'',
-      barangay:barangays.find(x=>x.code===bc)?.name||'',
+      barangay:bArr.find(x=>x.code===bc)?.name||'',
     });
   };
 
@@ -273,17 +282,17 @@ export default function ProfileScreen({navigation}){
   const onMunicipality=async(code)=>{setFormData(p=>({...p,municipality_code:code,barangay_code:''}));setShowDropdown(null);await loadBarangays(code);};
   const onBarangay=(code)=>{setFormData(p=>({...p,barangay_code:code}));setShowDropdown(null);};
 
-  const startEdit=()=>{
+  const startEdit=async()=>{
     stopPolling();
     setFormData({...originalFormData,phone:'',alternate_phone:'',email:''});
     setPhoneChanged(false);setAltPhoneChanged(false);setEmailChanged(false);
     setErrors({});setIsEditing(true);
-    loadRegions();
+    await loadRegions();
     if(originalFormData.region_code){
-      loadProvinces(originalFormData.region_code);
+      await loadProvinces(originalFormData.region_code);
       if(originalFormData.province_code){
-        loadMunicipalities(originalFormData.province_code);
-        if(originalFormData.municipality_code)loadBarangays(originalFormData.municipality_code);
+        await loadMunicipalities(originalFormData.province_code);
+        if(originalFormData.municipality_code)await loadBarangays(originalFormData.municipality_code);
       }
     }
   };
@@ -295,7 +304,7 @@ export default function ProfileScreen({navigation}){
 
   const onSavePress=()=>{
     if(!validate()){setErrorMsg('Please fix the errors before saving.');return;}
-    showConfirm('Save Changes','Are you sure you want to save these changes to your profile?',()=>{hideConfirm();doSave();},'Yes');
+    showConfirm('Save Changes','Are you sure you want to save these changes to your profile?',()=>{hideConfirm();doSave();},'Yes, Save');
   };
 
   const doSave=async()=>{
@@ -322,7 +331,7 @@ export default function ProfileScreen({navigation}){
         if(json.errors&&Array.isArray(json.errors)){const be={};json.errors.forEach(e=>{if(e.field)be[e.field]=e.message;});if(Object.keys(be).length)setErrors(be);}
         setErrorMsg(json.message||'Failed to update profile');setIsSaving(false);return;
       }
-      resolveFromArrays(fmt.region_code,fmt.province_code,fmt.municipality_code,fmt.barangay_code);
+      await resolveFromArrays(fmt.region_code,fmt.province_code,fmt.municipality_code,fmt.barangay_code);
       const fresh=json.user||{...profileData,...fmt};
       lastEtag.current=JSON.stringify(fresh);
       await AsyncStorage.setItem('user',JSON.stringify(fresh));
@@ -346,7 +355,7 @@ export default function ProfileScreen({navigation}){
     const r=await ImagePicker.launchCameraAsync({mediaTypes:['images'],allowsEditing:true,aspect:[1,1],quality:0.8});
     if(!r.canceled&&r.assets[0]){setShowPhotoModal(false);confirmUploadPhoto(r.assets[0].uri);}
   };
-  const confirmUploadPhoto=(uri)=>showConfirm('Update Profile Photo','Are you sure you want to update your profile photo?',()=>{hideConfirm();uploadPhoto(uri);},'Yes');
+  const confirmUploadPhoto=(uri)=>showConfirm('Update Profile Photo','Are you sure you want to update your profile photo?',()=>{hideConfirm();uploadPhoto(uri);},'Yes, Update');
   const uploadPhoto=async(uri)=>{
     try{
       setUploadingPhoto(true);
@@ -428,6 +437,11 @@ export default function ProfileScreen({navigation}){
           </TouchableOpacity>
         </View>
 
+        <View style={styles.btnRow}>
+          <TouchableOpacity style={[styles.btn,{flex:1}]} onPress={startEdit}><Ionicons name="create-outline" size={16} color="#fff"/><Text style={styles.btnText}>Edit Profile</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.btnOutline,{flex:1}]} onPress={() => navigation.navigate('ChangePassword')}><Ionicons name="lock-closed-outline" size={16} color="#0a285c"/><Text style={styles.btnOutlineTxt}>Change Password</Text></TouchableOpacity>
+        </View>
+
         <InfoSection title="Personal Information">
           <Row2><InfoItem label="FIRST NAME" value={profileData.first_name}/><InfoItem label="LAST NAME" value={profileData.last_name}/></Row2>
           <Row2><InfoItem label="MIDDLE NAME" value={profileData.middle_name}/><InfoItem label="SUFFIX" value={profileData.suffix}/></Row2>
@@ -450,17 +464,7 @@ export default function ProfileScreen({navigation}){
           <Row2><InfoItem label="DEPARTMENT" value={profileData.department}/><InfoItem label="MOBILE PATROL NO" value={profileData.mobile_patrol}/></Row2>
         </InfoSection>
 
-        <View style={styles.btnRow}>
-          <TouchableOpacity style={styles.btn} onPress={startEdit}><Ionicons name="create-outline" size={18} color="#fff"/><Text style={styles.btnText}>Edit Profile</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.btnOutline} onPress={() => navigation.navigate('ChangePassword')}><Ionicons name="lock-closed-outline" size={18} color="#0a285c"/><Text style={styles.btnOutlineTxt}>Change Password</Text></TouchableOpacity>
-        </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={logout}><Ionicons name="log-out-outline" size={18} color="#fff"/><Text style={styles.btnText}>Logout</Text></TouchableOpacity>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerTxt}>PNP BANTAY v1.0.0</Text>
-          <Text style={styles.footerTxt}>Crime Intelligence and Patrol Management System</Text>
-          <Text style={styles.footerTxt}>2026 PNP Bacoor, Cavite</Text>
-        </View>
         <View style={{height:20}}/>
       </ScrollView>
 
@@ -506,19 +510,20 @@ export default function ProfileScreen({navigation}){
             <SectionTitle>Contact Information</SectionTitle>
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Phone Number</Text>
-              <View style={[styles.phoneRow,errors.phone&&styles.phoneRowErr]}><Text style={styles.phonePrefix}>+63</Text><TextInput style={styles.phoneInput} placeholder="9XXXXXXXXX" value={formData.phone} onChangeText={v=>onPhone('phone',v)} maxLength={10} keyboardType="phone-pad" editable={!isSaving}/></View>
-              <Text style={styles.hint}>{phoneChanged?'New number will replace current on save':'Leave blank to keep current number'}</Text>
+              <View style={[styles.phoneRow, errors.phone&&styles.phoneRowErr, phoneChanged&&styles.phoneRowActive]}><Text style={styles.phonePrefix}>+63</Text><TextInput style={styles.phoneInput} placeholder={originalFormData.phone?V.maskPhone(originalFormData.phone):'9XXXXXXXXX'} value={formData.phone} onChangeText={v=>onPhone('phone',v)} maxLength={10} keyboardType="phone-pad" editable={!isSaving}/></View>
+              <Text style={[styles.hint, phoneChanged&&styles.hintActive]}>{phoneChanged?'New number will replace current on save':'Leave blank to keep current number'}</Text>
               {errors.phone?<Text style={styles.errorText}>{errors.phone}</Text>:null}
             </View>
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Alternate Phone</Text>
-              <View style={[styles.phoneRow,errors.alternate_phone&&styles.phoneRowErr]}><Text style={styles.phonePrefix}>+63</Text><TextInput style={styles.phoneInput} placeholder="Optional" value={formData.alternate_phone} onChangeText={v=>onPhone('alternate_phone',v)} maxLength={10} keyboardType="phone-pad" editable={!isSaving}/></View>
+              <View style={[styles.phoneRow, errors.alternate_phone&&styles.phoneRowErr, altPhoneChanged&&styles.phoneRowActive]}><Text style={styles.phonePrefix}>+63</Text><TextInput style={styles.phoneInput} placeholder={originalFormData.alternate_phone?V.maskPhone(originalFormData.alternate_phone):'Optional'} value={formData.alternate_phone} onChangeText={v=>onPhone('alternate_phone',v)} maxLength={10} keyboardType="phone-pad" editable={!isSaving}/></View>
+              {originalFormData.alternate_phone&&<Text style={[styles.hint, altPhoneChanged&&styles.hintActive]}>{altPhoneChanged?'New number will replace current on save':'Leave blank to keep current number'}</Text>}
               {errors.alternate_phone?<Text style={styles.errorText}>{errors.alternate_phone}</Text>:null}
             </View>
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Email Address</Text>
-              <TextInput style={[styles.input,errors.email&&styles.inputErr]} placeholder="email@example.com" value={formData.email} onChangeText={v=>onChange('email',v)} keyboardType="email-address" autoCapitalize="none" maxLength={255} editable={!isSaving}/>
-              <Text style={styles.hint}>{emailChanged?'New email will replace current on save':'Leave blank to keep current email'}</Text>
+              <TextInput style={[styles.input, errors.email&&styles.inputErr, emailChanged&&styles.inputActive]} placeholder={originalFormData.email?V.maskEmail(originalFormData.email):'email@example.com'} value={formData.email} onChangeText={v=>onChange('email',v)} keyboardType="email-address" autoCapitalize="none" maxLength={255} editable={!isSaving}/>
+              <Text style={[styles.hint, emailChanged&&styles.hintActive]}>{emailChanged?'New email will replace current on save':'Leave blank to keep current email'}</Text>
               {errors.email?<Text style={styles.errorText}>{errors.email}</Text>:null}
             </View>
             <SectionTitle>Address Information</SectionTitle>
@@ -581,7 +586,7 @@ const styles=StyleSheet.create({
   avatarImg:{width:100,height:100,borderRadius:50,borderWidth:3,borderColor:'#c1272d'},avatarTxt:{fontSize:40,fontWeight:'700',color:'#fff'},
   avatarCam:{position:'absolute',bottom:0,right:0,backgroundColor:'#0a285c',borderRadius:12,padding:4,borderWidth:2,borderColor:'#fff'},
   avatarSpinner:{position:'absolute',bottom:0,right:0,backgroundColor:'#c1272d',borderRadius:12,padding:4,borderWidth:2,borderColor:'#fff'},
-  cardName:{fontSize:20,fontWeight:'700',color:'#0a1628',marginBottom:4,textAlign:'center'},cardRole:{fontSize:14,color:'#6c757d',textAlign:'center'},
+  cardTopActions:{flexDirection:'row',gap:8,marginBottom:16,width:'100%'},  cardName:{fontSize:20,fontWeight:'700',color:'#0a1628',marginBottom:4,textAlign:'center'},cardRole:{fontSize:14,color:'#6c757d',textAlign:'center'},
   cardRank:{fontSize:13,color:'#0a285c',fontWeight:'600',marginTop:2,textAlign:'center'},
   photoBtn:{flexDirection:'row',backgroundColor:'#0a285c',paddingHorizontal:16,paddingVertical:10,borderRadius:8,alignItems:'center',gap:6,marginTop:12},
   photoBtnTxt:{color:'#fff',fontSize:13,fontWeight:'600'},btnDisabled:{opacity:0.6},
@@ -617,7 +622,10 @@ const styles=StyleSheet.create({
   genderBtn:{flex:1,flexDirection:'row',paddingVertical:11,paddingHorizontal:12,borderWidth:1,borderColor:'#dee2e6',borderRadius:8,backgroundColor:'#f8f9fa',alignItems:'center',justifyContent:'center'},
   genderBtnOn:{borderColor:'#0a285c',backgroundColor:'#e7f0ff'},genderTxt:{fontSize:14,fontWeight:'600',color:'#6c757d'},genderTxtOn:{color:'#0a285c'},
   phoneRow:{flexDirection:'row',alignItems:'center',borderWidth:1,borderColor:'#dee2e6',borderRadius:8,backgroundColor:'#f8f9fa',paddingHorizontal:12},
-  phoneRowErr:{borderColor:'#c1272d',backgroundColor:'#fff5f5'},phonePrefix:{fontSize:15,fontWeight:'600',color:'#6c757d',marginRight:4},phoneInput:{flex:1,paddingVertical:11,fontSize:15,color:'#0a1628'},
+  phoneRowErr:{borderColor:'#c1272d',backgroundColor:'#fff5f5'},phoneRowActive:{borderColor:'#d4a017',backgroundColor:'#fffbeb'},
+  phonePrefix:{fontSize:15,fontWeight:'600',color:'#6c757d',marginRight:4},phoneInput:{flex:1,paddingVertical:11,fontSize:15,color:'#0a1628'},
+  inputActive:{borderColor:'#d4a017',backgroundColor:'#fffbeb'},
+  hintActive:{color:'#d4a017',fontWeight:'600'},
   dropdown:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderWidth:1,borderColor:'#dee2e6',borderRadius:8,paddingHorizontal:12,paddingVertical:11,backgroundColor:'#f8f9fa'},
   dropdownError:{borderColor:'#c1272d',backgroundColor:'#fff5f5'},dropdownDisabled:{backgroundColor:'#e9ecef',opacity:0.6},
   dropdownText:{fontSize:15,color:'#0a1628',fontWeight:'500',flex:1},dropdownPlaceholder:{color:'#adb5bd'},
