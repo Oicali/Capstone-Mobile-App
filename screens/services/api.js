@@ -1,6 +1,8 @@
+//api.js
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://localhost:5000';
+export const BASE_URL = 'https://bantay-system-production.up.railway.app';
 
 const validateResponse = async (response) => {
   if (!response.ok) {
@@ -33,7 +35,7 @@ export const login = async (username, password) => {
       };
     }
 
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const response = await fetch(`${BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -74,7 +76,7 @@ export const login = async (username, password) => {
 
 export const getProfile = async (token) => {
   try {
-    const response = await fetch(`${API_URL}/auth/profile`, {
+    const response = await fetch(`${BASE_URL}/auth/profile`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -92,7 +94,7 @@ export const getProfile = async (token) => {
 export const logout = async (token) => {
   try {
     if (token) {
-      await fetch(`${API_URL}/auth/logout`, {
+      await fetch(`${BASE_URL}/auth/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -113,12 +115,9 @@ export const logout = async (token) => {
 
 export const checkBackendConnection = async () => {
   try {
-    const response = await fetch(`${API_URL}/`, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
+    const response = await fetch(`${BASE_URL}/health`);
     const data = await response.json();
-    return data.message === 'CIRAS Backend Server is running!';
+    return data.status === '✅ ok';
   } catch (error) {
     console.error('Backend connection check failed:', error);
     return false;
