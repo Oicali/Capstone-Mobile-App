@@ -28,6 +28,9 @@
     },
     "updates": {
       "enabled": false
-    }
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
   }
 }
