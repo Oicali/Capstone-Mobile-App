@@ -1,19 +1,18 @@
-
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState, useEffect } from 'react';
-import { Text, View } from 'react-native';  // ADD View HERE
-// Import screens (keep existing imports)
+import { Text, View } from 'react-native';
+
+// Import screens
 import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
-import CrimeMappingScreen from './screens/CrimeMappingScreen';
+import EBlotterScreen from './screens/EBlotter'; 
 import AssignmentsScreen from './screens/AssignmentsScreen';
 import ReferralsScreen from './screens/ReferralsScreen';
-// import BarangayReportScreen from './screens/BarangayReportScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import PatrolLogScreen from './screens/PatrolLogScreen';
@@ -36,10 +35,10 @@ function TabIcon({ focused, iconName, label }) {
           marginBottom: 2,
         }}
       >
-        <Ionicons 
-          name={iconName} 
-          size={24} 
-          color={focused ? '#FFFFFF' : '#6c757d'} 
+        <Ionicons
+          name={iconName}
+          size={24}
+          color={focused ? '#FFFFFF' : '#6c757d'}
         />
       </View>
       <Text
@@ -85,44 +84,68 @@ function MainTabs() {
         component={DashboardScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? 'home' : 'home-outline'} label="Home" />
+            <TabIcon
+              focused={focused}
+              iconName={focused ? 'home' : 'home-outline'}
+              label="Home"
+            />
           ),
         }}
       />
+
+      {/* ✅ Reporting tab (formerly CrimeMap) */}
       <Tab.Screen
-        name="CrimeMap"
-        component={CrimeMappingScreen}
+        name="Reporting"
+        component={EBlotterScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? 'map' : 'map-outline'} label="Crime Map" />
+            <TabIcon
+              focused={focused}
+              iconName={focused ? 'document-text' : 'document-text-outline'}
+              label="Reporting"
+            />
           ),
         }}
       />
+
       <Tab.Screen
         name="Assignments"
         component={AssignmentsScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? 'clipboard' : 'clipboard-outline'} label="Patrols" />
+            <TabIcon
+              focused={focused}
+              iconName={focused ? 'clipboard' : 'clipboard-outline'}
+              label="Patrols"
+            />
           ),
         }}
       />
+
       <Tab.Screen
         name="Referrals"
         component={ReferralsScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? 'document-text' : 'document-text-outline'} label="Referrals" />
+            <TabIcon
+              focused={focused}
+              iconName={focused ? 'document-text' : 'document-text-outline'}
+              label="Referrals"
+            />
           ),
         }}
       />
-    
+
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? 'person' : 'person-outline'} label="Profile" />
+            <TabIcon
+              focused={focused}
+              iconName={focused ? 'person' : 'person-outline'}
+              label="Profile"
+            />
           ),
         }}
       />
@@ -166,9 +189,7 @@ export default function App() {
         <Stack.Screen
           name="Main"
           component={MainTabs}
-          options={{
-            gestureEnabled: false,
-          }}
+          options={{ gestureEnabled: false }}
         />
         <Stack.Screen
           name="Notifications"
@@ -178,11 +199,10 @@ export default function App() {
           name="PatrolLog"
           component={PatrolLogScreen}
         />
-
         <Stack.Screen
-         name="ChangePassword" 
-         component={ChangePasswordScreen} 
-         />
+          name="ChangePassword"
+          component={ChangePasswordScreen}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
