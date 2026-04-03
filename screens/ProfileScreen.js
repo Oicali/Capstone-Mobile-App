@@ -389,16 +389,33 @@ const ir = StyleSheet.create({
 });
 
 // ── Section Card ───────────────────────────────────────────────────────────────
-function SectionCard({ title, icon, children, accentColor = C.navy }) {
+function SectionCard({ title, icon, children, accentColor = C.navy, collapsible = false, subtitle }) {
+  const [expanded, setExpanded] = useState(false);
+  const HeaderWrapper = collapsible ? TouchableOpacity : View;
+
   return (
     <View style={[sc.card, { borderLeftColor: accentColor }]}>
-      <View style={sc.header}>
-        <View style={[sc.iconWrap, { backgroundColor: accentColor + "20" }]}>
-          <Ionicons name={icon} size={14} color={accentColor} />
+      <HeaderWrapper
+        style={sc.header}
+        onPress={collapsible ? () => setExpanded(v => !v) : undefined}
+        activeOpacity={0.75}
+      >
+        <View style={[sc.iconWrap, { backgroundColor: accentColor }]}>
+          <Ionicons name={icon} size={16} color={C.white} />
         </View>
-        <Text style={[sc.title, { color: accentColor }]}>{title}</Text>
-      </View>
-      <View style={sc.body}>{children}</View>
+        <View style={{ flex: 1 }}>
+          <Text style={[sc.title, { color: C.text }]}>{title}</Text>
+          {!!subtitle && <Text style={sc.subtitle}>{subtitle}</Text>}
+        </View>
+        {collapsible && (
+          <Ionicons
+            name={expanded ? "chevron-up" : "chevron-down"}
+            size={16}
+            color={C.textMuted}
+          />
+        )}
+      </HeaderWrapper>
+      {(!collapsible || expanded) && <View style={sc.body}>{children}</View>}
     </View>
   );
 }
@@ -406,7 +423,7 @@ const sc = StyleSheet.create({
   card: {
     backgroundColor: C.white,
     marginHorizontal: 16,
-    marginTop: 14,
+    marginTop: 10,
     borderRadius: 20,
     overflow: "hidden",
     shadowColor: C.navy,
@@ -421,30 +438,35 @@ const sc = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 14,
     paddingHorizontal: 16,
-    paddingTop: 13,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-    backgroundColor: C.surfaceAlt,
+    paddingVertical: 14,
+    backgroundColor: C.white,
   },
   iconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: "800",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
+    color: C.text,
+    letterSpacing: -0.2,
   },
-  body: {},
+  subtitle: {
+    fontSize: 11,
+    color: C.textMuted,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  body: {
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
 });
-
 // ── Action Card (top quick-action buttons) ────────────────────────────────────
 function ActionCard({ icon, label, sublabel, color, onPress }) {
   return (
@@ -637,6 +659,11 @@ export default function ProfileScreen({ navigation }) {
   const [emailCooldownHours, setEmailCooldownHours] = useState(0);
   const [emailLockedMins, setEmailLockedMins] = useState(0);
   const [emailSessionMins, setEmailSessionMins] = useState(0);
+  const [emailSessionCountdown, setEmailSessionCountdown] = useState("");
+const [emailPwLockedCountdown, setEmailPwLockedCountdown] = useState("");
+const [emailSessionUntilTs, setEmailSessionUntilTs] = useState(null);
+const [emailPwLockedUntilTs, setEmailPwLockedUntilTs] = useState(null);
+const emailLockedCountdownRef = useRef(null);
   // Live countdown for cooldown screen
   const [emailBlockedUntilTs, setEmailBlockedUntilTs] = useState(null);
   const [emailCooldownCountdown, setEmailCooldownCountdown] = useState("");
@@ -700,6 +727,35 @@ export default function ProfileScreen({ navigation }) {
     emailCooldownTimerRef.current = setInterval(tick, 1000);
     return () => clearInterval(emailCooldownTimerRef.current);
   }, [emailStep, emailBlockedUntilTs]);
+
+  useEffect(() => {
+  clearInterval(emailLockedCountdownRef.current);
+  const activeTs = emailStep === "session-locked" ? emailSessionUntilTs
+    : emailStep === "pw-locked" ? emailPwLockedUntilTs : null;
+  if (!activeTs) return;
+  const tick = () => {
+    const ms = activeTs - Date.now();
+    if (ms <= 0) {
+      const str = "0m 00s";
+      if (emailStep === "session-locked") setEmailSessionCountdown(str);
+      if (emailStep === "pw-locked") setEmailPwLockedCountdown(str);
+      clearInterval(emailLockedCountdownRef.current);
+      return;
+    }
+    const totalSecs = Math.ceil(ms / 1000);
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const sc = totalSecs % 60;
+    const str = h > 0
+      ? `${h}h ${String(m).padStart(2, "0")}m`
+      : `${m}m ${String(sc).padStart(2, "0")}s`;
+    if (emailStep === "session-locked") setEmailSessionCountdown(str);
+    if (emailStep === "pw-locked") setEmailPwLockedCountdown(str);
+  };
+  tick();
+  emailLockedCountdownRef.current = setInterval(tick, 1000);
+  return () => clearInterval(emailLockedCountdownRef.current);
+}, [emailStep, emailSessionUntilTs, emailPwLockedUntilTs]);
 
   const canResendOld =
     oldResendsLeft > 0 &&
@@ -1438,59 +1494,114 @@ export default function ProfileScreen({ navigation }) {
     newResendsLeftRef.current = 3;
   };
   const openEmailModal = async () => {
-    resetEmailModal();
-    setEmailModalVisible(true);
-    setEmailStep("checking");
-    try {
-      const stored = await AsyncStorage.getItem("cem_session_locked");
-      if (stored) {
-        const { until } = JSON.parse(stored);
-        if (Date.now() < until) {
-          setEmailSessionMins(Math.ceil((until - Date.now()) / 60_000));
-          setEmailStep("session-locked");
-          return;
-        }
-        await AsyncStorage.removeItem("cem_session_locked");
+  resetEmailModal();
+  setEmailModalVisible(true);
+  setEmailStep("checking");
+
+  // FIX 4: Check AsyncStorage for active pw lock FIRST
+  try {
+    const savedPwLock = await AsyncStorage.getItem("cem_pw_locked");
+    if (savedPwLock) {
+      const { until } = JSON.parse(savedPwLock);
+      if (Date.now() < until) {
+        setEmailPwLockedUntilTs(until);
+        setEmailLockedMins(Math.ceil((until - Date.now()) / 60_000));
+        setEmailStep("pw-locked");
+        return;
       }
-    } catch {
+      await AsyncStorage.removeItem("cem_pw_locked");
+    }
+  } catch {
+    await AsyncStorage.removeItem("cem_pw_locked");
+  }
+
+  // Check session lock
+  try {
+    const stored = await AsyncStorage.getItem("cem_session_locked");
+    if (stored) {
+      const { until } = JSON.parse(stored);
+      if (Date.now() < until) {
+        setEmailSessionMins(Math.ceil((until - Date.now()) / 60_000));
+        setEmailSessionUntilTs(until);
+        setEmailStep("session-locked");
+        return;
+      }
       await AsyncStorage.removeItem("cem_session_locked");
     }
-    try {
-      const token = await AsyncStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/users/email/status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const d = await res.json();
-      if (d.blocked) {
-        const hrs = d.hoursLeft ?? 24;
-        setEmailCooldownHours(hrs);
-        setEmailBlockedUntilTs(Date.now() + (d.msLeft ?? hrs * 3_600_000));
-        setEmailStep("cooldown");
-        return; // ← CRITICAL: was missing, caused fallthrough to setEmailStep('password')
-      } else if (d.sessionLocked) {
-        const lm = d.minsLeft ?? 15;
-        setEmailSessionMins(lm);
-        await AsyncStorage.setItem(
-          "cem_session_locked",
-          JSON.stringify({ until: Date.now() + lm * 60_000 }),
-        );
-        setEmailStep("session-locked");
-      } else if (d.pwLocked) {
-        setEmailLockedMins(d.minsLeft ?? 15);
-        setEmailStep("pw-locked");
-      } else {
-        setEmailStep("password");
-      }
-    } catch {
+  } catch {
+    await AsyncStorage.removeItem("cem_session_locked");
+  }
+
+  // Call API status check
+  try {
+    const token = await AsyncStorage.getItem("token");
+    const res = await fetch(`${BASE_URL}/users/email/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const d = await res.json();
+    if (d.blocked) {
+      const hrs = d.hoursLeft ?? 24;
+      setEmailCooldownHours(hrs);
+      setEmailBlockedUntilTs(Date.now() + (d.msLeft ?? hrs * 3_600_000));
+      setEmailStep("cooldown");
+      return;
+    } else if (d.sessionLocked) {
+      const lm = d.minsLeft ?? 15;
+      setEmailSessionMins(lm);
+      const untilTs = Date.now() + (d.msLeft ?? lm * 60_000);
+      setEmailSessionUntilTs(untilTs);
+      await AsyncStorage.setItem(
+        "cem_session_locked",
+        JSON.stringify({ until: untilTs }),
+      );
+      setEmailStep("session-locked");
+    } else if (d.pwLocked) {
+      const lm = d.minsLeft ?? 15;
+      setEmailLockedMins(lm);
+      try {
+        const saved = await AsyncStorage.getItem("cem_pw_locked");
+        if (saved) {
+          const { until } = JSON.parse(saved);
+          if (Date.now() < until) {
+            setEmailPwLockedUntilTs(until);
+            setEmailStep("pw-locked");
+            return;
+          }
+          await AsyncStorage.removeItem("cem_pw_locked");
+        }
+      } catch {}
+      const untilTs = Date.now() + (d.msLeft ?? lm * 60_000);
+      setEmailPwLockedUntilTs(untilTs);
+      await AsyncStorage.setItem(
+        "cem_pw_locked",
+        JSON.stringify({ until: untilTs }),
+      );
+      setEmailStep("pw-locked");
+    } else {
       setEmailStep("password");
     }
-  };
-  const closeEmailModal = () => {
-    setEmailModalVisible(false);
-    clearInterval(oldOtpTimerRef.current);
-    clearInterval(newOtpTimerRef.current);
-    clearInterval(emailCooldownTimerRef.current);
-  };
+  } catch {
+    setEmailStep("password");
+  }
+};
+  
+const closeEmailModal = async () => {
+  setEmailModalVisible(false);
+  clearInterval(oldOtpTimerRef.current);
+  clearInterval(newOtpTimerRef.current);
+  clearInterval(emailCooldownTimerRef.current);
+  clearInterval(emailLockedCountdownRef.current);
+  // Clean up expired locks
+  try {
+    const saved = await AsyncStorage.getItem("cem_pw_locked");
+    if (saved) {
+      const { until } = JSON.parse(saved);
+      if (Date.now() >= until) {
+        await AsyncStorage.removeItem("cem_pw_locked");
+      }
+    }
+  } catch {}
+};
   const saveSessionLock = async (lm) => {
     await AsyncStorage.setItem(
       "cem_session_locked",
@@ -1498,12 +1609,13 @@ export default function ProfileScreen({ navigation }) {
     );
   };
   // FIX: clearErrFn parameter clears stale OTP error before showing lock screen
-  const goSessionLocked = async (lm, clearErrFn) => {
-    if (clearErrFn) clearErrFn("");
-    setEmailSessionMins(lm);
-    await saveSessionLock(lm);
-    setEmailStep("session-locked");
-  };
+ const goSessionLocked = async (lm, clearErrFn) => {
+  if (clearErrFn) clearErrFn("");
+  setEmailSessionMins(lm);
+  setEmailSessionUntilTs(Date.now() + lm * 60_000); // ← ADDED
+  await saveSessionLock(lm);
+  setEmailStep("session-locked");
+};
   const handleEmailVerifyPassword = async () => {
     if (!emailPassword.trim()) {
       setEmailPasswordErr("Password is required");
@@ -1523,11 +1635,21 @@ export default function ProfileScreen({ navigation }) {
       });
       const d = await res.json();
       if (!res.ok) {
-        if (d.pwLocked || d.locked) {
-          setEmailLockedMins(d.minutesLeft ?? 15);
-          setEmailStep("pw-locked");
-          return;
-        }
+
+
+ if (d.pwLocked || d.locked) {
+  const lm = d.minutesLeft ?? 15;
+  setEmailLockedMins(lm);
+  const untilTs = Date.now() + (d.msLeft ?? lm * 60_000);
+  setEmailPwLockedUntilTs(untilTs);
+  // Save to AsyncStorage so timer persists on reopen
+  await AsyncStorage.setItem(
+    "cem_pw_locked",
+    JSON.stringify({ until: untilTs }),
+  );
+  setEmailStep("pw-locked");
+  return;
+}
         if (d.blocked) {
           const hrs = d.hoursLeft ?? 24;
           setEmailCooldownHours(hrs);
@@ -2057,35 +2179,42 @@ export default function ProfileScreen({ navigation }) {
     </View>
   );
 
-  const renderEmailLockedStep = ({
-    iconBg,
-    iconColor,
-    iconName,
-    title,
-    message,
-    submessage,
-  }) => (
-    <View style={em.lockedWrap}>
-      <View style={[em.lockedIcon, { backgroundColor: iconBg }]}>
-        <Ionicons name={iconName} size={34} color={iconColor} />
+const renderEmailLockedStep = ({
+  iconBg, iconColor, iconName, title, message, submessage, countdown,
+}) => (
+  <View style={em.lockedWrap}>
+    {/* Double ring icon */}
+    <View style={em.lockedIconOuter}>
+      <View style={em.lockedIconInner}>
+        <Ionicons name={iconName} size={32} color={C.navy} />
       </View>
-      <Text style={em.lockedTitle}>{title}</Text>
-      <Text style={em.lockedMsg}>{message}</Text>
-      {submessage ? (
-        <Text style={[em.lockedSubmsg, { color: iconColor }]}>
-          {submessage}
-        </Text>
-      ) : null}
-      <TouchableOpacity
-        style={[em.primaryBtn, { backgroundColor: iconColor, marginTop: 28 }]}
-        onPress={closeEmailModal}
-        activeOpacity={0.8}
-      >
-        <Text style={em.primaryBtnTxt}>Close</Text>
-      </TouchableOpacity>
     </View>
-  );
 
+    {/* Title & message */}
+    <Text style={em.lockedTitle}>{title}</Text>
+    <Text style={em.lockedMsg}>{message}</Text>
+
+    {/* Countdown */}
+    {!!countdown && (
+      <View style={em.lockedCountdownWrap}>
+        <Text style={em.lockedSubmsg}>{submessage}</Text>
+        <View style={em.lockedCountdownBadge}>
+          <Ionicons name="time-outline" size={18} color={C.textMuted} />
+          <Text style={em.lockedCountdownTxt}>{countdown}</Text>
+        </View>
+      </View>
+    )}
+
+    {/* Button */}
+    <TouchableOpacity
+  style={[em.lockedBtn, { backgroundColor: "#C1272D" }]}
+  onPress={closeEmailModal}
+  activeOpacity={0.85}
+>
+  <Text style={[em.lockedBtnTxt, { color: "#FFFFFF" }]}>Close</Text>
+</TouchableOpacity>
+  </View>
+);
   // ── Loading / empty states ────────────────────────────────────────────────
   if (loading)
     return (
@@ -2283,11 +2412,14 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* ════════════════════ INFO SECTIONS ════════════════════ */}
-        <SectionCard
-          title="Personal Information"
-          icon="person-outline"
-          accentColor={C.navy}
-        >
+       <SectionCard
+  collapsible
+  title="Personal Information"
+  subtitle="Name · Birthday · Gender"
+  icon="person-outline"
+  accentColor={C.navy}
+>
+          
           <InfoRow
             icon="person-outline"
             label="Full Name"
@@ -2326,11 +2458,14 @@ export default function ProfileScreen({ navigation }) {
           />
         </SectionCard>
 
-        <SectionCard
-          title="Contact Information"
-          icon="call-outline"
-          accentColor={C.navy}
-        >
+     <SectionCard
+  collapsible
+  title="Contact Information"
+  subtitle="Phone · Email · Alternate"
+  icon="call-outline"
+  accentColor={C.green}
+>
+
           <InfoRow
             icon="call-outline"
             label="Phone Number"
@@ -2361,11 +2496,14 @@ export default function ProfileScreen({ navigation }) {
           />
         </SectionCard>
 
-        <SectionCard
-          title="Address"
-          icon="location-outline"
-          accentColor={C.navy}
-        >
+     <SectionCard
+  collapsible
+  title="Address"
+  subtitle="Region · Province · Barangay"
+  icon="location-outline"
+  accentColor="#D97706"
+>
+
           <InfoRow
             icon="flag-outline"
             label="Region"
@@ -2409,11 +2547,14 @@ export default function ProfileScreen({ navigation }) {
         </SectionCard>
 
         {/* Official Information — always show all fields, use "—" for blanks like the web */}
-        <SectionCard
-          title="Official Information"
-          icon="briefcase-outline"
-          accentColor={C.navy}
-        >
+   <SectionCard
+  collapsible
+  title="Official Information"
+  subtitle="Role · Rank · Department"
+  icon="briefcase-outline"
+  accentColor="#7C3AED"
+>
+
           <InfoRow
             icon="shield-outline"
             label="Role"
@@ -2612,33 +2753,27 @@ export default function ProfileScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
               )}
-              {emailStep === "session-locked" &&
-                renderEmailLockedStep({
-                  iconBg: C.amberLight,
-                  iconColor: C.amber,
-                  iconName: "shield-off-outline",
-                  title: "Temporarily Locked",
-                  message:
-                    "This process has been temporarily locked for security.",
-                  submessage:
-                    emailSessionMins > 0
-                      ? `Try again in ${emailSessionMins} min${emailSessionMins !== 1 ? "s" : ""}`
-                      : undefined,
-                })}
-              {emailStep === "pw-locked" &&
-                renderEmailLockedStep({
-                  iconBg: C.amberLight,
-                  iconColor: C.amber,
-                  iconName: "key-outline",
-                  title: "Too Many Attempts",
-                  message: "Too many incorrect password attempts.",
-                  submessage:
-                    emailLockedMins > 0
-                      ? `Try again in ${emailLockedMins} min${emailLockedMins !== 1 ? "s" : ""}`
-                      : undefined,
-                })}
-
-              {emailStep === "done" && (
+{emailStep === "session-locked" &&
+  renderEmailLockedStep({
+    iconBg: "#F1F5F9",
+    iconColor: C.navy,
+    iconName: "shield-off-outline",
+    title: "Temporarily Locked",
+    message: "For your security, this process has been temporarily locked due to too many failed attempts.",
+    submessage: "TRY AGAIN IN",
+    countdown: emailSessionCountdown || "Calculating…",
+  })}
+ {emailStep === "pw-locked" &&
+  renderEmailLockedStep({
+    iconBg: "#F1F5F9",
+    iconColor: C.navy,
+    iconName: "key-outline",
+    title: "Too Many Attempts",
+    message: "Your account is temporarily locked due to too many incorrect password attempts.",
+    submessage: "TRY AGAIN IN",
+    countdown: emailPwLockedCountdown || "Calculating…",
+  })}
+          {emailStep === "done" && (
                 <View style={em.lockedWrap}>
                   <View
                     style={[em.lockedIcon, { backgroundColor: C.greenLight }]}
@@ -2670,17 +2805,15 @@ export default function ProfileScreen({ navigation }) {
                 </View>
               )}
 
-              {emailStep === "password" && (
-                <View>
-                  <View style={em.stepIconRow}>
-                    <View style={em.stepIconCircle}>
-                      <Ionicons
-                        name="shield-checkmark"
-                        size={24}
-                        color={C.navy}
-                      />
-                    </View>
-                  </View>
+          {emailStep === "password" && (
+  <View>
+    <View style={em.stepIconRow}>
+      <View style={em.stepIconOuter}>
+        <View style={em.stepIconCircle}>
+          <Ionicons name="shield-checkmark" size={28} color={C.navy} />
+        </View>
+      </View>
+    </View>
                   <Text style={em.stepTitle}>Verify Your Identity</Text>
                   <Text style={em.stepSub}>
                     Enter your current password to continue.
@@ -3305,7 +3438,7 @@ export default function ProfileScreen({ navigation }) {
                 disabled={isSaving}
               >
                 {isSaving ? (
-                  <ActivityIndicator size="small" color={C.white} />
+                  <ActivityIndicator size="small" color={C.red} />
                 ) : (
                   <Ionicons name="checkmark-circle" size={18} color={C.white} />
                 )}
@@ -3417,56 +3550,142 @@ const em = StyleSheet.create({
     marginTop: 14,
     fontWeight: "500",
   },
-  lockedWrap: {
-    alignItems: "center",
-    paddingVertical: 40,
-    paddingHorizontal: 8,
-  },
-  lockedIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 22,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  lockedTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: C.text,
-    marginBottom: 12,
-    textAlign: "center",
-    letterSpacing: -0.3,
-  },
-  lockedMsg: {
-    fontSize: 14,
-    color: C.textSub,
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 4,
-    paddingHorizontal: 8,
-  },
-  lockedSubmsg: {
-    fontSize: 15,
-    fontWeight: "800",
-    textAlign: "center",
-    marginTop: 6,
-    marginBottom: 4,
-  },
+lockedWrap: {
+  alignItems: "center",
+  paddingVertical: 40,
+  paddingHorizontal: 24,
+  width: "100%",
+},
+lockedIconOuter: {
+  width: 100,
+  height: 100,
+  borderRadius: 50,
+  backgroundColor: "#EEF3FF",
+  alignItems: "center",
+  justifyContent: "center",
+  marginBottom: 24,
+  borderWidth: 1,
+  borderColor: "#D6E0F5",
+  shadowColor: C.navy,
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.08,
+  shadowRadius: 12,
+  elevation: 4,
+},
+lockedIconInner: {
+  width: 70,
+  height: 70,
+  borderRadius: 35,
+  backgroundColor: "#DCE8FF",
+  alignItems: "center",
+  justifyContent: "center",
+},
+lockedTitle: {
+  fontSize: 20,
+  fontWeight: "800",
+  color: C.text,
+  marginBottom: 10,
+  textAlign: "center",
+  letterSpacing: -0.3,
+},
+lockedMsg: {
+  fontSize: 14,
+  color: C.textSub,
+  textAlign: "center",
+  lineHeight: 22,
+  paddingHorizontal: 8,
+  marginBottom: 4,
+},
+lockedCountdownWrap: {
+  alignItems: "center",
+  width: "100%",
+  marginTop: 16,
+  marginBottom: 8,
+  gap: 8,
+},
+lockedCountdownBadge: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 10,
+  backgroundColor: C.white,
+  borderWidth: 1,
+  borderColor: C.border,
+  borderRadius: 14,
+  paddingVertical: 14,
+  paddingHorizontal: 32,
+  width: "100%",
+  justifyContent: "center",
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.05,
+  shadowRadius: 8,
+  elevation: 2,
+},
+lockedSubmsg: {
+  fontSize: 12,
+  fontWeight: "700",
+  color: C.navy,
+  textTransform: "uppercase",
+  letterSpacing: 0.8,
+  textAlign: "center",
+},
+lockedCountdownTxt: {
+  fontSize: 28,
+  fontWeight: "800",
+  color: C.text,
+  letterSpacing: 1.5,
+},
+lockedBtn: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  marginTop: 24,
+  paddingVertical: 15,
+  borderRadius: 14,
+  width: "100%",
+  backgroundColor: C.red,
+  shadowColor: C.red,
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.3,
+  shadowRadius: 10,
+  elevation: 5,
+},
+lockedBtnTxt: {
+  fontSize: 15,
+  fontWeight: "800",
+  color: C.white,
+  letterSpacing: -0.2,
+},
+lockedSubmsg: {
+  fontSize: 12,
+  fontWeight: "700",
+  color: C.textMuted,
+  textTransform: "uppercase",
+  letterSpacing: 0.8,
+},
   stepIconRow: { alignItems: "center", marginBottom: 12 },
-  stepIconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: C.navyLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  stepIconOuter: {
+  width: 90,
+  height: 90,
+  borderRadius: 45,
+  backgroundColor: C.navyLight,
+  alignItems: "center",
+  justifyContent: "center",
+  shadowColor: C.navy,
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.15,
+  shadowRadius: 14,
+  elevation: 6,
+},
+stepIconCircle: {
+  width: 64,
+  height: 64,
+  borderRadius: 32,
+  backgroundColor: "#D6E4FF",
+  alignItems: "center",
+  justifyContent: "center",
+},
   stepTitle: {
     fontSize: 19,
     fontWeight: "800",
@@ -3620,24 +3839,120 @@ const em = StyleSheet.create({
   },
   resendBtnTxt: { fontSize: 14, fontWeight: "700", color: C.navy },
   resendExhausted: { fontSize: 13, color: C.textMuted, fontStyle: "italic" },
-  countdownBadge: {
+countdownBadge: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 10,
+  backgroundColor: C.white,
+  borderWidth: 2,
+  borderColor: C.border,
+  borderRadius: 16,
+  paddingVertical: 12,
+  paddingHorizontal: 28,
+  marginVertical: 12,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.07,
+  shadowRadius: 8,
+  elevation: 3,
+},
+countdownTxt: {
+  fontSize: 26,
+  fontWeight: "800",
+  color: C.text,
+  letterSpacing: 1.5,
+},
+
+countdownTxt: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: C.text,
+    letterSpacing: 1.5,
+  },
+  // ← DITO ILAGAY YUNG BAGONG STYLES
+  lockedIconOuter: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  lockedIconInner: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lockedCountdownWrap: {
+    alignItems: "center",
+    width: "100%",
+    marginVertical: 8,
+    gap: 8,
+  },
+lockedCountdownBadge: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 10,
+  backgroundColor: C.navyLight,
+  borderWidth: 1,
+  borderColor: "#D6E0F5",
+  borderRadius: 14,
+  paddingVertical: 14,
+  paddingHorizontal: 32,
+  width: "100%",
+  justifyContent: "center",
+  shadowColor: C.navy,
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  elevation: 2,
+},
+  lockedCountdownIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lockedCountdownTxt: {
+    fontSize: 32,
+    fontWeight: "800",
+    letterSpacing: 2,
+  },
+  lockedBtn: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
-    backgroundColor: "#FFF7ED",
-    borderWidth: 1.5,
-    borderColor: "#FCD34D",
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 22,
-    marginVertical: 10,
+    marginTop: 24,
+    paddingVertical: 16,
+    borderRadius: 16,
+    width: "100%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  countdownTxt: {
-    fontSize: 22,
+  lockedBtnTxt: {
+    fontSize: 15,
     fontWeight: "800",
-    color: "#92400E",
-    letterSpacing: 1,
+    color: C.white,
+    letterSpacing: -0.2,
   },
+  lockedSubmsg: {
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  // ← closing ng em StyleSheet
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -4241,4 +4556,6 @@ const st = StyleSheet.create({
     alignItems: "center",
   },
   photoCancelTxt: { fontSize: 15, fontWeight: "700", color: C.red },
+
+  
 });
