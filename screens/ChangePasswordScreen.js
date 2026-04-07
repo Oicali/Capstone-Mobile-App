@@ -955,9 +955,7 @@ export default function ChangePasswordScreen({ navigation }) {
     <Text style={lk.msg}>
       For your security, this process has been temporarily locked due to too many failed attempts.
     </Text>
-    <Text style={lk.msg}>
-      Please wait for the timer to expire before trying again.
-    </Text>
+   
     <View style={lk.countdownWrap}>
       <Text style={lk.countdownLabel}>Try again in</Text>
       <View style={lk.countdownBadge}>
