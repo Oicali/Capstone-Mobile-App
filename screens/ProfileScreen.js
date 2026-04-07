@@ -2046,138 +2046,147 @@ const closeEmailModal = async () => {
   );
 
   // ── OTP step renderer ─────────────────────────────────────────────────────
-  const renderOtpStep = ({
-    otpValues,
-    setOtpValues,
-    otpState,
-    otpTimer,
-    otpError,
-    masked,
-    resendsLeft,
-    canResend,
-    onVerify,
-    onResend,
-    stepTitle,
-  }) => (
-    <View>
-      <View style={em.infoCard}>
-        <View style={em.infoCardIcon}>
-          <Ionicons name="mail-open-outline" size={18} color="#1d4ed8" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={em.infoCardTitle}>
-            Code sent to{" "}
-            <Text style={{ fontWeight: "700", color: C.navy }}>{masked}</Text>
-          </Text>
-          <Text style={em.infoCardSub}>
-            Expires in <Text style={{ fontWeight: "700" }}>2 minutes</Text>. Do
-            not share.
-          </Text>
+const renderOtpStep = ({
+  otpValues,
+  setOtpValues,
+  otpState,
+  otpTimer,
+  otpError,
+  masked,
+  resendsLeft,
+  canResend,
+  onVerify,
+  onResend,
+  stepTitle,
+}) => (
+  <View>
+    {/* Double ring icon — same as Change Password */}
+    <View style={em.stepIconRow}>
+      <View style={em.stepIconOuter}>
+        <View style={em.stepIconCircle}>
+          <Ionicons name="mail-open-outline" size={26} color={C.navy} />
         </View>
       </View>
-      {otpState !== "attempts-exceeded" && (
-        <View
+    </View>
+
+    <View style={em.infoCard}>
+      <View style={em.infoCardIcon}>
+        <Ionicons name="mail-open-outline" size={18} color="#1d4ed8" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={em.infoCardTitle}>
+          Code sent to{" "}
+          <Text style={{ fontWeight: "700", color: C.navy }}>{masked}</Text>
+        </Text>
+        <Text style={em.infoCardSub}>
+          Expires in <Text style={{ fontWeight: "700" }}>2 minutes</Text>. Do
+          not share.
+        </Text>
+      </View>
+    </View>
+    {otpState !== "attempts-exceeded" && (
+      <View
+        style={[
+          em.timerPill,
+          otpTimer <= 30 && otpTimer > 0 && em.timerWarn,
+          otpTimer === 0 && em.timerExpired,
+        ]}
+      >
+        <Ionicons
+          name="time-outline"
+          size={13}
+          color={
+            otpTimer === 0 ? C.danger : otpTimer <= 30 ? C.amber : C.navy
+          }
+        />
+        <Text
           style={[
-            em.timerPill,
-            otpTimer <= 30 && otpTimer > 0 && em.timerWarn,
-            otpTimer === 0 && em.timerExpired,
+            em.timerTxt,
+            otpTimer <= 30 && otpTimer > 0 && { color: C.amber },
+            otpTimer === 0 && { color: C.danger },
           ]}
         >
+          {otpTimer > 0
+            ? `Expires in ${formatTimer(otpTimer)}`
+            : "Code expired. Request a new one."}
+        </Text>
+      </View>
+    )}
+    {otpError !== "" && (
+      <View
+        style={[
+          em.banner,
+          otpState === "attempts-exceeded" && em.bannerAmber,
+        ]}
+      >
+        <Ionicons
+          name={otpState === "attempts-exceeded" ? "warning" : "close-circle"}
+          size={15}
+          color={C.white}
+        />
+        <Text style={em.bannerTxt}>{otpError}</Text>
+      </View>
+    )}
+    <OtpBoxes
+      values={otpValues}
+      onChange={(idx, val) =>
+        setOtpValues((p) => {
+          const n = [...p];
+          n[idx] = val;
+          return n;
+        })
+      }
+      disabled={emailModalLoading || otpState !== "active"}
+    />
+    {otpState === "active" && (
+      <TouchableOpacity
+        style={[
+          em.primaryBtn,
+          (otpValues.join("").length !== 6 || emailModalLoading) &&
+            em.primaryBtnOff,
+        ]}
+        onPress={onVerify}
+        disabled={otpValues.join("").length !== 6 || emailModalLoading}
+      >
+        {emailModalLoading ? (
+          <ActivityIndicator size="small" color={C.white} />
+        ) : null}
+        <Text style={em.primaryBtnTxt}>
+          {emailModalLoading ? "Verifying…" : stepTitle}
+        </Text>
+      </TouchableOpacity>
+    )}
+    <View style={em.resendWrap}>
+      {resendsLeft <= 0 ? (
+        <Text style={em.resendExhausted}>
+          No more resends available for this session
+        </Text>
+      ) : canResend ? (
+        <TouchableOpacity
+          style={[em.resendBtn, emailModalLoading && { opacity: 0.5 }]}
+          onPress={onResend}
+          disabled={emailModalLoading}
+        >
           <Ionicons
-            name="time-outline"
+            name="refresh"
             size={13}
-            color={
-              otpTimer === 0 ? C.danger : otpTimer <= 30 ? C.amber : C.navy
-            }
+            color={emailModalLoading ? C.textLight : C.navy}
           />
           <Text
             style={[
-              em.timerTxt,
-              otpTimer <= 30 && otpTimer > 0 && { color: C.amber },
-              otpTimer === 0 && { color: C.danger },
+              em.resendBtnTxt,
+              emailModalLoading && { color: C.textLight },
             ]}
           >
-            {otpTimer > 0
-              ? `Expires in ${formatTimer(otpTimer)}`
-              : "Code expired. Request a new one."}
-          </Text>
-        </View>
-      )}
-      {otpError !== "" && (
-        <View
-          style={[
-            em.banner,
-            otpState === "attempts-exceeded" && em.bannerAmber,
-          ]}
-        >
-          <Ionicons
-            name={otpState === "attempts-exceeded" ? "warning" : "close-circle"}
-            size={15}
-            color={C.white}
-          />
-          <Text style={em.bannerTxt}>{otpError}</Text>
-        </View>
-      )}
-      <OtpBoxes
-        values={otpValues}
-        onChange={(idx, val) =>
-          setOtpValues((p) => {
-            const n = [...p];
-            n[idx] = val;
-            return n;
-          })
-        }
-        disabled={emailModalLoading || otpState !== "active"}
-      />
-      {otpState === "active" && (
-        <TouchableOpacity
-          style={[
-            em.primaryBtn,
-            (otpValues.join("").length !== 6 || emailModalLoading) &&
-              em.primaryBtnOff,
-          ]}
-          onPress={onVerify}
-          disabled={otpValues.join("").length !== 6 || emailModalLoading}
-        >
-          {emailModalLoading ? (
-            <ActivityIndicator size="small" color={C.white} />
-          ) : null}
-          <Text style={em.primaryBtnTxt}>
-            {emailModalLoading ? "Verifying…" : stepTitle}
+            {emailModalLoading
+              ? "Sending…"
+              : `Resend Code (${resendsLeft} left)`}
           </Text>
         </TouchableOpacity>
-      )}
-      <View style={em.resendWrap}>
-        {resendsLeft <= 0 ? (
-          <Text style={em.resendExhausted}>
-            No more resends available for this session
-          </Text>
-        ) : canResend ? (
-          <TouchableOpacity
-            style={[em.resendBtn, emailModalLoading && { opacity: 0.5 }]}
-            onPress={onResend}
-            disabled={emailModalLoading}
-          >
-            <Ionicons
-              name="refresh"
-              size={13}
-              color={emailModalLoading ? C.textLight : C.navy}
-            />
-            <Text
-              style={[
-                em.resendBtnTxt,
-                emailModalLoading && { color: C.textLight },
-              ]}
-            >
-              {emailModalLoading
-                ? "Sending…"
-                : `Resend Code (${resendsLeft} left)`}
-            </Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
+      ) : null}
     </View>
-  );
+  </View>
+);
 
 const renderEmailLockedStep = ({
   iconBg, iconColor, iconName, title, message, submessage, countdown,
@@ -2651,32 +2660,26 @@ const renderEmailLockedStep = ({
         transparent={false}
       >
         <SafeAreaView style={em.safe}>
-          <View style={em.header}>
-            <TouchableOpacity
-              onPress={closeEmailModal}
-              style={em.headerBtn}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <View style={em.headerBtnInner}>
-                <Ionicons name="close" size={19} color={C.white} />
-              </View>
-            </TouchableOpacity>
-            <View style={em.headerCenter}>
-              <Text style={em.headerTitle}>Update Email</Text>
-              {![
-                "checking",
-                "cooldown",
-                "session-locked",
-                "pw-locked",
-                "done",
-              ].includes(emailStep) && (
-                <Text style={em.headerSub}>
-                  Step {emailStepIdx} of {EMAIL_STEPS.length}
-                </Text>
-              )}
-            </View>
-            <View style={{ width: 44 }} />
-          </View>
+        <View style={em.header}>
+  <TouchableOpacity
+    onPress={closeEmailModal}
+    style={em.headerBtn}
+    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+  >
+    <View style={em.headerBtnInner}>
+      <Ionicons name="chevron-back" size={20} color={C.white} />
+    </View>
+  </TouchableOpacity>
+  <View style={em.headerCenter}>
+    <Text style={em.headerTitle}>Update Email</Text>
+    {!["checking","cooldown","session-locked","pw-locked","done"].includes(emailStep) && (
+      <Text style={em.headerSub}>
+        Step {emailStepIdx} of {EMAIL_STEPS.length}
+      </Text>
+    )}
+  </View>
+  <View style={{ width: 44 }} />
+</View>
           {![
             "checking",
             "cooldown",
@@ -2814,7 +2817,7 @@ const renderEmailLockedStep = ({
         </View>
       </View>
     </View>
-                  <Text style={em.stepTitle}>Verify Your Identity</Text>
+                  <Text style={em.stepTitle}>Confirm Your Identity</Text>
                   <Text style={em.stepSub}>
                     Enter your current password to continue.
                   </Text>
@@ -2871,33 +2874,41 @@ const renderEmailLockedStep = ({
                     ) : null}
                   </View>
                   {/* FIX: removed arrow icon from button */}
-                  <TouchableOpacity
-                    style={[
-                      em.primaryBtn,
-                      (!emailPassword.trim() || emailPasswordLoading) &&
-                        em.primaryBtnOff,
-                    ]}
-                    onPress={handleEmailVerifyPassword}
-                    disabled={!emailPassword.trim() || emailPasswordLoading}
-                  >
-                    {emailPasswordLoading ? (
-                      <ActivityIndicator size="small" color={C.white} />
-                    ) : null}
-                    <Text style={em.primaryBtnTxt}>
-                      {emailPasswordLoading ? "Verifying…" : "Verify Password"}
-                    </Text>
-                  </TouchableOpacity>
+                 <View style={em.btnRow}>
+  <TouchableOpacity
+    style={em.cancelBtn}
+    onPress={closeEmailModal}
+    disabled={emailPasswordLoading}
+  >
+    <Text style={em.cancelBtnTxt}>Cancel</Text>
+  </TouchableOpacity>
+  <TouchableOpacity
+    style={[
+      em.continueBtn,
+      (!emailPassword.trim() || emailPasswordLoading) && em.primaryBtnOff,
+    ]}
+    onPress={handleEmailVerifyPassword}
+    disabled={!emailPassword.trim() || emailPasswordLoading}
+  >
+    {emailPasswordLoading ? (
+      <ActivityIndicator size="small" color={C.white} />
+    ) : null}
+    <Text style={em.primaryBtnTxt}>
+      {emailPasswordLoading ? "Verifying…" : "Continue"}
+    </Text>
+  </TouchableOpacity>
+</View>
                 </View>
               )}
 
-              {emailStep === "old-send" && (
-                <View style={em.lockedWrap}>
-                  <View
-                    style={[em.lockedIcon, { backgroundColor: C.navyLight }]}
-                  >
-                    <Ionicons name="mail" size={30} color={C.navy} />
-                  </View>
-                  <Text style={em.lockedTitle}>Verify Current Email</Text>
+             {emailStep === "old-send" && (
+  <View style={em.lockedWrap}>
+    <View style={em.lockedIconOuter}>
+      <View style={em.lockedIconInner}>
+        <Ionicons name="mail" size={28} color={C.navy} />
+      </View>
+    </View>
+    <Text style={em.lockedTitle}>Verify Current Email</Text>
                   <Text style={em.lockedMsg}>
                     We'll send a code to your current email to confirm it's you.
                   </Text>
@@ -2937,13 +2948,15 @@ const renderEmailLockedStep = ({
                   stepTitle: "Verify Code",
                 })}
 
-              {emailStep === "new-email" && (
-                <View>
-                  <View style={em.stepIconRow}>
-                    <View style={em.stepIconCircle}>
-                      <Ionicons name="mail" size={24} color={C.navy} />
-                    </View>
-                  </View>
+             {emailStep === "new-email" && (
+  <View>
+    <View style={em.stepIconRow}>
+      <View style={em.stepIconOuter}>
+        <View style={em.stepIconCircle}>
+          <Ionicons name="mail" size={26} color={C.navy} />
+        </View>
+      </View>
+    </View>
                   <Text style={em.stepTitle}>Enter New Email</Text>
                   <Text style={em.stepSub}>
                     Enter the email address you want to use.
@@ -3512,22 +3525,27 @@ const renderEmailLockedStep = ({
 // ══════════════════════════════════════════════════════════════════════════════
 const em = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: C.navy,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
+header: {
+  flexDirection: "row",
+  alignItems: "center",
+  backgroundColor: C.navyDark,
+  paddingHorizontal: 16,
+  paddingVertical: 14,
+  shadowColor: C.navyDark,
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.3,
+  shadowRadius: 10,
+  elevation: 8,
+},
   headerBtn: { width: 44, alignItems: "flex-start" },
-  headerBtnInner: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+ headerBtnInner: {
+  width: 36,
+  height: 36,
+  borderRadius: 18,
+  backgroundColor: "rgba(255,255,255,0.12)",
+  alignItems: "center",
+  justifyContent: "center",
+},
   headerCenter: { flex: 1, alignItems: "center" },
   headerTitle: {
     fontSize: 17,
@@ -3656,6 +3674,61 @@ lockedBtnTxt: {
   fontWeight: "800",
   color: C.white,
   letterSpacing: -0.2,
+},
+stepIconOuter: {
+  width: 90,
+  height: 90,
+  borderRadius: 45,
+  backgroundColor: "#EEF3FF",
+  alignItems: "center",
+  justifyContent: "center",
+  borderWidth: 1,
+  borderColor: "#D6E0F5",
+  shadowColor: C.navy,
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.15,
+  shadowRadius: 14,
+  elevation: 6,
+  marginBottom: 14,
+},
+stepIconCircle: {
+  width: 64,
+  height: 64,
+  borderRadius: 32,
+  backgroundColor: "#DCE8FF",
+  alignItems: "center",
+  justifyContent: "center",
+},
+btnRow: { flexDirection: "row", gap: 10, marginTop: 16 },
+cancelBtn: {
+  paddingVertical: 15,
+  paddingHorizontal: 20,
+  borderRadius: 13,
+  borderWidth: 1.5,
+  borderColor: C.border,
+  backgroundColor: C.white,
+  alignItems: "center",
+  justifyContent: "center",
+},
+cancelBtnTxt: {
+  fontSize: 14,
+  fontWeight: "700",
+  color: C.textSub,
+},
+continueBtn: {
+  flex: 1,
+  flexDirection: "row",
+  backgroundColor: C.navy,
+  borderRadius: 13,
+  paddingVertical: 15,
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  shadowColor: C.navy,
+  shadowOffset: { width: 0, height: 5 },
+  shadowOpacity: 0.28,
+  shadowRadius: 10,
+  elevation: 5,
 },
 lockedSubmsg: {
   fontSize: 12,
