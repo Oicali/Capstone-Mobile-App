@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const BASE_URL = 'https://bantay-system-production.up.railway.app';
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const validateResponse = async (response) => {
   if (!response.ok) {
