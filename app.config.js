@@ -1,7 +1,7 @@
 module.exports = {
   expo: {
-    name: "Capstone-Mobile-App",
-    slug: "Capstone-Mobile-App",
+    name: "B.A.N.T.A.Y.",
+    slug: "capstone-mobile-app",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
@@ -14,6 +14,7 @@ module.exports = {
     },
     ios: {
       supportsTablet: true,
+      bundleIdentifier: "com.anonymous.bantay"
     },
     android: {
       adaptiveIcon: {
