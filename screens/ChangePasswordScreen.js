@@ -255,25 +255,40 @@ function StatusScreen({
   );
 }
 const lk = StyleSheet.create({
-  wrap: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 12 },
-  iconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+  wrap: {
+    alignItems: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+  },
+  iconOuter: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#EEF3FF",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 14,
-    elevation: 6,
+    borderWidth: 1,
+    borderColor: "#D6E0F5",
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  iconInner: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: "#DCE8FF",
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     fontSize: 20,
     fontWeight: "800",
     color: C.text,
-    marginBottom: 12,
+    marginBottom: 10,
     textAlign: "center",
     letterSpacing: -0.3,
   },
@@ -283,41 +298,82 @@ const lk = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
     paddingHorizontal: 8,
-    marginBottom: 6,
+    marginBottom: 4,
+  },
+  countdownWrap: {
+    alignItems: "center",
+    width: "100%",
+    marginTop: 16,
+    marginBottom: 8,
+    gap: 8,
+  },
+  countdownLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: C.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    textAlign: "center",
   },
   countdownBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: "#FFF7ED",
-    borderWidth: 1.5,
-    borderColor: "#FCD34D",
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 22,
-    marginVertical: 10,
+    gap: 10,
+    backgroundColor: C.navyLight,
+    borderWidth: 1,
+    borderColor: "#D6E0F5",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    width: "100%",
+    justifyContent: "center",
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   countdownTxt: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: "800",
-    color: "#92400E",
-    letterSpacing: 1,
+    color: C.text,
+    letterSpacing: 1.5,
   },
   btn: {
-    marginTop: 20,
-    paddingVertical: 15,
-    borderRadius: 13,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 24,
+    paddingVertical: 15,
+    borderRadius: 14,
     width: "100%",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.2,
     shadowRadius: 10,
-    elevation: 4,
+    elevation: 5,
   },
-  btnTxt: { fontSize: 15, fontWeight: "800", color: C.white },
+  btnTxt: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: C.white,
+    letterSpacing: -0.2,
+  },
+  countdownBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: C.navyLight,
+    borderWidth: 1,
+    borderColor: "#D6E0F5",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    width: "100%",
+    justifyContent: "center",
+  },
 });
-
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function ChangePasswordScreen({ navigation }) {
   const [step, setStep] = useState("checking");
@@ -406,55 +462,94 @@ export default function ChangePasswordScreen({ navigation }) {
     return () => clearInterval(otpTimerRef.current);
   }, []);
 
-  const checkStatus = async () => {
-    setStep("checking");
-    try {
-      const stored = await AsyncStorage.getItem("cpm_session_locked");
-      if (stored) {
-        const { until } = JSON.parse(stored);
-        if (Date.now() < until) {
-          setSessionLockMins(Math.ceil((until - Date.now()) / 60_000));
-          setStep("session-locked");
-          return;
-        }
-        await AsyncStorage.removeItem("cpm_session_locked");
+ const checkStatus = async () => {
+  setStep("checking");
+
+  // FIX: Check AsyncStorage for active pw lock FIRST
+  try {
+    const savedPwLock = await AsyncStorage.getItem("cpm_pw_locked");
+    if (savedPwLock) {
+      const { until } = JSON.parse(savedPwLock);
+      if (Date.now() < until) {
+        setPwLockedUntilTs(until);
+        setPwLockedMins(Math.ceil((until - Date.now()) / 60_000));
+        setStep("pw-locked");
+        return;
       }
-    } catch {
+      await AsyncStorage.removeItem("cpm_pw_locked");
+    }
+  } catch {
+    await AsyncStorage.removeItem("cpm_pw_locked");
+  }
+
+  // Check session lock
+  try {
+    const stored = await AsyncStorage.getItem("cpm_session_locked");
+    if (stored) {
+      const { until } = JSON.parse(stored);
+      if (Date.now() < until) {
+        setSessionLockMins(Math.ceil((until - Date.now()) / 60_000));
+        setSessionLockedUntilTs(until);
+        setStep("session-locked");
+        return;
+      }
       await AsyncStorage.removeItem("cpm_session_locked");
     }
+  } catch {
+    await AsyncStorage.removeItem("cpm_session_locked");
+  }
 
-    try {
-      const token = await AsyncStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/users/password/status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const d = await res.json();
-      if (d.blocked) {
-        setBlockedHours(d.hoursLeft ?? 0);
-        setBlockedUntilTs(
-          Date.now() + (d.msLeft ?? (d.hoursLeft ?? 24) * 3_600_000),
-        );
-        setStep("blocked");
-      } else if (d.sessionLocked) {
-        const lm = d.minsLeft ?? 15;
-        setSessionLockMins(lm);
-        setSessionLockedUntilTs(Date.now() + lm * 60_000);
-        await AsyncStorage.setItem(
-          "cpm_session_locked",
-          JSON.stringify({ until: Date.now() + lm * 60_000 }),
-        );
-        setStep("session-locked");
-      } else if (d.pwLocked) {
-        setPwLockedMins(d.minsLeft ?? 15);
-        setPwLockedUntilTs(Date.now() + (d.minsLeft ?? 15) * 60_000);
-        setStep("pw-locked");
-      } else {
-        setStep("verify-current");
-      }
-    } catch {
+  // API status check
+  try {
+    const token = await AsyncStorage.getItem("token");
+    const res = await fetch(`${BASE_URL}/users/password/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const d = await res.json();
+    if (d.blocked) {
+      setBlockedHours(d.hoursLeft ?? 0);
+      setBlockedUntilTs(Date.now() + (d.msLeft ?? (d.hoursLeft ?? 24) * 3_600_000));
+      setStep("blocked");
+    } else if (d.sessionLocked) {
+      const lm = d.minsLeft ?? 15;
+      setSessionLockMins(lm);
+      const untilTs = Date.now() + (d.msLeft ?? lm * 60_000);
+      setSessionLockedUntilTs(untilTs);
+      await AsyncStorage.setItem(
+        "cpm_session_locked",
+        JSON.stringify({ until: untilTs }),
+      );
+      setStep("session-locked");
+    } else if (d.pwLocked) {
+      const lm = d.minsLeft ?? 15;
+      setPwLockedMins(lm);
+      // Check saved timestamp first
+      try {
+        const saved = await AsyncStorage.getItem("cpm_pw_locked");
+        if (saved) {
+          const { until } = JSON.parse(saved);
+          if (Date.now() < until) {
+            setPwLockedUntilTs(until);
+            setStep("pw-locked");
+            return;
+          }
+          await AsyncStorage.removeItem("cpm_pw_locked");
+        }
+      } catch {}
+      const untilTs = Date.now() + (d.msLeft ?? lm * 60_000);
+      setPwLockedUntilTs(untilTs);
+      await AsyncStorage.setItem(
+        "cpm_pw_locked",
+        JSON.stringify({ until: untilTs }),
+      );
+      setStep("pw-locked");
+    } else {
       setStep("verify-current");
     }
-  };
+  } catch {
+    setStep("verify-current");
+  }
+};
 
   // FIX: force-lock backend call when timer expires with 0 resends
   const startOtpTimer = (expiresAt) => {
@@ -520,13 +615,19 @@ export default function ChangePasswordScreen({ navigation }) {
       });
       const d = await res.json();
       if (!res.ok) {
-        if (d.locked || d.pwLocked) {
-          const lm = d.minutesLeft ?? 15;
-          setPwLockedMins(lm);
-          setPwLockedUntilTs(Date.now() + lm * 60_000);
-          setStep("pw-locked");
-          return;
-        }
+
+       if (d.locked || d.pwLocked) {
+  const lm = d.minutesLeft ?? 15;
+  setPwLockedMins(lm);
+  const untilTs = Date.now() + (d.msLeft ?? lm * 60_000);
+  setPwLockedUntilTs(untilTs);
+  await AsyncStorage.setItem(
+    "cpm_pw_locked",
+    JSON.stringify({ until: untilTs }),
+  );
+  setStep("pw-locked");
+  return;
+}
         if (d.sessionLocked) {
           const lm = d.minutesLeft ?? 15;
           setSessionLockMins(lm);
@@ -844,85 +945,67 @@ export default function ChangePasswordScreen({ navigation }) {
 
           {/* ── SESSION LOCKED ── */}
           {step === "session-locked" && (
-            <View style={lk.wrap}>
-              <View style={[lk.iconCircle, { backgroundColor: C.amberLight }]}>
-                <Ionicons name="shield-off-outline" size={34} color={C.amber} />
-              </View>
-              <Text style={lk.title}>Temporarily Locked</Text>
-              <Text style={lk.msg}>
-                For your security, this process has been temporarily locked due
-                to too many failed attempts.{"\n\n"}
-                Please wait for the timer to expire, then try again.
-              </Text>
-              <Text
-                style={[
-                  lk.msg,
-                  { fontWeight: "700", color: C.text, marginTop: 4 },
-                ]}
-              >
-                Try again in:
-              </Text>
-              <View
-                style={[
-                  lk.countdownBadge,
-                  { backgroundColor: C.amberLight, borderColor: "#FCD34D" },
-                ]}
-              >
-                <Ionicons name="time-outline" size={16} color={C.amber} />
-                <Text style={[lk.countdownTxt, { color: C.amber }]}>
-                  {sessionCountdown || "Calculating…"}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[lk.btn, { backgroundColor: C.amber }]}
-                onPress={() => navigation.goBack()}
-                activeOpacity={0.8}
-              >
-                <Text style={lk.btnTxt}>Got it, Go Back</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+  <View style={lk.wrap}>
+    <View style={lk.iconOuter}>
+      <View style={lk.iconInner}>
+        <Ionicons name="shield-off-outline" size={32} color={C.navy} />
+      </View>
+    </View>
+    <Text style={lk.title}>Temporarily Locked</Text>
+    <Text style={lk.msg}>
+      For your security, this process has been temporarily locked due to too many failed attempts.
+    </Text>
+   
+    <View style={lk.countdownWrap}>
+      <Text style={lk.countdownLabel}>Try again in</Text>
+      <View style={lk.countdownBadge}>
+        <Ionicons name="time-outline" size={18} color={C.textMuted} />
+        <Text style={lk.countdownTxt}>
+          {sessionCountdown || "Calculating…"}
+        </Text>
+      </View>
+    </View>
+    <TouchableOpacity
+      style={[lk.btn, { backgroundColor: C.navy }]}
+      onPress={() => navigation.goBack()}
+      activeOpacity={0.85}
+    >
+      <Text style={lk.btnTxt}>Got it, Go Back</Text>
+    </TouchableOpacity>
+  </View>
+)}
 
           {/* ── PW LOCKED ── */}
-          {step === "pw-locked" && (
-            <View style={lk.wrap}>
-              <View style={[lk.iconCircle, { backgroundColor: C.amberLight }]}>
-                <Ionicons name="key-outline" size={34} color={C.amber} />
-              </View>
-              <Text style={lk.title}>Too Many Attempts</Text>
-              <Text style={lk.msg}>
-                Your account is temporarily locked due to too many incorrect
-                password entries.{"\n\n"}
-                Please wait for the timer to expire before trying again.
-              </Text>
-              <Text
-                style={[
-                  lk.msg,
-                  { fontWeight: "700", color: C.text, marginTop: 4 },
-                ]}
-              >
-                Try again in:
-              </Text>
-              <View
-                style={[
-                  lk.countdownBadge,
-                  { backgroundColor: C.amberLight, borderColor: "#FCD34D" },
-                ]}
-              >
-                <Ionicons name="time-outline" size={16} color={C.amber} />
-                <Text style={[lk.countdownTxt, { color: C.amber }]}>
-                  {pwCountdown || "Calculating…"}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={[lk.btn, { backgroundColor: C.amber }]}
-                onPress={() => navigation.goBack()}
-                activeOpacity={0.8}
-              >
-                <Text style={lk.btnTxt}>Got it, Go Back</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+      {step === "pw-locked" && (
+  <View style={lk.wrap}>
+    <View style={lk.iconOuter}>
+      <View style={lk.iconInner}>
+        <Ionicons name="key-outline" size={32} color={C.navy} />
+      </View>
+    </View>
+    <Text style={lk.title}>Too Many Attempts</Text>
+    <Text style={lk.msg}>
+      Your account is temporarily locked due to too many incorrect password attempts.
+    </Text>
+  
+    <View style={lk.countdownWrap}>
+      <Text style={lk.countdownLabel}>Try again in</Text>
+      <View style={lk.countdownBadge}>
+        <Ionicons name="time-outline" size={18} color={C.textMuted} />
+        <Text style={lk.countdownTxt}>
+          {pwCountdown || "Calculating…"}
+        </Text>
+      </View>
+    </View>
+    <TouchableOpacity
+      style={[lk.btn, { backgroundColor: C.red }]}
+      onPress={() => navigation.goBack()}
+      activeOpacity={0.85}
+    >
+      <Text style={lk.btnTxt}>Close</Text>
+    </TouchableOpacity>
+  </View>
+)}
 
           {/* ── DONE ── */}
           {step === "done" && (
@@ -951,12 +1034,13 @@ export default function ChangePasswordScreen({ navigation }) {
           {step === "verify-current" && (
             <View style={s.stepWrap}>
               <StepBar current={1} total={3} />
-
-              <View style={s.stepIconRow}>
-                <View style={s.stepIconCircle}>
-                  <Ionicons name="shield-checkmark" size={26} color={C.navy} />
-                </View>
-              </View>
+<View style={s.stepIconRow}>
+  <View style={s.stepIconOuter}>
+    <View style={s.stepIconCircle}>
+      <Ionicons name="shield-checkmark" size={26} color={C.navy} />
+    </View>
+  </View>
+</View>
               <Text style={s.stepTitle}>Confirm Your Identity</Text>
               <Text style={s.stepSub}>
                 Enter your current password to continue.
@@ -1024,11 +1108,13 @@ export default function ChangePasswordScreen({ navigation }) {
             <View style={s.stepWrap}>
               <StepBar current={2} total={3} />
 
-              <View style={s.stepIconRow}>
-                <View style={s.stepIconCircle}>
-                  <Ionicons name="create-outline" size={26} color={C.navy} />
-                </View>
-              </View>
+             <View style={s.stepIconRow}>
+  <View style={s.stepIconOuter}>
+    <View style={s.stepIconCircle}>
+      <Ionicons name="create-outline" size={26} color={C.navy} />
+    </View>
+  </View>
+</View>
               <Text style={s.stepTitle}>Set New Password</Text>
               <Text style={s.stepSub}>
                 Create a strong password that meets all requirements below.
@@ -1251,11 +1337,13 @@ export default function ChangePasswordScreen({ navigation }) {
             <View style={s.stepWrap}>
               <StepBar current={3} total={3} />
 
-              <View style={s.stepIconRow}>
-                <View style={s.stepIconCircle}>
-                  <Ionicons name="mail" size={26} color={C.navy} />
-                </View>
-              </View>
+            <View style={s.stepIconRow}>
+  <View style={s.stepIconOuter}>
+    <View style={s.stepIconCircle}>
+      <Ionicons name="mail" size={26} color={C.navy} />
+    </View>
+  </View>
+</View>
               <Text style={s.stepTitle}>Enter Verification Code</Text>
 
               {/* Info card */}
@@ -1494,20 +1582,30 @@ const s = StyleSheet.create({
   doneSpinTxt: { fontSize: 13, color: C.green, fontWeight: "700" },
 
   stepWrap: { paddingTop: 24, paddingBottom: 12 },
-  stepIconRow: { alignItems: "center", marginBottom: 14 },
-  stepIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: C.navyLight,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
-  },
+stepIconRow: { alignItems: "center", marginBottom: 14 },
+stepIconOuter: {
+  width: 90,
+  height: 90,
+  borderRadius: 45,
+  backgroundColor: "#EEF3FF",
+  alignItems: "center",
+  justifyContent: "center",
+  borderWidth: 1,
+  borderColor: "#D6E0F5",
+  shadowColor: C.navy,
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.15,
+  shadowRadius: 14,
+  elevation: 6,
+},
+stepIconCircle: {
+  width: 64,
+  height: 64,
+  borderRadius: 32,
+  backgroundColor: "#DCE8FF",
+  alignItems: "center",
+  justifyContent: "center",
+},
   stepTitle: {
     fontSize: 20,
     fontWeight: "800",
