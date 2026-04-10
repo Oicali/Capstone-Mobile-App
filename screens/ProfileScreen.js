@@ -336,25 +336,16 @@ const pd = StyleSheet.create({
 });
 
 // ── Info Row — individual field row inside a section card ─────────────────────
-function InfoRow({
-  icon,
-  label,
-  value,
-  iconColor = C.navy,
-  iconBg = C.navyLight,
-  last = false,
-}) {
+function InfoRow({ icon, label, value, iconColor = C.navy, iconBg = C.navyLight, last = false }) {
   if (!value) return null;
   return (
     <View style={[ir.row, !last && ir.rowBorder]}>
       <View style={[ir.iconWrap, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon} size={14} color={iconColor} />
+        <Ionicons name={icon} size={15} color={iconColor} />
       </View>
       <View style={ir.content}>
         <Text style={ir.label}>{label}</Text>
-        <Text style={ir.value} numberOfLines={2}>
-          {value}
-        </Text>
+        <Text style={ir.value} numberOfLines={2}>{value}</Text>
       </View>
     </View>
   );
@@ -362,60 +353,70 @@ function InfoRow({
 const ir = StyleSheet.create({
   row: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: 13,
+    alignItems: "center",
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    gap: 12,
+    gap: 14,
   },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
+  rowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
   iconWrap: {
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 1,
   },
   content: { flex: 1 },
   label: {
-    fontSize: 10,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: "600",
     color: C.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
     marginBottom: 3,
+    letterSpacing: 0.3,
   },
-  value: { fontSize: 14, fontWeight: "600", color: C.text, lineHeight: 20 },
+  value: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: C.text,
+    lineHeight: 20,
+  },
 });
+
 
 // ── Section Card ───────────────────────────────────────────────────────────────
 function SectionCard({ title, icon, children, accentColor = C.navy, collapsible = false, subtitle }) {
   const [expanded, setExpanded] = useState(false);
   const HeaderWrapper = collapsible ? TouchableOpacity : View;
-
   return (
-    <View style={[sc.card, { borderLeftColor: accentColor }]}>
+    <View style={sc.card}>
       <HeaderWrapper
         style={sc.header}
         onPress={collapsible ? () => setExpanded(v => !v) : undefined}
-        activeOpacity={0.75}
+        activeOpacity={0.8}
       >
         <View style={[sc.iconWrap, { backgroundColor: accentColor }]}>
-          <Ionicons name={icon} size={16} color={C.white} />
+          <Ionicons name={icon} size={18} color={C.white} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[sc.title, { color: C.text }]}>{title}</Text>
+          <Text style={sc.title}>{title}</Text>
           {!!subtitle && <Text style={sc.subtitle}>{subtitle}</Text>}
         </View>
         {collapsible && (
-          <Ionicons
-            name={expanded ? "chevron-up" : "chevron-down"}
-            size={16}
-            color={C.textMuted}
-          />
+          <View style={[sc.chevronWrap, expanded && { backgroundColor: accentColor + "18" }]}>
+            <Ionicons
+              name={expanded ? "chevron-up" : "chevron-down"}
+              size={15}
+              color={expanded ? accentColor : C.textMuted}
+            />
+          </View>
         )}
       </HeaderWrapper>
-      {(!collapsible || expanded) && <View style={sc.body}>{children}</View>}
+      {(!collapsible || expanded) && (
+        <View style={sc.body}>{children}</View>
+      )}
     </View>
   );
 }
@@ -424,35 +425,38 @@ const sc = StyleSheet.create({
     backgroundColor: C.white,
     marginHorizontal: 16,
     marginTop: 10,
-    borderRadius: 20,
-    overflow: "hidden",
-    shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
+    borderRadius: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
     elevation: 3,
     borderWidth: 1,
     borderColor: C.border,
-    borderLeftWidth: 4,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 15,
     backgroundColor: C.white,
   },
   iconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   title: {
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "700",
     color: C.text,
     letterSpacing: -0.2,
   },
@@ -462,63 +466,91 @@ const sc = StyleSheet.create({
     fontWeight: "500",
     marginTop: 2,
   },
+  chevronWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: C.surfaceAlt,
+  },
   body: {
     borderTopWidth: 1,
     borderTopColor: "#F1F5F9",
   },
 });
+
 // ── Action Card (top quick-action buttons) ────────────────────────────────────
 function ActionCard({ icon, label, sublabel, color, onPress }) {
   return (
     <TouchableOpacity
-      style={[ac.card, { borderTopColor: color }]}
+      style={ac.card}
       onPress={onPress}
       activeOpacity={0.75}
     >
-      <View style={[ac.iconWrap, { backgroundColor: color + "18" }]}>
-        <Ionicons name={icon} size={22} color={color} />
+      <View style={[ac.iconWrap, { backgroundColor: color }]}>
+        <Ionicons name={icon} size={20} color={C.white} />
       </View>
-      <Text style={ac.label}>{label}</Text>
-      <Text style={ac.sub}>{sublabel}</Text>
+      <View style={ac.textWrap}>
+        <Text style={ac.label}>{label}</Text>
+        {!!sublabel && <Text style={ac.sub}>{sublabel}</Text>}
+      </View>
+      <View style={ac.arrow}>
+        <Ionicons name="chevron-forward" size={14} color={C.textMuted} />
+      </View>
     </TouchableOpacity>
   );
 }
+
 const ac = StyleSheet.create({
   card: {
-    flex: 1,
-    backgroundColor: C.white,
-    borderRadius: 18,
-    paddingVertical: 18,
-    paddingHorizontal: 8,
+    flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    backgroundColor: C.white,
+    borderRadius: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    gap: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
     borderWidth: 1,
     borderColor: C.border,
-    borderTopWidth: 3,
+    marginBottom: 10,
   },
   iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
+  textWrap: { flex: 1 },
   label: {
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 14,
+    fontWeight: "700",
     color: C.text,
-    textAlign: "center",
   },
   sub: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "500",
     color: C.textMuted,
-    textAlign: "center",
+    marginTop: 2,
+  },
+  arrow: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: C.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 
@@ -2398,25 +2430,26 @@ const renderEmailLockedStep = ({
         {/* ════════════════════ QUICK ACTIONS ════════════════════ */}
         <View style={st.actionSection}>
           <View style={st.actionRow}>
-            <ActionCard
-              icon="create-outline"
-              label="Edit Profile"
-              sublabel="Update info"
-              color={C.navy}
-              onPress={startEdit}
-            />
-            <ActionCard
-              icon="lock-closed-outline"
-              label="Change Password"
-              color={C.red}
-              onPress={() => navigation.navigate("ChangePassword")}
-            />
-            <ActionCard
-              icon="mail-outline"
-              label="Update Email"
-              color={C.cyan}
-              onPress={openEmailModal}
-            />
+          <ActionCard
+  icon="create-outline"
+  label="Edit Profile"
+  sublabel="Update info"
+  color={C.navy}
+  onPress={startEdit}
+/>
+<ActionCard
+  icon="lock-closed-outline"
+  label="Change Password"
+  color={C.red}
+  onPress={() => navigation.navigate("ChangePassword")}
+/>
+<ActionCard
+  icon="mail-outline"
+  label="Update Email"
+  color={C.cyan}
+  onPress={openEmailModal}
+/>
+
           </View>
         </View>
 
@@ -2615,18 +2648,33 @@ const renderEmailLockedStep = ({
         </SectionCard>
 
         {/* ════════════════════ LOGOUT ════════════════════ */}
-        <View style={st.logoutSection}>
-          <TouchableOpacity
-            style={st.logoutBtn}
-            onPress={logout}
-            activeOpacity={0.8}
-          >
-            <View style={st.logoutIconWrap}>
-              <Ionicons name="log-out-outline" size={18} color={C.red} />
-            </View>
-            <Text style={st.logoutBtnTxt}>Logout</Text>
-          </TouchableOpacity>
-        </View>
+       <View style={st.logoutSection}>
+  <TouchableOpacity
+    style={st.logoutBtn}
+    onPress={logout}
+    activeOpacity={0.8}
+  >
+    <View style={st.logoutIconWrap}>
+      <Ionicons name="log-out-outline" size={20} color={C.white} />
+    </View>
+    <View style={{ flex: 1 }}>
+      <Text style={st.logoutBtnTxt}>Logout</Text>
+      <Text style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
+        Sign out of your account
+      </Text>
+    </View>
+    <View style={{
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      backgroundColor: "#FEF2F2",
+      alignItems: "center",
+      justifyContent: "center",
+    }}>
+      <Ionicons name="chevron-forward" size={14} color={C.red} />
+    </View>
+  </TouchableOpacity>
+</View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -4390,59 +4438,60 @@ const st = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  pillsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 6,
-    marginBottom: 14,
-  },
-  rolePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  rolePillTxt: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.9)",
-    fontWeight: "700",
-  },
-  rankPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "rgba(215,119,6,0.25)",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: "rgba(215,119,6,0.3)",
-  },
-  rankPillTxt: {
-    fontSize: 12,
-    color: C.gold,
-    fontWeight: "800",
-    letterSpacing: 0.3,
-  },
-  deptPill: {
-    backgroundColor: "rgba(255,255,255,0.09)",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-  },
-  deptPillTxt: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.7)",
-    fontWeight: "500",
-  },
+ pillsRow: {
+  flexDirection: "row",
+  flexWrap: "wrap",
+  justifyContent: "center",
+  gap: 8,
+  marginBottom: 16,
+},
+rolePill: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  backgroundColor: "rgba(255,255,255,0.15)",
+  borderRadius: 20,
+  paddingHorizontal: 14,
+  paddingVertical: 6,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.25)",
+},
+rolePillTxt: {
+  fontSize: 12,
+  color: "rgba(255,255,255,0.95)",
+  fontWeight: "700",
+},
+rankPill: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  backgroundColor: "rgba(215,119,6,0.3)",
+  borderRadius: 20,
+  paddingHorizontal: 14,
+  paddingVertical: 6,
+  borderWidth: 1,
+  borderColor: "rgba(215,119,6,0.4)",
+},
+rankPillTxt: {
+  fontSize: 12,
+  color: C.gold,
+  fontWeight: "800",
+  letterSpacing: 0.3,
+},
+deptPill: {
+  backgroundColor: "rgba(255,255,255,0.1)",
+  borderRadius: 20,
+  paddingHorizontal: 14,
+  paddingVertical: 6,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.15)",
+},
+deptPillTxt: {
+  fontSize: 11,
+  color: "rgba(255,255,255,0.75)",
+  fontWeight: "500",
+},
+
 
   statsStrip: {
     flexDirection: "row",
@@ -4474,36 +4523,55 @@ const st = StyleSheet.create({
   syncTxt: { fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: "500" },
 
   // ── ACTION CARDS ──
-  actionSection: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 4 },
-  actionRow: { flexDirection: "row", gap: 10 },
+  actionSection: {
+  paddingHorizontal: 16,
+  paddingTop: 16,
+  paddingBottom: 4,
+},
+actionRow: {
+  flexDirection: "column",
+},
+
 
   // ── LOGOUT — FIX: removed subtitle ──
-  logoutSection: { marginHorizontal: 16, marginTop: 20 },
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: C.white,
-    borderRadius: 18,
-    padding: 18,
-    borderWidth: 1.5,
-    borderColor: C.redLight,
-    shadowColor: C.red,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-    gap: 12,
-  },
-  logoutIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: C.redLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoutBtnTxt: { fontSize: 15, fontWeight: "700", color: C.red },
+  logoutSection: {
+  marginHorizontal: 16,
+  marginTop: 16,
+},
+logoutBtn: {
+  flexDirection: "row",
+  alignItems: "center",
+  backgroundColor: C.white,
+  borderRadius: 16,
+  padding: 14,
+  borderWidth: 1,
+  borderColor: C.border,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.05,
+  shadowRadius: 8,
+  elevation: 2,
+  gap: 12,
+},
+logoutIconWrap: {
+  width: 44,
+  height: 44,
+  borderRadius: 12,
+  backgroundColor: C.red,
+  alignItems: "center",
+  justifyContent: "center",
+  shadowColor: C.red,
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.3,
+  shadowRadius: 4,
+  elevation: 3,
+},
+logoutBtnTxt: {
+  fontSize: 14,
+  fontWeight: "700",
+  color: C.red,
+  flex: 1,
+},
 
   // ── TOASTS ──
   toastWrap: { position: "absolute", bottom: 28, left: 16, right: 16 },

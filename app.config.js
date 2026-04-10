@@ -1,7 +1,7 @@
 module.exports = {
   expo: {
-    name: "B.A.N.T.A.Y.",
-    slug: "capstone-mobile-app",
+    name: "BANTAY",
+    slug: "Capstone-Mobile-App",  // ← match what EAS has registered
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
