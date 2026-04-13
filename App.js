@@ -163,9 +163,10 @@ export default function App() {
   }, []);
 
   const checkLogin = async () => {
-    const token = await AsyncStorage.getItem("token");
-    setIsLoggedIn(!!token);
-  };
+  const token = await AsyncStorage.getItem("token");
+  const user = await AsyncStorage.getItem("user");
+  setIsLoggedIn(!!(token && user));
+};
 
   if (isLoggedIn === null) return null;
 
@@ -181,6 +182,7 @@ export default function App() {
         <Stack.Screen
           name="Splash"
           component={SplashScreen}
+          initialParams={{ isLoggedIn }} // ← add this line
           options={{ animation: "fade" }}
         />
         <Stack.Screen

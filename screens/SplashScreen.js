@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Image } from 'react-native';
 
-export default function SplashScreen({ navigation }) {
+export default function SplashScreen({ navigation, route }) {
+  const isLoggedIn = route.params?.isLoggedIn ?? false;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
 
@@ -28,7 +29,7 @@ export default function SplashScreen({ navigation }) {
         duration: 600,
         useNativeDriver: true,
       }).start(() => {
-        navigation.replace('Login');
+        navigation.replace(isLoggedIn ? 'Main' : 'Login');
       });
     }, 3000);
 

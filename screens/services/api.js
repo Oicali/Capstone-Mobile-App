@@ -22,7 +22,7 @@ export const login = async (username, password) => {
       return { success: false, message: 'Password must be at least 8 characters' };
     }
 
-    const response = await fetch(`${BASE_URL}/auth/login`, {
+    const response = await fetch(`${BASE_URL}/auth/mobile/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
