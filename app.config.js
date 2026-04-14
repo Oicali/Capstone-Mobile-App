@@ -1,7 +1,7 @@
 module.exports = {
   expo: {
     name: "BANTAY",
-    slug: "Capstone-Mobile-App",  // ← match what EAS has registered
+    slug: "Capstone-Mobile-App", // ← match what EAS has registered
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
@@ -14,7 +14,7 @@ module.exports = {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.anonymous.bantay"
+      bundleIdentifier: "com.anonymous.bantay",
     },
     android: {
       adaptiveIcon: {
@@ -50,7 +50,12 @@ module.exports = {
           isAndroidBackgroundLocationEnabled: true,
         },
       ],
-      "@rnmapbox/maps",
+      [
+        "@rnmapbox/maps", // ← wrap in array
+        {
+          RNMapboxMapsDownloadToken: process.env.RNMAPBOX_MAPS_DOWNLOAD_TOKEN,
+        },
+      ], // ← close array
     ],
     extra: {
       eas: {

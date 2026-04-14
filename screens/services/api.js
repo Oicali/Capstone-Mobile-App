@@ -35,7 +35,6 @@ export const login = async (username, password) => {
 
     const data = await validateResponse(response);
 
-    // Save session using consistent keys
     if (data.success && data.token) {
       await saveSession(data.token, data.user);
     }
@@ -58,11 +57,11 @@ export const logout = async (token) => {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
     }
-    await clearSession(); // clears AsyncStorage completely
+    await clearSession();
     return { success: true };
   } catch (error) {
     console.error('Logout Error:', error);
-    await clearSession(); // always clear locally even if backend call fails
+    await clearSession();
     return { success: false };
   }
 };
@@ -81,15 +80,15 @@ export const getProfile = async (token) => {
 };
 
 // ─── SESSION MANAGEMENT ───────────────────────────────────────────────────────
-// Single source of truth: all reads/writes use 'auth_token' and 'auth_user'
 
 export const saveSession = async (token, user) => {
   await AsyncStorage.setItem('auth_token', token);
   await AsyncStorage.setItem('auth_user', JSON.stringify(user));
 };
 
+// ✅ FIX: Only remove auth keys, don't wipe all of AsyncStorage
 export const clearSession = async () => {
-  await AsyncStorage.clear(); // wipe everything on logout
+  await AsyncStorage.multiRemove(['auth_token', 'auth_user']);
 };
 
 export const getSession = async () => {
@@ -99,16 +98,29 @@ export const getSession = async () => {
   return { token, user: JSON.parse(userRaw) };
 };
 
+// ✅ FIX: Add timeout + don't kill session on network failure
 export const validateToken = async (token) => {
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
     const res = await fetch(`${BASE_URL}/auth/validate-token`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
+
+    if (res.status === 401) {
+      // Explicitly unauthorized — token is truly invalid
+      return false;
+    }
+
     const data = await res.json();
     return data.success === true;
   } catch {
-    return false;
+    // Network error or timeout — don't kill the session, assume still valid
+    return true;
   }
 };
 
