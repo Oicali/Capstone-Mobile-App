@@ -2,9 +2,9 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useState, useEffect } from "react";
 import { Text, View } from "react-native";
+import { getSession, validateToken, clearSession } from "./screens/services/api";
 
 // Import screens
 import SplashScreen from "./screens/SplashScreen";
@@ -95,7 +95,6 @@ function MainTabs() {
         }}
       />
 
-      {/* ✅ Reporting tab (formerly CrimeMap) */}
       <Tab.Screen
         name="Reporting"
         component={EBlotterScreen}
@@ -163,10 +162,28 @@ export default function App() {
   }, []);
 
   const checkLogin = async () => {
-  const token = await AsyncStorage.getItem("token");
-  const user = await AsyncStorage.getItem("user");
-  setIsLoggedIn(!!(token && user));
-};
+    try {
+      const session = await getSession();
+
+      if (!session?.token) {
+        setIsLoggedIn(false);
+        return;
+      }
+
+      const valid = await validateToken(session.token);
+      if (!valid) {
+        await clearSession();
+        setIsLoggedIn(false);
+        return;
+      }
+
+      setIsLoggedIn(true);
+    } catch (error) {
+      console.error("checkLogin error:", error);
+      await clearSession();
+      setIsLoggedIn(false);
+    }
+  };
 
   if (isLoggedIn === null) return null;
 
@@ -182,7 +199,7 @@ export default function App() {
         <Stack.Screen
           name="Splash"
           component={SplashScreen}
-          initialParams={{ isLoggedIn }} // ← add this line
+          initialParams={{ isLoggedIn }}
           options={{ animation: "fade" }}
         />
         <Stack.Screen

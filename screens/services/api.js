@@ -10,6 +10,8 @@ const validateResponse = async (response) => {
   return response.json();
 };
 
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+
 export const login = async (username, password) => {
   try {
     if (!username || !password) {
@@ -33,9 +35,9 @@ export const login = async (username, password) => {
 
     const data = await validateResponse(response);
 
-    if (data.success && data.user) {
-      await AsyncStorage.setItem('token', data.token);
-      await AsyncStorage.setItem('user', JSON.stringify(data.user));
+    // Save session using consistent keys
+    if (data.success && data.token) {
+      await saveSession(data.token, data.user);
     }
 
     return data;
@@ -45,6 +47,23 @@ export const login = async (username, password) => {
       return { success: false, message: 'Cannot connect to server.' };
     }
     return { success: false, message: error.message || 'Login failed' };
+  }
+};
+
+export const logout = async (token) => {
+  try {
+    if (token) {
+      await fetch(`${BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+    }
+    await clearSession(); // clears AsyncStorage completely
+    return { success: true };
+  } catch (error) {
+    console.error('Logout Error:', error);
+    await clearSession(); // always clear locally even if backend call fails
+    return { success: false };
   }
 };
 
@@ -61,21 +80,39 @@ export const getProfile = async (token) => {
   }
 };
 
-export const logout = async (token) => {
+// ─── SESSION MANAGEMENT ───────────────────────────────────────────────────────
+// Single source of truth: all reads/writes use 'auth_token' and 'auth_user'
+
+export const saveSession = async (token, user) => {
+  await AsyncStorage.setItem('auth_token', token);
+  await AsyncStorage.setItem('auth_user', JSON.stringify(user));
+};
+
+export const clearSession = async () => {
+  await AsyncStorage.clear(); // wipe everything on logout
+};
+
+export const getSession = async () => {
+  const token = await AsyncStorage.getItem('auth_token');
+  const userRaw = await AsyncStorage.getItem('auth_user');
+  if (!token || !userRaw) return null;
+  return { token, user: JSON.parse(userRaw) };
+};
+
+export const validateToken = async (token) => {
   try {
-    if (token) {
-      await fetch(`${BASE_URL}/auth/logout`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
-    }
-    await AsyncStorage.clear();
-    return { success: true };
-  } catch (error) {
-    console.error('Logout Error:', error);
-    return { success: false };
+    const res = await fetch(`${BASE_URL}/auth/validate-token`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    return data.success === true;
+  } catch {
+    return false;
   }
 };
+
+// ─── BACKEND HEALTH ───────────────────────────────────────────────────────────
 
 export const checkBackendConnection = async () => {
   try {
@@ -88,8 +125,6 @@ export const checkBackendConnection = async () => {
 };
 
 // ─── CRIME DASHBOARD ──────────────────────────────────────────────────────────
-// Mirrors the web: single call to /overview returns all 7 data sets at once.
-// Params match exactly what the backend buildWhere() expects.
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -122,8 +157,8 @@ export const getGranularity = (preset, dateFrom, dateTo) => {
 
 export const getCrimeDashboard = async (filters) => {
   try {
-    const token = await AsyncStorage.getItem('token');
-    if (!token) throw new Error('No auth token found');
+    const session = await getSession();
+    if (!session?.token) throw new Error('No auth token found');
 
     const granularity = getGranularity(
       filters.preset,
@@ -132,8 +167,8 @@ export const getCrimeDashboard = async (filters) => {
     );
 
     const params = new URLSearchParams();
-    if (filters.dateFrom)          params.set('date_from',   filters.dateFrom);
-    if (filters.dateTo)            params.set('date_to',     filters.dateTo);
+    if (filters.dateFrom)           params.set('date_from',   filters.dateFrom);
+    if (filters.dateTo)             params.set('date_to',     filters.dateTo);
     if (filters.crimeTypes?.length) params.set('crime_types', filters.crimeTypes.join(','));
     if (filters.barangays?.length)  params.set('barangays',   filters.barangays.join(','));
     params.set('granularity', granularity);
@@ -144,7 +179,7 @@ export const getCrimeDashboard = async (filters) => {
       {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${session.token}`,
           'Content-Type': 'application/json',
         },
       },
