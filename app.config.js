@@ -1,7 +1,7 @@
 module.exports = {
   expo: {
     name: "BANTAY",
-    slug: "Capstone-Mobile-App", // ← match what EAS has registered
+    slug: "BANTAY", // ← match what EAS has registered
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
@@ -51,15 +51,15 @@ module.exports = {
         },
       ],
       [
-        "@rnmapbox/maps", // ← wrap in array
+        "@rnmapbox/maps",
         {
-          RNMapboxMapsDownloadToken: process.env.RNMAPBOX_MAPS_DOWNLOAD_TOKEN,
+          RNMapboxMapsDownloadToken: process.env.MAPBOX_DOWNLOADS_TOKEN,
         },
-      ], // ← close array
+      ],
     ],
     extra: {
       eas: {
-        projectId: "7555693d-268a-4ff0-a15b-8fd2809dea26",
+        projectId: "530d6325-6acc-4b87-b517-85fa25600c86",
       },
     },
   },
