@@ -53,7 +53,7 @@ module.exports = {
       [
         "@rnmapbox/maps",
         {
-          RNMapboxMapsDownloadToken: process.env.MAPBOX_DOWNLOADS_TOKEN,
+          RNMapboxMapsDownloadToken: process.env.RNMAPBOX_MAPS_DOWNLOAD_TOKEN,
         },
       ],
     ],

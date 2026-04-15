@@ -33,7 +33,7 @@ allprojects {
       }
       credentials {
         username = 'mapbox'
-        password = project.properties['MAPBOX_DOWNLOADS_TOKEN'] ?: System.getenv('RNMAPBOX_MAPS_DOWNLOAD_TOKEN')
+        password = project.properties['RNMAPBOX_MAPS_DOWNLOAD_TOKEN'] ?: System.getenv('RNMAPBOX_MAPS_DOWNLOAD_TOKEN')
       }
     }
   }
