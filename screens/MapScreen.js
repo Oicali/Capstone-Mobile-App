@@ -134,7 +134,7 @@ export default function MapScreen({ navigation }) {
   const pushLocation = useCallback(async () => {
     if (!lastCoords.current) return;
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       if (!token) return;
       const { latitude, longitude, accuracy, heading, speed } =
         lastCoords.current;
@@ -159,7 +159,7 @@ export default function MapScreen({ navigation }) {
 
   const callOffDuty = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       if (!token) return;
       await fetch(`${API}/gps/off-duty`, {
         method: "POST",
@@ -229,7 +229,7 @@ export default function MapScreen({ navigation }) {
   }, [pushLocation]);
 
   // ── Data fetching ─────────────────────────────────────────────
-  const getToken = async () => await AsyncStorage.getItem("token");
+  const getToken = async () => await AsyncStorage.getItem("auth_token");
 
   const fetchMapData = useCallback(async () => {
     try {

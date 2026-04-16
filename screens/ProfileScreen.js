@@ -828,7 +828,7 @@ const emailLockedCountdownRef = useRef(null);
           (currentStep === "old-otp" || currentStep === "new-otp")
         ) {
           // FIX: Persist lock to backend so it survives logout/re-login
-          AsyncStorage.getItem("token")
+          AsyncStorage.getItem("auth_token")
             .then((token) => {
               fetch(`${BASE_URL}/users/email/force-lock`, {
                 method: "POST",
@@ -900,7 +900,7 @@ const emailLockedCountdownRef = useRef(null);
 
   const silentRefresh = async () => {
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       if (!token) return;
       setRefreshing(true);
       const res = await fetch(`${BASE_URL}/users/profile`, {
@@ -933,7 +933,7 @@ const emailLockedCountdownRef = useRef(null);
   const loadProfile = async (showSpinner = false) => {
     try {
       if (showSpinner) setLoading(true);
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       if (!token) {
         setLoading(false);
         return;
@@ -956,7 +956,7 @@ const emailLockedCountdownRef = useRef(null);
         applyToState(json.user);
         await resolveAddressNames(json.user);
       } else {
-        const cached = await AsyncStorage.getItem("user");
+        const cached = await AsyncStorage.getItem("auth_user");
         if (cached) {
           const u = JSON.parse(cached);
           applyToState(u);
@@ -966,7 +966,7 @@ const emailLockedCountdownRef = useRef(null);
       }
     } catch {
       try {
-        const cached = await AsyncStorage.getItem("user");
+        const cached = await AsyncStorage.getItem("auth_user");
         if (cached) {
           const u = JSON.parse(cached);
           applyToState(u);
@@ -1293,7 +1293,7 @@ const emailLockedCountdownRef = useRef(null);
     setSuccessMsg("");
     setErrorMsg("");
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       if (!token) {
         setErrorMsg("Not authenticated");
         setIsSaving(false);
@@ -1444,7 +1444,7 @@ const emailLockedCountdownRef = useRef(null);
   const uploadPhoto = async (uri) => {
     try {
       setUploadingPhoto(true);
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       const fd = new FormData();
       if (Platform.OS === "web") {
         const blob = await (await fetch(uri)).blob();
@@ -1467,7 +1467,7 @@ const emailLockedCountdownRef = useRef(null);
       } else {
         const newPic = json.profile_picture;
         setProfileData((p) => ({ ...p, profile_picture: newPic }));
-        const cached = await AsyncStorage.getItem("user");
+        const cached = await AsyncStorage.getItem("auth_user");
         if (cached) {
           const parsed = JSON.parse(cached);
           parsed.profile_picture = newPic;
@@ -1566,7 +1566,7 @@ const emailLockedCountdownRef = useRef(null);
 
   // Call API status check
   try {
-    const token = await AsyncStorage.getItem("token");
+    const token = await AsyncStorage.getItem("auth_token");
     const res = await fetch(`${BASE_URL}/users/email/status`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -1656,7 +1656,7 @@ const closeEmailModal = async () => {
     setEmailPasswordLoading(true);
     setEmailPasswordErr("");
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       const res = await fetch(`${BASE_URL}/users/email/verify-password`, {
         method: "POST",
         headers: {
@@ -1710,7 +1710,7 @@ const closeEmailModal = async () => {
     setOldOtpError("");
     setEmailModalErr("");
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       const res = await fetch(`${BASE_URL}/users/email/request-old-otp`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -1761,7 +1761,7 @@ const closeEmailModal = async () => {
     setEmailModalLoading(true);
     setOldOtpError("");
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       const res = await fetch(`${BASE_URL}/users/email/verify-old-otp`, {
         method: "POST",
         headers: {
@@ -1816,7 +1816,7 @@ const closeEmailModal = async () => {
     setNewOtpError("");
     setEmailModalErr("");
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       const res = await fetch(`${BASE_URL}/users/email/request-new-otp`, {
         method: "POST",
         headers: {
@@ -1873,7 +1873,7 @@ const closeEmailModal = async () => {
     setEmailModalLoading(true);
     setNewOtpError("");
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       const res = await fetch(`${BASE_URL}/users/email/verify-new-otp`, {
         method: "POST",
         headers: {
@@ -1918,7 +1918,7 @@ const closeEmailModal = async () => {
   const saveVerifiedEmail = async (newEmail) => {
     setEmailModalLoading(true);
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       const fd = new FormData();
       fd.append("email", newEmail);
       [
