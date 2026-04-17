@@ -1199,7 +1199,7 @@ onClose={() => setActivePick(null)}/>
 const StepBar = memo(function StepBar({ step }) {
   return (
     <View style={sx.stepBar}>
-      {['Complainant', 'Suspect', 'Case & Offense'].map((lbl, idx) => {
+      {['Victim', 'Suspect', 'Case & Offense'].map((lbl, idx) => {
         const n = idx + 1, active = step === n, done = step > n;
         return (
           <React.Fragment key={n}>
