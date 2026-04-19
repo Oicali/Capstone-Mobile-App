@@ -1,9 +1,13 @@
 // ================================================================================
 // FILE: screens/CrimeMapScreen.js
 // CHANGES:
-//   1. Crime data filtered to last 365 days via ?date_from= query param
-//   2. Officer markers = plain blue dot only, no name/label
-//   3. Fast GPS init (Balanced first fix → BestForNavigation watch)
+//   1. Crime data filtered by dynamic date range (default last 365 days)
+//   2. Dynamic risk thresholds matching web version (based on date range)
+//   3. Officer markers = plain blue dot only, no name/label
+//   4. Manual GPS activation with confirmation modal (no auto-start)
+//   5. Sidebar tabs: Legend, Stats, Hotspots (no Patrol/Recent)
+//   6. Date filter UI inside sidebar
+//   7. UserLocation only renders when GPS is manually enabled
 // ================================================================================
 
 import React, { useEffect, useRef, useCallback, useState } from "react";
@@ -18,6 +22,7 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
+  TextInput,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
@@ -41,10 +46,29 @@ const API = BASE_URL;
 const INTERVAL_MS = 5000;
 const BACOOR_CENTER = [120.964, 14.4341];
 
-// Computed once — last 365 days as "YYYY-MM-DD"
-const DATE_FROM = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
-  .toISOString()
-  .split("T")[0];
+// ── Date helpers ────────────────────────────────────────────
+const getPHTToday = () => {
+  const phtMs = Date.now() + 8 * 60 * 60 * 1000;
+  return new Date(phtMs).toISOString().slice(0, 10);
+};
+
+const getPHTOneYearAgo = () => {
+  const phtMs = Date.now() + 8 * 60 * 60 * 1000;
+  const d = new Date(phtMs);
+  d.setFullYear(d.getFullYear() - 1);
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+// ── Dynamic risk thresholds — mirrors web + backend exactly ─
+const getRiskThresholds = (dateFrom, dateTo) => {
+  const days =
+    Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000) + 1;
+  if (days <= 29) return { lowMax: 1, medMax: 2 };
+  if (days <= 91) return { lowMax: 2, medMax: 4 };
+  if (days <= 364) return { lowMax: 3, medMax: 6 };
+  return { lowMax: 4, medMax: 8 };
+};
 
 const INCIDENT_COLORS = {
   ROBBERY: "#ef4444",
@@ -66,6 +90,7 @@ const formatDate = (d) => {
     day: "numeric",
   });
 };
+
 const formatTime = (d) => {
   if (!d) return "N/A";
   return new Date(d).toLocaleTimeString("en-PH", {
@@ -73,6 +98,10 @@ const formatTime = (d) => {
     minute: "2-digit",
   });
 };
+
+// Simple YYYY-MM-DD validator
+const isValidDate = (str) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(str) && !isNaN(new Date(str));
 
 export default function MapScreen({ navigation }) {
   const watchRef = useRef(null);
@@ -83,6 +112,21 @@ export default function MapScreen({ navigation }) {
   const officerPollRef = useRef(null);
   const isMounted = useRef(true);
 
+  // ── Date filter state ──────────────────────────────────────
+  const defaultDateFrom = getPHTOneYearAgo();
+  const defaultDateTo = getPHTToday();
+
+  const [filterDateFrom, setFilterDateFrom] = useState(defaultDateFrom);
+  const [filterDateTo, setFilterDateTo] = useState(defaultDateTo);
+  const [appliedDateFrom, setAppliedDateFrom] = useState(defaultDateFrom);
+  const [appliedDateTo, setAppliedDateTo] = useState(defaultDateTo);
+  const [showDateFilter, setShowDateFilter] = useState(false);
+
+  // ── GPS state — manual only ────────────────────────────────
+  const [gpsEnabled, setGpsEnabled] = useState(false);
+  const [showGpsConfirm, setShowGpsConfirm] = useState(false);
+
+  // ── Map data state ─────────────────────────────────────────
   const [rawGeoJSON, setRawGeoJSON] = useState(null);
   const [geoJSON, setGeoJSON] = useState(null);
   const [boundaries, setBoundaries] = useState([]);
@@ -96,7 +140,7 @@ export default function MapScreen({ navigation }) {
   const [myLocation, setMyLocation] = useState(null);
   const [showMorePopup, setShowMorePopup] = useState(false);
 
-  // ── GeoJSON ──────────────────────────────────────────────────
+  // ── GeoJSON ──────────────────────────────────────────────
   useEffect(() => {
     (async () => {
       try {
@@ -130,7 +174,7 @@ export default function MapScreen({ navigation }) {
     });
   }, [rawGeoJSON, boundaries]);
 
-  // ── GPS ──────────────────────────────────────────────────────
+  // ── GPS helpers ───────────────────────────────────────────
   const pushLocation = useCallback(async () => {
     if (!lastCoords.current) return;
     try {
@@ -179,12 +223,8 @@ export default function MapScreen({ navigation }) {
       watchRef.current.remove();
       watchRef.current = null;
     }
-    if (officerPollRef.current) {
-      clearInterval(officerPollRef.current);
-      officerPollRef.current = null;
-    }
     lastCoords.current = null;
-    callOffDuty(); // fire-and-forget
+    callOffDuty();
   }, [callOffDuty]);
 
   const startTracking = useCallback(async () => {
@@ -192,7 +232,7 @@ export default function MapScreen({ navigation }) {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") return;
 
-    // Step 1: fast coarse fix so dot appears in ~1-2s
+    // Fast coarse fix so dot appears quickly
     try {
       const fast = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
@@ -210,7 +250,7 @@ export default function MapScreen({ navigation }) {
       console.warn("[GPS] fast fix failed:", err.message);
     }
 
-    // Step 2: high-accuracy watch refines continuously
+    // High-accuracy watch refines continuously
     watchRef.current = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.BestForNavigation,
@@ -228,7 +268,7 @@ export default function MapScreen({ navigation }) {
     pushLocation();
   }, [pushLocation]);
 
-  // ── Data fetching ─────────────────────────────────────────────
+  // ── Data fetching ─────────────────────────────────────────
   const getToken = async () => await AsyncStorage.getItem("auth_token");
 
   const fetchMapData = useCallback(async () => {
@@ -236,7 +276,7 @@ export default function MapScreen({ navigation }) {
       if (isMounted.current) setLoading(true);
       const token = await getToken();
       const headers = { Authorization: `Bearer ${token}` };
-      const q = `?date_from=${DATE_FROM}`; // 365-day filter
+      const q = `?date_from=${appliedDateFrom}&date_to=${appliedDateTo}`;
       const [bRes, pRes, sRes] = await Promise.all([
         fetch(`${API}/crime-map/boundaries${q}`, { headers }),
         fetch(`${API}/crime-map/pins${q}`, { headers }),
@@ -256,7 +296,7 @@ export default function MapScreen({ navigation }) {
     } finally {
       if (isMounted.current) setLoading(false);
     }
-  }, []);
+  }, [appliedDateFrom, appliedDateTo]);
 
   const fetchOfficers = useCallback(async () => {
     try {
@@ -271,11 +311,10 @@ export default function MapScreen({ navigation }) {
     }
   }, []);
 
-  // ── Lifecycle ─────────────────────────────────────────────────
+  // ── Lifecycle — no GPS auto-start ─────────────────────────
   useEffect(() => {
     isMounted.current = true;
     fetchMapData();
-    startTracking();
     officerPollRef.current = setInterval(fetchOfficers, INTERVAL_MS);
     fetchOfficers();
 
@@ -283,24 +322,44 @@ export default function MapScreen({ navigation }) {
       const prev = appStateRef.current;
       appStateRef.current = next;
       if (prev === "active" && next.match(/inactive|background/)) {
-        stopTracking();
+        if (gpsEnabled) stopTracking();
+        if (officerPollRef.current) {
+          clearInterval(officerPollRef.current);
+          officerPollRef.current = null;
+        }
       } else if (prev.match(/inactive|background/) && next === "active") {
-        startTracking();
         fetchMapData();
         if (!officerPollRef.current)
           officerPollRef.current = setInterval(fetchOfficers, INTERVAL_MS);
         fetchOfficers();
+        if (gpsEnabled) startTracking();
       }
     });
 
     return () => {
       isMounted.current = false;
       sub.remove();
+      if (officerPollRef.current) clearInterval(officerPollRef.current);
       stopTracking();
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Layer styles ──────────────────────────────────────────────
+  // ── GPS toggle effect ──────────────────────────────────────
+  useEffect(() => {
+    if (gpsEnabled) {
+      startTracking();
+    } else {
+      stopTracking();
+      setMyLocation(null);
+    }
+  }, [gpsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Re-fetch when applied dates change ────────────────────
+  useEffect(() => {
+    fetchMapData();
+  }, [appliedDateFrom, appliedDateTo]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Layer styles ──────────────────────────────────────────
   const fillLayerStyle = { fillColor: ["get", "fillColor"], fillOpacity: 0.4 };
   const outlineLayerStyle = {
     lineColor: "#1e3a5f",
@@ -317,7 +376,14 @@ export default function MapScreen({ navigation }) {
     textAllowOverlap: false,
   };
 
-  // ── Render ────────────────────────────────────────────────────
+  // ── Computed risk thresholds for current applied range ────
+  const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
+  const dayCount =
+    Math.round(
+      (new Date(appliedDateTo) - new Date(appliedDateFrom)) / 86400000,
+    ) + 1;
+
+  // ── Render ────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container}>
       {/* HEADER */}
@@ -406,13 +472,13 @@ export default function MapScreen({ navigation }) {
             </MarkerView>
           ))}
 
-          {/* My location — pulsing blue dot */}
-          <UserLocation visible={true} />
+          {/* User location — only visible when GPS is manually enabled */}
+          {gpsEnabled && <UserLocation visible={true} />}
         </MapView>
 
-        {/* Recenter */}
+        {/* Recenter — only useful when GPS active */}
         <TouchableOpacity
-          style={styles.recenterBtn}
+          style={[styles.recenterBtn, !gpsEnabled && { opacity: 0.4 }]}
           onPress={() =>
             myLocation &&
             cameraRef.current?.setCamera({
@@ -425,7 +491,28 @@ export default function MapScreen({ navigation }) {
           <Ionicons name="navigate" size={20} color="#1e3a5f" />
         </TouchableOpacity>
 
-        {/* Reset */}
+        {/* GPS Toggle Button — below recenter */}
+        <TouchableOpacity
+          style={[
+            styles.gpsToggleBtn,
+            gpsEnabled && styles.gpsToggleBtnActive,
+          ]}
+          onPress={() => {
+            if (gpsEnabled) {
+              setGpsEnabled(false);
+            } else {
+              setShowGpsConfirm(true);
+            }
+          }}
+        >
+          <Ionicons
+            name={gpsEnabled ? "location" : "location-outline"}
+            size={20}
+            color={gpsEnabled ? "#ffffff" : "#1e3a5f"}
+          />
+        </TouchableOpacity>
+
+        {/* Reset view */}
         <TouchableOpacity
           style={styles.resetBtn}
           onPress={() =>
@@ -439,12 +526,21 @@ export default function MapScreen({ navigation }) {
           <Ionicons name="refresh" size={18} color="#1e3a5f" />
         </TouchableOpacity>
 
-        {/* Risk legend */}
+        {/* Risk legend — dynamic thresholds */}
         <View style={styles.riskLegend}>
           {[
-            { color: "#b91c1c", label: "High (4+)" },
-            { color: "#f97316", label: "Medium (2–3)" },
-            { color: "#eab308", label: "Low (1)" },
+            {
+              color: "#b91c1c",
+              label: `High (${thresholds.medMax + 1}+)`,
+            },
+            {
+              color: "#f97316",
+              label: `Med (${thresholds.lowMax + 1}–${thresholds.medMax})`,
+            },
+            {
+              color: "#eab308",
+              label: `Low (1${thresholds.lowMax > 1 ? `–${thresholds.lowMax}` : ""})`,
+            },
             { color: "#adb5bd", label: "None" },
           ].map((r) => (
             <View key={r.label} style={styles.riskRow}>
@@ -462,31 +558,74 @@ export default function MapScreen({ navigation }) {
           </Text>
         </View>
 
-        {/* GPS status */}
-        <View
-          style={[
-            styles.gpsStatus,
-            {
-              backgroundColor: myLocation
-                ? "rgba(34,197,94,0.88)"
-                : "rgba(239,68,68,0.88)",
-            },
-          ]}
-        >
-          {!myLocation ? (
-            <ActivityIndicator
-              size="small"
-              color="#ffffff"
-              style={{ marginRight: 2 }}
-            />
-          ) : (
-            <View style={styles.gpsStatusDot} />
-          )}
-          <Text style={styles.gpsStatusText}>
-            {myLocation ? "GPS Active" : "Acquiring GPS..."}
-          </Text>
-        </View>
+        {/* GPS status pill — only shown when GPS is enabled */}
+        {gpsEnabled && (
+          <View
+            style={[
+              styles.gpsStatus,
+              {
+                backgroundColor: myLocation
+                  ? "rgba(34,197,94,0.88)"
+                  : "rgba(239,68,68,0.88)",
+              },
+            ]}
+          >
+            {!myLocation ? (
+              <ActivityIndicator
+                size="small"
+                color="#ffffff"
+                style={{ marginRight: 2 }}
+              />
+            ) : (
+              <View style={styles.gpsStatusDot} />
+            )}
+            <Text style={styles.gpsStatusText}>
+              {myLocation ? "GPS Active" : "Acquiring GPS..."}
+            </Text>
+          </View>
+        )}
       </View>
+
+      {/* GPS CONFIRMATION MODAL */}
+      <Modal
+        visible={showGpsConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowGpsConfirm(false)}
+      >
+        <View style={styles.confirmBackdrop}>
+          <View style={styles.confirmBox}>
+            <Ionicons
+              name="location"
+              size={32}
+              color="#1e3a5f"
+              style={{ marginBottom: 10 }}
+            />
+            <Text style={styles.confirmTitle}>Enable GPS Tracking</Text>
+            <Text style={styles.confirmMsg}>
+              Your location will be shared with the system and visible to
+              dispatchers while GPS is active.
+            </Text>
+            <View style={styles.confirmBtns}>
+              <TouchableOpacity
+                style={styles.confirmCancel}
+                onPress={() => setShowGpsConfirm(false)}
+              >
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmOk}
+                onPress={() => {
+                  setShowGpsConfirm(false);
+                  setGpsEnabled(true);
+                }}
+              >
+                <Text style={styles.confirmOkText}>Enable</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* CRIME PIN POPUP */}
       {selectedPin && (
@@ -566,8 +705,10 @@ export default function MapScreen({ navigation }) {
         />
         <View style={styles.sidebar}>
           <View style={styles.sidebarHandle} />
+
+          {/* Tabs: Legend / Stats / Hotspots */}
           <View style={styles.sidebarTabs}>
-            {["legend", "stats", "hotspots", "recent"].map((tab) => (
+            {["legend", "stats", "hotspots"].map((tab) => (
               <TouchableOpacity
                 key={tab}
                 style={[
@@ -592,7 +733,85 @@ export default function MapScreen({ navigation }) {
             style={styles.sidebarBody}
             showsVerticalScrollIndicator={false}
           >
-            {/* LEGEND */}
+            {/* DATE FILTER ROW */}
+            <View style={styles.dateFilterRow}>
+              <TouchableOpacity
+                style={styles.dateFilterBtn}
+                onPress={() => setShowDateFilter((v) => !v)}
+              >
+                <Ionicons name="calendar-outline" size={14} color="#1e3a5f" />
+                <Text style={styles.dateFilterBtnText}>
+                  {appliedDateFrom} → {appliedDateTo}
+                </Text>
+                <Ionicons
+                  name={showDateFilter ? "chevron-up" : "chevron-down"}
+                  size={12}
+                  color="#6b7280"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {showDateFilter && (
+              <View style={styles.dateFilterPanel}>
+                <Text style={styles.dateFilterLabel}>From (YYYY-MM-DD)</Text>
+                <TextInput
+                  style={styles.dateInput}
+                  value={filterDateFrom}
+                  onChangeText={setFilterDateFrom}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor="#adb5bd"
+                  maxLength={10}
+                  keyboardType="numeric"
+                />
+                <Text style={styles.dateFilterLabel}>To (YYYY-MM-DD)</Text>
+                <TextInput
+                  style={styles.dateInput}
+                  value={filterDateTo}
+                  onChangeText={setFilterDateTo}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor="#adb5bd"
+                  maxLength={10}
+                  keyboardType="numeric"
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.applyDateBtn,
+                    (!isValidDate(filterDateFrom) ||
+                      !isValidDate(filterDateTo) ||
+                      filterDateFrom >= filterDateTo) && { opacity: 0.5 },
+                  ]}
+                  onPress={() => {
+                    if (
+                      !isValidDate(filterDateFrom) ||
+                      !isValidDate(filterDateTo) ||
+                      filterDateFrom >= filterDateTo
+                    )
+                      return;
+                    setAppliedDateFrom(filterDateFrom);
+                    setAppliedDateTo(filterDateTo);
+                    setShowDateFilter(false);
+                  }}
+                >
+                  <Text style={styles.applyDateBtnText}>Apply</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.clearDateBtn}
+                  onPress={() => {
+                    const from = getPHTOneYearAgo();
+                    const to = getPHTToday();
+                    setFilterDateFrom(from);
+                    setFilterDateTo(to);
+                    setAppliedDateFrom(from);
+                    setAppliedDateTo(to);
+                    setShowDateFilter(false);
+                  }}
+                >
+                  <Text style={styles.clearDateBtnText}>Reset to 1 Year</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ── LEGEND TAB ── */}
             {activeTab === "legend" && (
               <View style={styles.tabContent}>
                 <Text style={styles.sectionLabel}>Crime Types</Text>
@@ -635,14 +854,32 @@ export default function MapScreen({ navigation }) {
                     </View>
                   );
                 })}
+
+                {/* Dynamic risk scale */}
                 <Text style={[styles.sectionLabel, { marginTop: 20 }]}>
-                  Barangay Risk
+                  Barangay Risk Scale
+                </Text>
+                <Text style={styles.dateRangeNote}>
+                  Thresholds for {dayCount}-day range
                 </Text>
                 {[
-                  { color: "#b91c1c", label: "High Risk — 4+ crimes" },
-                  { color: "#f97316", label: "Medium Risk — 2–3 crimes" },
-                  { color: "#eab308", label: "Low Risk — 1 crime" },
-                  { color: "#adb5bd", label: "No Crimes" },
+                  { color: "#adb5bd", label: "No crimes", range: "0" },
+                  {
+                    color: "#eab308",
+                    label: "Low Risk",
+                    range:
+                      thresholds.lowMax === 1 ? "1" : `1–${thresholds.lowMax}`,
+                  },
+                  {
+                    color: "#f97316",
+                    label: "Medium Risk",
+                    range: `${thresholds.lowMax + 1}–${thresholds.medMax}`,
+                  },
+                  {
+                    color: "#b91c1c",
+                    label: "High Risk",
+                    range: `${thresholds.medMax + 1}+`,
+                  },
                 ].map((r) => (
                   <View key={r.label} style={styles.riskLegendRow}>
                     <View
@@ -652,15 +889,20 @@ export default function MapScreen({ navigation }) {
                       ]}
                     />
                     <Text style={styles.riskLegendLabel}>{r.label}</Text>
+                    <Text style={styles.riskLegendRange}>
+                      {r.range} crimes
+                    </Text>
                   </View>
                 ))}
               </View>
             )}
 
-            {/* STATS */}
+            {/* ── STATS TAB ── */}
             {activeTab === "stats" && (
               <View style={styles.tabContent}>
-                <Text style={styles.dateRangeNote}>Showing last 365 days</Text>
+                <Text style={styles.dateRangeNote}>
+                  {appliedDateFrom} → {appliedDateTo}
+                </Text>
                 <View style={styles.statsGrid}>
                   {[
                     {
@@ -674,9 +916,9 @@ export default function MapScreen({ navigation }) {
                       color: "#6b7280",
                     },
                     {
-                      label: "Hotspot Areas",
-                      val: stats?.high_risk_count ?? 0,
-                      color: "#c1272d",
+                      label: "At-Risk Areas",
+                      val: stats?.at_risk_count ?? 0,
+                      color: "#f97316",
                     },
                     {
                       label: "Brgy. Affected",
@@ -731,22 +973,50 @@ export default function MapScreen({ navigation }) {
               </View>
             )}
 
-            {/* HOTSPOTS */}
+            {/* ── HOTSPOTS TAB ── */}
             {activeTab === "hotspots" && (
               <View style={styles.tabContent}>
-                <Text style={styles.dateRangeNote}>Showing last 365 days</Text>
-                {stats?.hotspots?.length > 0 ? (
-                  stats.hotspots.map((h, i) => (
+                <Text style={styles.dateRangeNote}>
+                  {appliedDateFrom} → {appliedDateTo}
+                </Text>
+                {stats?.at_risk_barangays?.length > 0 ? (
+                  stats.at_risk_barangays.map((h, i) => (
                     <View key={i} style={styles.hotspotRow}>
                       <Text style={styles.hotspotRank}>#{i + 1}</Text>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.hotspotName}>{h.barangay}</Text>
+                        <Text
+                          style={[
+                            styles.hotspotRisk,
+                            {
+                              color:
+                                h.risk === "High"
+                                  ? "#b91c1c"
+                                  : h.risk === "Medium"
+                                    ? "#f97316"
+                                    : "#eab308",
+                            },
+                          ]}
+                        >
+                          {h.risk} Risk
+                        </Text>
                         <View style={styles.hotspotBarBg}>
                           <View
                             style={[
                               styles.hotspotBarFill,
                               {
-                                width: `${Math.min(100, (h.count / stats.hotspots[0].count) * 100)}%`,
+                                width: `${Math.min(
+                                  100,
+                                  (h.count /
+                                    stats.at_risk_barangays[0].count) *
+                                    100,
+                                )}%`,
+                                backgroundColor:
+                                  h.risk === "High"
+                                    ? "#b91c1c"
+                                    : h.risk === "Medium"
+                                      ? "#f97316"
+                                      : "#eab308",
                               },
                             ]}
                           />
@@ -756,40 +1026,9 @@ export default function MapScreen({ navigation }) {
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.emptyText}>No hotspots detected</Text>
-                )}
-              </View>
-            )}
-
-            {/* RECENT */}
-            {activeTab === "recent" && (
-              <View style={styles.tabContent}>
-                {stats?.recent_incidents?.length > 0 ? (
-                  stats.recent_incidents.map((r, i) => (
-                    <View key={i} style={styles.recentItem}>
-                      <View
-                        style={[
-                          styles.recentBar,
-                          {
-                            backgroundColor:
-                              INCIDENT_COLORS[r.incident_type?.toUpperCase()] ||
-                              "#6b7280",
-                          },
-                        ]}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.recentType}>{r.incident_type}</Text>
-                        <Text style={styles.recentBrgy}>
-                          📍 {r.place_barangay}
-                        </Text>
-                        <Text style={styles.recentDate}>
-                          {formatDate(r.date_time_commission)}
-                        </Text>
-                      </View>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.emptyText}>No recent incidents</Text>
+                  <Text style={styles.emptyText}>
+                    No at-risk barangays detected
+                  </Text>
                 )}
               </View>
             )}
@@ -838,7 +1077,6 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 
-  // Officer: simple blue dot only
   officerDot: {
     width: 16,
     height: 16,
@@ -853,39 +1091,24 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
-  // My location: pulsing
-  myLocationMarker: {
-    width: 28,
-    height: 28,
+  recenterBtn: {
+    position: "absolute",
+    bottom: 184,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#ffffff",
     alignItems: "center",
     justifyContent: "center",
-  },
-  myLocationDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: "#3b82f6",
-    borderWidth: 2.5,
-    borderColor: "#ffffff",
-    position: "absolute",
-    zIndex: 2,
-    shadowColor: "#3b82f6",
-    shadowOpacity: 0.5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
-  },
-  myLocationRing: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(59,130,246,0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(59,130,246,0.45)",
-    position: "absolute",
+    elevation: 5,
   },
 
-  recenterBtn: {
+  gpsToggleBtn: {
     position: "absolute",
     bottom: 130,
     right: 16,
@@ -901,6 +1124,10 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
+  gpsToggleBtnActive: {
+    backgroundColor: "#1e3a5f",
+  },
+
   resetBtn: {
     position: "absolute",
     bottom: 76,
@@ -981,6 +1208,56 @@ const styles = StyleSheet.create({
   },
   gpsStatusText: { fontSize: 11, color: "#ffffff", fontWeight: "700" },
 
+  confirmBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmBox: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 24,
+    width: "80%",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  confirmTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0a285c",
+    marginBottom: 8,
+  },
+  confirmMsg: {
+    fontSize: 13,
+    color: "#6b7280",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  confirmBtns: { flexDirection: "row", gap: 12, width: "100%" },
+  confirmCancel: {
+    flex: 1,
+    padding: 11,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    alignItems: "center",
+  },
+  confirmCancelText: { color: "#6b7280", fontWeight: "600", fontSize: 14 },
+  confirmOk: {
+    flex: 1,
+    padding: 11,
+    borderRadius: 8,
+    backgroundColor: "#1e3a5f",
+    alignItems: "center",
+  },
+  confirmOkText: { color: "#ffffff", fontWeight: "700", fontSize: 14 },
+
   popup: {
     position: "absolute",
     bottom: 0,
@@ -1032,7 +1309,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: "75%",
+    maxHeight: "80%",
     paddingBottom: Platform.OS === "ios" ? 30 : 16,
   },
   sidebarHandle: {
@@ -1074,14 +1351,77 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     marginBottom: 4,
   },
-
   dateRangeNote: {
     fontSize: 11,
     color: "#9ca3af",
     fontStyle: "italic",
-    marginBottom: 10,
+    marginBottom: 4,
     textAlign: "center",
   },
+
+  dateFilterRow: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+    marginBottom: 4,
+  },
+  dateFilterBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  dateFilterBtnText: {
+    fontSize: 11,
+    color: "#1e3a5f",
+    fontWeight: "600",
+    flex: 1,
+  },
+  dateFilterPanel: {
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  dateFilterLabel: {
+    fontSize: 11,
+    color: "#6b7280",
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    borderRadius: 6,
+    padding: 8,
+    fontSize: 13,
+    color: "#111827",
+    backgroundColor: "#ffffff",
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+  },
+  applyDateBtn: {
+    marginTop: 8,
+    backgroundColor: "#1e3a5f",
+    borderRadius: 6,
+    padding: 10,
+    alignItems: "center",
+  },
+  applyDateBtnText: { color: "#ffffff", fontWeight: "700", fontSize: 13 },
+  clearDateBtn: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    borderRadius: 6,
+    padding: 8,
+    alignItems: "center",
+  },
+  clearDateBtnText: { color: "#6b7280", fontSize: 12 },
 
   legendRow: { gap: 5 },
   legendTop: {
@@ -1108,7 +1448,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   riskLegendDot: { width: 12, height: 12, borderRadius: 3 },
-  riskLegendLabel: { fontSize: 13, color: "#374151" },
+  riskLegendLabel: { fontSize: 13, color: "#374151", flex: 1 },
+  riskLegendRange: { fontSize: 11, color: "#6b7280" },
 
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   statCard: {
@@ -1174,6 +1515,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#111827",
+    marginBottom: 2,
+  },
+  hotspotRisk: {
+    fontSize: 10,
+    fontWeight: "700",
     marginBottom: 5,
   },
   hotspotBarBg: {
@@ -1184,27 +1530,9 @@ const styles = StyleSheet.create({
   },
   hotspotBarFill: {
     height: "100%",
-    backgroundColor: "#c1272d",
     borderRadius: 4,
   },
   hotspotCount: { fontSize: 15, fontWeight: "700", color: "#c1272d" },
-
-  recentItem: {
-    flexDirection: "row",
-    gap: 10,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
-  },
-  recentBar: { width: 3, borderRadius: 4, minHeight: 40 },
-  recentType: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 3,
-  },
-  recentBrgy: { fontSize: 12, color: "#6b7280", marginBottom: 2 },
-  recentDate: { fontSize: 11, color: "#9ca3af" },
 
   emptyText: {
     textAlign: "center",

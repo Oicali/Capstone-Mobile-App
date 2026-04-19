@@ -41,3 +41,4 @@ yarn-error.*
 /android
 .env
 android/gradle.properties
+android/gradle.properties
