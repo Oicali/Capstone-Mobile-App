@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   SafeAreaView, TextInput, Modal, ActivityIndicator,
   Platform, Dimensions, FlatList, KeyboardAvoidingView,
-  RefreshControl, StatusBar,
+  RefreshControl, StatusBar, PanResponder
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -78,7 +78,7 @@ const NATS       = ['FILIPINO', 'AMERICAN', 'CHINESE', 'JAPANESE', 'KOREAN', 'IN
 const S_STAT     = ['At Large', 'In Custody', 'Arrested', 'Detained', 'Released on Bail', 'Deceased', 'Unknown'];
 const DEGREES    = ['Principal', 'Accomplice', 'Accessory'];
 const INFO_OB    = ['Personal', 'Telephone', 'Walk-in', 'Online', 'Email', 'Third Party'];
-const STAGES     = ['COMPLETED', 'ATTEMPTED', 'FRUSTRATED'];
+const STAGES     = ['CONSUMMATED', 'ATTEMPTED', 'FRUSTRATED'];
 const PRIV       = ['Yes', 'No', 'Unknown'];
 const QUALIFIERS = ['Jr.', 'Sr.', 'II', 'III', 'IV', 'V'];
 const EDU_ATT    = ['No Formal Education', 'Elementary Undergraduate', 'Elementary Graduate', 'High School Undergraduate', 'High School Graduate', 'Vocational', 'College Undergraduate', 'College Graduate', 'Post Graduate'];
@@ -719,9 +719,9 @@ const Step1 = memo(function Step1({ comp, setComp, formErr, activePick, setActiv
             </View>
           </View>
           {/* FIX 6: Middle name is OPTIONAL — no required prop */}
-          <FField label="Middle Name">
-            <TInput value={c.middle_name} onChange={v => uC(i, 'middle_name', lettersOnly(v))} placeholder="Middle Name (optional)" maxLen={50} fieldKey={`c${i}mn`} />
-          </FField>
+        <FField label="Middle Name" error={formErr[`c${i}mn`]}>
+  <TInput value={c.middle_name} onChange={v => uC(i, 'middle_name', lettersOnly(v))} placeholder="Middle Name (optional)" maxLen={50} error={formErr[`c${i}mn`]} fieldKey={`c${i}mn`} />
+</FField>
           <View style={sx.row2}>
             <View style={{ flex: 1 }}>
               <FField label="Qualifier">
@@ -732,9 +732,9 @@ const Step1 = memo(function Step1({ comp, setComp, formErr, activePick, setActiv
             <View style={{ width: 8 }} />
             <View style={{ flex: 1 }}>
               {/* FIX 6: Alias is OPTIONAL — no required prop */}
-              <FField label="Alias">
-                <TInput value={c.alias} onChange={v => uC(i, 'alias', v)} placeholder="Alias (optional)" maxLen={50} />
-              </FField>
+              <FField label="Alias" error={formErr[`c${i}alias`]}>
+  <TInput value={c.alias} onChange={v => uC(i, 'alias', v)} placeholder="Alias (optional)" maxLen={50} error={formErr[`c${i}alias`]} fieldKey={`c${i}alias`} />
+</FField>
             </View>
           </View>
           <FField label="Gender" required><Toggle opts={[{ l: 'Male', v: 'Male', ic: 'male' }, { l: 'Female', v: 'Female', ic: 'female' }]} value={c.gender} onChange={v => uC(i, 'gender', v)} /></FField>
@@ -747,9 +747,9 @@ const Step1 = memo(function Step1({ comp, setComp, formErr, activePick, setActiv
             <TextInput style={[inp.base, formErr[`c${i}cn`] && inp.err]} value={String(c.contact_number ?? '')} onChangeText={v => uC(i, 'contact_number', v.replace(/\D/g, ''))} placeholder="09XXXXXXXXX (optional)" placeholderTextColor={C.faint} keyboardType="number-pad" maxLength={11} autoCorrect={false} />
           </FField>
           {/* FIX 6: Occupation is OPTIONAL — no required prop */}
-          <FField label="Occupation">
-            <TInput value={c.occupation} onChange={v => uC(i, 'occupation', v)} placeholder="e.g. Teacher, Driver (optional)" maxLen={100} />
-          </FField>
+          <FField label="Occupation" error={formErr[`c${i}occ`]}>
+  <TInput value={c.occupation} onChange={v => uC(i, 'occupation', v)} placeholder="e.g. Teacher, Driver (optional)" maxLen={100} error={formErr[`c${i}occ`]} fieldKey={`c${i}occ`} />
+</FField>
           {isImportedRecord ? (
             <FField label="Address (Imported)">
               <TInput value={[c.house_street, c.barangay || c.barangay_code, c.city_municipality || c.municipality_code, c.district_province || c.province_code, c.region || c.region_code].filter(Boolean).join(', ') || 'No address on record'} editable={false} />
@@ -817,9 +817,9 @@ const Step2 = memo(function Step2({ susp, setSusp, formErr, activePick, setActiv
             </View>
           </View>
           {/* FIX 6: Middle name OPTIONAL for suspect */}
-          <FField label="Middle Name">
-            <TInput value={s.middle_name} onChange={v => uS(i, 'middle_name', lettersOnly(v))} placeholder="Middle Name (optional)" maxLen={50} fieldKey={`s${i}mn`} />
-          </FField>
+          <FField label="Middle Name" error={formErr[`s${i}mn`]}>
+  <TInput value={s.middle_name} onChange={v => uS(i, 'middle_name', lettersOnly(v))} placeholder="Middle Name (optional)" maxLen={50} error={formErr[`s${i}mn`]} fieldKey={`s${i}mn`} />
+</FField>
           <View style={sx.row2}>
             <View style={{ flex: 1 }}>
               <FField label="Qualifier">
@@ -830,9 +830,9 @@ const Step2 = memo(function Step2({ susp, setSusp, formErr, activePick, setActiv
             <View style={{ width: 8 }} />
             <View style={{ flex: 1 }}>
               {/* FIX 6: Alias OPTIONAL for suspect */}
-              <FField label="Alias">
-                <TInput value={s.alias} onChange={v => uS(i, 'alias', v)} placeholder="Alias (optional)" maxLen={50} />
-              </FField>
+              <FField label="Alias" error={formErr[`s${i}alias`]}>
+  <TInput value={s.alias} onChange={v => uS(i, 'alias', v)} placeholder="Alias (optional)" maxLen={50} error={formErr[`s${i}alias`]} fieldKey={`s${i}alias`} />
+</FField>
             </View>
           </View>
           <FField label="Gender"><Toggle opts={[{ l: 'Male', v: 'Male', ic: 'male' }, { l: 'Female', v: 'Female', ic: 'female' }]} value={s.gender} onChange={v => uS(i, 'gender', v)} /></FField>
@@ -844,7 +844,9 @@ const Step2 = memo(function Step2({ susp, setSusp, formErr, activePick, setActiv
             <View style={{ width: 8 }} />
             <View style={{ flex: 1 }}><FField label="Height (cm)" error={formErr[`s${i}ht`]}><TInput value={s.height_cm} onChange={v => uS(i, 'height_cm', v.replace(/\D/g, ''))} placeholder="cm" kb="number-pad" maxLen={3} error={formErr[`s${i}ht`]} fieldKey={`s${i}ht`} /></FField></View>
           </View>
-          <FField label="Birth Place"><TInput value={s.birth_place} onChange={v => uS(i, 'birth_place', v)} placeholder="Birth Place" maxLen={100} /></FField>
+          <FField label="Birth Place" error={formErr[`s${i}bp`]}>
+  <TInput value={s.birth_place} onChange={v => uS(i, 'birth_place', v)} placeholder="Birth Place" maxLen={100} error={formErr[`s${i}bp`]} fieldKey={`s${i}bp`} />
+</FField>
           <FField label="Status" error={formErr[`s${i}st`]}>
             <SelBtn label="Select Status" value={s.status} onPress={() => setActivePick(`ss${i}`)} error={formErr[`s${i}st`]} />
           </FField>
@@ -862,17 +864,23 @@ const Step2 = memo(function Step2({ susp, setSusp, formErr, activePick, setActiv
           </FField>
           <PickerModal visible={activePick === `sd${i}`} title="Degree" options={DEGREES} selected={s.degree_participation} onSelect={v => { uS(i, 'degree_participation', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
           <FField label="Nationality" error={formErr[`s${i}nat`]}>
-            <SelBtn label="Select Nationality" value={s.nationality} onPress={() => setActivePick(`sn${i}`)} error={formErr[`s${i}nat`]} />
-          </FField>
+  <SelBtn label="Select Nationality" value={s.nationality} onPress={() => setActivePick(`sn${i}`)} error={formErr[`s${i}nat`]} />
+</FField>
           <PickerModal visible={activePick === `sn${i}`} title="Nationality" options={NATS} selected={s.nationality} onSelect={v => { uS(i, 'nationality', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
           <FField label="Educational Attainment">
             <SelBtn label="Select…" value={s.educational_attainment} onPress={() => setActivePick(`se${i}`)} />
           </FField>
           <PickerModal visible={activePick === `se${i}`} title="Educational Attainment" options={EDU_ATT} selected={s.educational_attainment} onSelect={v => { uS(i, 'educational_attainment', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
-          <FField label="Occupation"><TInput value={s.occupation} onChange={v => uS(i, 'occupation', v)} placeholder="e.g. Driver" maxLen={100} /></FField>
-          <FField label="Relation to Victim"><TInput value={s.relation_to_victim} onChange={v => uS(i, 'relation_to_victim', v)} placeholder="e.g. Neighbor" maxLen={100} /></FField>
+          <FField label="Occupation" error={formErr[`s${i}socc`]}>
+  <TInput value={s.occupation} onChange={v => uS(i, 'occupation', v)} placeholder="e.g. Driver" maxLen={100} error={formErr[`s${i}socc`]} fieldKey={`s${i}socc`} />
+</FField>
+          <FField label="Relation to Victim" error={formErr[`s${i}rel`]}>
+  <TInput value={s.relation_to_victim} onChange={v => uS(i, 'relation_to_victim', v)} placeholder="Relation" maxLen={100} error={formErr[`s${i}rel`]} fieldKey={`s${i}rel`} />
+</FField>
           <FField label="Drug Used"><Toggle opts={[{ l: 'Yes', v: true }, { l: 'No', v: false }]} value={s.drug_used} onChange={v => uS(i, 'drug_used', v)} /></FField>
-          <FField label="Motive"><TInput value={s.motive} onChange={v => uS(i, 'motive', v)} placeholder="Motive" maxLen={500} multiline lines={3} /></FField>
+          <FField label="Motive" error={formErr[`s${i}mot`]}>
+  <TInput value={s.motive} onChange={v => uS(i, 'motive', v)} placeholder="Motive" maxLen={500} multiline lines={3} error={formErr[`s${i}mot`]} fieldKey={`s${i}mot`} />
+</FField>
           <AddrFields data={s} onUpdate={(f, v) => uS(i, f, v)} errors={{ [`s${i}_reg`]: formErr[`s${i}_reg`], [`s${i}_prov`]: formErr[`s${i}_prov`], [`s${i}_city`]: formErr[`s${i}_city`], [`s${i}_brgy`]: formErr[`s${i}_brgy`] }} pfx={`s${i}`} regions={regions} loadingR={loadingR} provinces={sPr[i] || []} cities={sCi[i] || []} barangays={sBr[i] || []} lPr={!!sLP[i]} lCi={!!sLC[i]} lBr={!!sLB[i]} onReg={v => sReg(i, v)} onProv={v => sPrv(i, v)} onCity={v => sCit(i, v)} />
           <FField label="House No. / Street" error={formErr[`s${i}hs`]}><TInput value={s.house_street} onChange={v => uS(i, 'house_street', v)} placeholder="e.g. 123 Rizal Street" error={formErr[`s${i}hs`]} maxLen={200} fieldKey={`s${i}hs`} /></FField>
         </View>
@@ -899,6 +907,15 @@ const Step3 = memo(function Step3({
   const cameraRef = useRef(null);
   const pinColor = INCIDENT_COLORS[caseD.incident_type] || '#c1272d';
   const [mapFocused, setMapFocused] = useState(false);
+const mapPanResponder = useRef(
+  PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => setMapFocused(true),
+    onPanResponderRelease: () => setMapFocused(false),
+    onPanResponderTerminate: () => setMapFocused(false),
+  })
+).current;
 const [outsideBrgy, setOutsideBrgy] = useState(false);
   const isInsideBoundary = (lng, lat, feature) => {
     if (!feature) return true;
@@ -1092,9 +1109,7 @@ onClose={() => setActivePick(null)}/>
   ) : (
     <View
   style={{ height: 420, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: formErr.pin ? C.red : C.border }}
-  onTouchStart={() => setMapFocused(true)}
-  onTouchEnd={() => setMapFocused(false)}
-  onTouchCancel={() => setMapFocused(false)}
+  {...mapPanResponder.panHandlers}
 >
   <MapView
     style={{ flex: 1 }}
@@ -1280,6 +1295,16 @@ const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, off
     </View>
   );
   const d = viewData;
+const [viewMapFocused, setViewMapFocused] = useState(false);
+const viewMapPanResponder = useRef(
+  PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => setViewMapFocused(true),
+    onPanResponderRelease: () => setViewMapFocused(false),
+    onPanResponderTerminate: () => setViewMapFocused(false),
+  })
+).current;
 
   const VI = (label, value) => (!value && value !== 0 && value !== false) ? null : (
     <View style={vw.item} key={label}>
@@ -1299,7 +1324,7 @@ const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, off
   );
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false}>
+    <ScrollView showsVerticalScrollIndicator={false} scrollEnabled={!viewMapFocused}>
       {/* Hero banner */}
       <View style={vw.hero}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1377,17 +1402,22 @@ const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, off
 
           {/* FIX 9: MAP VIEW — shows crime location pin */}
           {d.lat && d.lng && (
-            <View style={vw.item}>
-              <Text style={vw.label}>PIN LOCATION</Text>
-              <View style={{ height: 250, borderRadius: 10, overflow: 'hidden', marginTop: 6, borderWidth: 1, borderColor: C.border }}>
-                <MapView
-                  style={{ flex: 1 }}
-                  styleURL="mapbox://styles/mapbox/streets-v12"
-                  zoomEnabled={true}
-                  scrollEnabled={true}
-                  pitchEnabled={false}
-                  rotateEnabled={false}
-                >
+           <View style={vw.item}>
+  <Text style={vw.label}>PIN LOCATION</Text>
+ <View
+  style={{ height: 340, borderRadius: 10, overflow: 'hidden', marginTop: 6, borderWidth: 1, borderColor: C.border }}
+  {...viewMapPanResponder.panHandlers}
+>
+    <MapView
+      style={{ flex: 1 }}
+      styleURL="mapbox://styles/mapbox/streets-v12"
+      zoomEnabled={true}
+      scrollEnabled={true}
+      pitchEnabled={false}
+      rotateEnabled={false}
+      attributionEnabled={false}
+      logoEnabled={false}
+    >
                   <Camera
                     centerCoordinate={[parseFloat(d.lng), parseFloat(d.lat)]}
                     zoomLevel={15}
@@ -1769,11 +1799,21 @@ export default function EBlotterScreen() {
       else if (c.last_name.trim().length < 2) e[`c${i}ln`] = 'At least 2 characters';
       else if (!/^[A-Za-zÑñ\s'-]+$/.test(c.last_name.trim())) e[`c${i}ln`] = 'Letters only';
 
-      // Middle name: optional, validate only if provided
-      if (c.middle_name && c.middle_name.trim().length > 0) {
-        if (c.middle_name.trim().length < 2) e[`c${i}mn`] = 'At least 2 characters';
-        else if (!/^[A-Za-zÑñ\s'-]+$/.test(c.middle_name.trim())) e[`c${i}mn`] = 'Letters only';
-      }
+if (c.middle_name && c.middle_name.trim().length > 0) {
+  if (c.middle_name.trim().length < 2) e[`c${i}mn`] = 'At least 2 characters';
+  else if (!/^[A-Za-zÑñ\s'-]+$/.test(c.middle_name.trim())) e[`c${i}mn`] = 'Letters only';
+}
+      // Alias validation - optional but validate if provided
+  if (c.alias && c.alias.trim().length > 0) {
+    if (c.alias.trim().length < 2) e[`c${i}alias`] = 'At least 2 characters';
+    else if (c.alias.trim().length > 50) e[`c${i}alias`] = 'Maximum 50 characters';
+  }
+
+  // Occupation validation - optional but validate if provided
+  if (c.occupation && c.occupation.trim().length > 0) {
+    if (c.occupation.trim().length < 2) e[`c${i}occ`] = 'At least 2 characters';
+    else if (c.occupation.trim().length > 100) e[`c${i}occ`] = 'Maximum 100 characters';
+  }
 
      
 
@@ -1791,12 +1831,72 @@ export default function EBlotterScreen() {
     });
 
     if (step === 2 && hasSuspect) susp.forEach((s, i) => {
-      if (s.first_name && s.first_name.trim().length > 0 && s.first_name.trim().length < 2) e[`s${i}fn`] = 'At least 2 characters';
-      if (s.last_name  && s.last_name.trim().length  > 0 && s.last_name.trim().length  < 2) e[`s${i}ln`] = 'At least 2 characters';
-      if (s.middle_name && s.middle_name.trim().length > 0) {
-        if (s.middle_name.trim().length < 2) e[`s${i}mn`] = 'At least 2 characters';
-        else if (!/^[A-Za-zÑñ\s'-]+$/.test(s.middle_name.trim())) e[`s${i}mn`] = 'Letters only';
-      }
+  // First name - optional but validate if provided
+  if (s.first_name && s.first_name.trim().length > 0) {
+    if (s.first_name.trim().length < 2) e[`s${i}fn`] = 'At least 2 characters';
+    else if (s.first_name.trim().length > 50) e[`s${i}fn`] = 'Maximum 50 characters';
+    else if (!/^[A-Za-zÑñ\s'-]+$/.test(s.first_name.trim())) e[`s${i}fn`] = 'Letters only';
+  }
+
+  // Last name - optional but validate if provided
+  if (s.last_name && s.last_name.trim().length > 0) {
+    if (s.last_name.trim().length < 2) e[`s${i}ln`] = 'At least 2 characters';
+    else if (s.last_name.trim().length > 50) e[`s${i}ln`] = 'Maximum 50 characters';
+    else if (!/^[A-Za-zÑñ\s'-]+$/.test(s.last_name.trim())) e[`s${i}ln`] = 'Letters only';
+  }
+
+  // Middle name - optional but validate if provided
+  if (s.middle_name && s.middle_name.trim().length > 0) {
+    if (s.middle_name.trim().length < 2) e[`s${i}mn`] = 'At least 2 characters';
+    else if (s.middle_name.trim().length > 50) e[`s${i}mn`] = 'Maximum 50 characters';
+    else if (!/^[A-Za-zÑñ\s'-]+$/.test(s.middle_name.trim())) e[`s${i}mn`] = 'Letters only';
+  }
+
+  // Alias validation - optional but validate if provided
+  if (s.alias && s.alias.trim().length > 0) {
+    if (s.alias.trim().length < 2) e[`s${i}alias`] = 'At least 2 characters';
+    else if (s.alias.trim().length > 50) e[`s${i}alias`] = 'Maximum 50 characters';
+  }
+
+  // Birth place validation - optional but validate if provided
+  if (s.birth_place && s.birth_place.trim().length > 0) {
+    if (s.birth_place.trim().length < 2) e[`s${i}bp`] = 'At least 2 characters';
+    else if (s.birth_place.trim().length > 100) e[`s${i}bp`] = 'Maximum 100 characters';
+  }
+
+  // Relation to victim - optional but validate if provided
+  if (s.relation_to_victim && s.relation_to_victim.trim().length > 0) {
+    if (s.relation_to_victim.trim().length < 2) e[`s${i}rel`] = 'At least 2 characters';
+    else if (s.relation_to_victim.trim().length > 100) e[`s${i}rel`] = 'Maximum 100 characters';
+  }
+
+  // Motive - optional but validate if provided
+  if (s.motive && s.motive.trim().length > 0) {
+    if (s.motive.trim().length < 2) e[`s${i}mot`] = 'At least 2 characters';
+    else if (s.motive.trim().length > 500) e[`s${i}mot`] = 'Maximum 500 characters';
+  }
+
+  // Occupation - optional but validate if provided
+  if (s.occupation && s.occupation.trim().length > 0) {
+    if (s.occupation.trim().length < 2) e[`s${i}socc`] = 'At least 2 characters';
+    else if (s.occupation.trim().length > 100) e[`s${i}socc`] = 'Maximum 100 characters';
+  }
+
+  // Birthday validation - must be at least 10 years old if provided
+  if (s.birthday) {
+    const birthDate = new Date(s.birthday);
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    const dayDiff = today.getDate() - birthDate.getDate();
+    const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+    
+    if (birthDate > today) {
+      e[`s${i}bday`] = 'Cannot be future date';
+    } else if (actualAge < 10) {
+      e[`s${i}bday`] = 'Must be at least 10 years old';
+    }
+  }
 
       if (s.age && String(s.age).trim()) { const a = parseInt(s.age); if (isNaN(a) || a < 10 || a > 120) e[`s${i}age`] = 'Must be 10–120'; }
       if (s.height_cm && String(s.height_cm).trim()) { const h = parseInt(s.height_cm); if (isNaN(h) || h < 50 || h > 250) e[`s${i}ht`] = 'Must be 50–250 cm'; }
@@ -1812,6 +1912,9 @@ export default function EBlotterScreen() {
       }
 
       if (s.house_street && s.house_street.trim().length > 0 && s.house_street.trim().length < 2) e[`s${i}hs`] = 'At least 2 characters';
+        if (s.nationality && s.nationality.trim().length > 0) {
+    if (s.nationality.trim().length < 2) e[`s${i}nat`] = 'At least 2 characters';
+  }
     });
 
     if (step === 3) {
@@ -1895,50 +1998,70 @@ export default function EBlotterScreen() {
 
   /* ── Submit ───────────────────────────────────────────────────────────── */
   const submit = async () => {
-    const e = validate(); if (Object.keys(e).length) { setFormErr(e); return; }
-    setSaving(true);
-    try {
-      const fc = { ...caseD };
-      if (fc.amount_involved) fc.amount_involved = fc.amount_involved.replace(/,/g, '');
-      fc.type_of_place = topPl;
-      fc.modus_reference_ids = Object.values(selM).flat();
-      const ra = (item, pr, ci, br, i) => ({
-        ...item,
-        region: (regions || []).find(r => r.code === item.region_code)?.name || item.region || item.region_code,
-        district_province: ((pr[i] || []).find(p => p.code === item.province_code) || {}).name || item.district_province || item.province_code,
-        city_municipality: ((ci[i] || []).find(c => c.code === item.municipality_code) || {}).name || item.city_municipality || item.municipality_code,
-        barangay: ((br[i] || []).find(b => b.code === item.barangay_code) || {}).name || item.barangay || item.barangay_code,
-      });
+  const e = validate();
+  if (Object.keys(e).length) { setFormErr(e); return; }
+  setSaving(true);
+  try {
+    const fc = { ...caseD };
+    if (fc.amount_involved) fc.amount_involved = fc.amount_involved.replace(/,/g, '');
+    fc.type_of_place = topPl;
+    fc.modus_reference_ids = Object.values(selM).flat();
+    const ra = (item, pr, ci, br, i) => ({
+      ...item,
+      region: (regions || []).find(r => r.code === item.region_code)?.name || item.region || item.region_code,
+      district_province: ((pr[i] || []).find(p => p.code === item.province_code) || {}).name || item.district_province || item.province_code,
+      city_municipality: ((ci[i] || []).find(c => c.code === item.municipality_code) || {}).name || item.city_municipality || item.municipality_code,
+      barangay: ((br[i] || []).find(b => b.code === item.barangay_code) || {}).name || item.barangay || item.barangay_code,
+    });
+    const payload = {
+      blotterData: fc,
+      complainants: comp.map((c, i) => ra(c, cPr, cCi, cBr, i)),
+      suspects: hasSuspect ? susp.map((s, i) => ra(s, sPr, sCi, sBr, i)) : [],
+      offenses: offs.map(o => ({
+        is_principal_offense: o.is_principal_offense,
+        offense_name: o.offense_name,
+        stage_of_felony: o.stage_of_felony,
+        index_type: o.index_type || 'Non-Index',
+        modus_reference_ids: selM[0] || [],
+      })),
+    };
 
-      const payload = {
-        blotterData: fc,
-        complainants: comp.map((c, i) => ra(c, cPr, cCi, cBr, i)),
-        suspects: hasSuspect ? susp.map((s, i) => ra(s, sPr, sCi, sBr, i)) : [],
-        offenses: offs.map(o => ({
-          is_principal_offense: o.is_principal_offense,
-          offense_name: o.offense_name,
-          stage_of_felony: o.stage_of_felony,
-          index_type: o.index_type || 'Non-Index',
-          modus_reference_ids: selM[0] || [],
-        })),
-      };
-
-      if (acceptMode && editId) {
-        const upd = await api(`/blotters/${editId}`, 'PUT', payload);
-        if (upd?.success) {
-          const acc = await api(`/blotters/${editId}/accept`, 'PATCH');
-          if (acc?.success) { showConfirm('Referral Accepted', 'Record accepted and case created successfully.', 'OK', C.green, () => { hideConfirm(); closeModal(); load(filters, activeReportTab); }); }
-          else { showConfirm('Error', acc?.error || 'Accept failed.', 'OK', C.navyMid, hideConfirm); }
-        } else { showConfirm('Error', upd?.errors?.join('\n') || upd?.error || 'Update failed.', 'OK', C.navyMid, hideConfirm); }
+    if (acceptMode && editId) {
+      const upd = await api(`/blotters/${editId}`, 'PUT', payload);
+      if (upd?.success) {
+        const acc = await api(`/blotters/${editId}/accept`, 'PATCH');
+        if (acc?.success) {
+          setSaving(false);
+          closeModal();
+          load(filters, activeReportTab);
+        } else {
+          setSaving(false);
+          showConfirm('Accept Failed', acc?.error || 'Could not accept referral.', 'OK', C.navyMid, hideConfirm);
+        }
       } else {
-        const data = await api(editMode ? `/blotters/${editId}` : '/blotters', editMode ? 'PUT' : 'POST', payload);
-        if (data?.success) {
-          showConfirm('Success', editMode ? 'Blotter updated successfully!' : `Blotter created!\nID: ${data.data?.blotter_entry_number}`, 'OK', C.green, () => { hideConfirm(); closeModal(); load(filters, activeReportTab); });
-        } else { showConfirm('Error', data?.errors?.join('\n') || data?.error || 'Submission failed.', 'OK', C.navyMid, hideConfirm); }
+        setSaving(false);
+        showConfirm('Error', upd?.errors?.join('\n') || upd?.error || 'Update failed.', 'OK', C.navyMid, hideConfirm);
       }
-    } catch { showConfirm('Error', 'Submission failed.', 'OK', C.navyMid, hideConfirm); }
+    } else {
+      const data = await api(
+        editMode ? `/blotters/${editId}` : '/blotters',
+        editMode ? 'PUT' : 'POST',
+        payload,
+      );
+      if (data?.success) {
+        setSaving(false);
+        closeModal();
+        load(filters, activeReportTab);
+      } else {
+        setSaving(false);
+        showConfirm('Error', data?.errors?.join('\n') || data?.error || 'Submission failed.', 'OK', C.navyMid, hideConfirm);
+      }
+    }
+  } catch {
     setSaving(false);
-  };
+    showConfirm('Error', 'Submission failed. Please try again.', 'OK', C.navyMid, hideConfirm);
+  }
+};
 
   /* ── Updaters ─────────────────────────────────────────────────────────── */
   const uC    = useCallback((i, f, v) => setComp(prev => { const a = [...prev]; a[i] = { ...a[i], [f]: v }; return a; }), []);
@@ -2192,10 +2315,12 @@ export default function EBlotterScreen() {
                   <TouchableOpacity style={[ml.nextBtn, { flex: 1 }]} onPress={() => goStep(1)}><Text style={ml.nextBtnTxt}>Next</Text><Ionicons name="arrow-forward" size={15} color={C.white} /></TouchableOpacity>
                 ) : (
                   <TouchableOpacity style={[ml.nextBtn, { flex: 1, backgroundColor: acceptMode ? C.green : C.red }, saving && { opacity: 0.6 }]} onPress={submit} disabled={saving}>
-                    {saving ? <ActivityIndicator size="small" color={C.white} /> : (
-                      <><Ionicons name="checkmark-circle" size={15} color={C.white} /><Text style={ml.nextBtnTxt}>{acceptMode ? 'Accept & Create Case' : editMode ? 'Update Blotter' : 'Submit Blotter'}</Text></>
-                    )}
-                  </TouchableOpacity>
+  {saving ? (
+    <><ActivityIndicator size="small" color={C.white} style={{ marginRight: 8 }} /><Text style={ml.nextBtnTxt}>Submitting…</Text></>
+  ) : (
+    <><Ionicons name="checkmark-circle" size={15} color={C.white} /><Text style={ml.nextBtnTxt}>{acceptMode ? 'Accept & Create Case' : editMode ? 'Update Blotter' : 'Submit Blotter'}</Text></>
+  )}
+</TouchableOpacity>
                 )}
               </View>
             </KeyboardAvoidingView>
