@@ -7,11 +7,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
+  // SafeAreaView,
   TextInput,
   Alert,
 } from 'react-native';
-
+import { SafeAreaView } from "react-native-safe-area-context";
 const { width } = Dimensions.get('window');
 
 export default function PatrolLogScreen({ navigation }) {

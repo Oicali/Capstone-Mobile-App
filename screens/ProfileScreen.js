@@ -24,13 +24,14 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
+  // SafeAreaView,
   Modal,
   TextInput,
   Image,
   KeyboardAvoidingView,
 } from "react-native";
 import { BASE_URL } from "../screens/services/api";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const PSGC_API = "https://psgc.gitlab.io/api";
 const POLL_INTERVAL = 15000;

@@ -25,7 +25,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
+  // SafeAreaView,
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -34,6 +34,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../screens/services/api";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
 const C = {
@@ -501,7 +502,7 @@ export default function ChangePasswordScreen({ navigation }) {
 
   // API status check
   try {
-    const token = await AsyncStorage.getItem("token");
+    const token = await AsyncStorage.getItem("auth_token");
     const res = await fetch(`${BASE_URL}/users/password/status`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -604,7 +605,7 @@ export default function ChangePasswordScreen({ navigation }) {
     setCurLoading(true);
     setCurPasswordErr("");
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       const res = await fetch(`${BASE_URL}/users/password/verify-current`, {
         method: "POST",
         headers: {
@@ -668,7 +669,7 @@ export default function ChangePasswordScreen({ navigation }) {
     setIsLoading(true);
     setFormErrors({});
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       const res = await fetch(`${BASE_URL}/users/password/request-otp`, {
         method: "POST",
         headers: {
@@ -746,7 +747,7 @@ export default function ChangePasswordScreen({ navigation }) {
     setOtpError("");
     setOtpValues(["", "", "", "", "", ""]);
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       const res = await fetch(`${BASE_URL}/users/password/request-otp`, {
         method: "POST",
         headers: {
@@ -811,7 +812,7 @@ export default function ChangePasswordScreen({ navigation }) {
     setIsLoading(true);
     setOtpError("");
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("auth_token");
       const res = await fetch(`${BASE_URL}/users/password/verify-otp`, {
         method: "POST",
         headers: {

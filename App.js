@@ -4,9 +4,9 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useEffect } from "react";
 import { Text, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { getSession, validateToken, clearSession } from "./screens/services/api";
 
-// Import screens
 import SplashScreen from "./screens/SplashScreen";
 import LoginScreen from "./screens/LoginScreen";
 import DashboardScreen from "./screens/DashboardScreen";
@@ -23,9 +23,7 @@ const Tab = createBottomTabNavigator();
 
 function TabIcon({ focused, iconName, label }) {
   return (
-    <View
-      style={{ alignItems: "center", justifyContent: "center", paddingTop: 8 }}
-    >
+    <View style={{ alignItems: "center", justifyContent: "center", paddingTop: 8 }}>
       <View
         style={{
           width: 50,
@@ -37,11 +35,7 @@ function TabIcon({ focused, iconName, label }) {
           marginBottom: 2,
         }}
       >
-        <Ionicons
-          name={iconName}
-          size={24}
-          color={focused ? "#FFFFFF" : "#6c757d"}
-        />
+        <Ionicons name={iconName} size={24} color={focused ? "#FFFFFF" : "#6c757d"} />
       </View>
       <Text
         numberOfLines={1}
@@ -78,6 +72,7 @@ function MainTabs() {
           shadowOffset: { width: 0, height: -3 },
           shadowOpacity: 0.1,
           shadowRadius: 10,
+          position: "absolute",
         },
       }}
     >
@@ -86,67 +81,43 @@ function MainTabs() {
         component={DashboardScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon
-              focused={focused}
-              iconName={focused ? "home" : "home-outline"}
-              label="Home"
-            />
+            <TabIcon focused={focused} iconName={focused ? "home" : "home-outline"} label="Home" />
           ),
         }}
       />
-
       <Tab.Screen
         name="Reporting"
         component={EBlotterScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon
-              focused={focused}
-              iconName={focused ? "document-text" : "document-text-outline"}
-              label="Reporting"
-            />
+            <TabIcon focused={focused} iconName={focused ? "document-text" : "document-text-outline"} label="Reporting" />
           ),
         }}
       />
-
       <Tab.Screen
         name="Assignments"
         component={AssignmentsScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon
-              focused={focused}
-              iconName={focused ? "clipboard" : "clipboard-outline"}
-              label="Patrols"
-            />
+            <TabIcon focused={focused} iconName={focused ? "clipboard" : "clipboard-outline"} label="Patrols" />
           ),
         }}
       />
-
       <Tab.Screen
         name="Map"
         component={MapScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon
-              focused={focused}
-              iconName={focused ? "map" : "map-outline"}
-              label="Map"
-            />
+            <TabIcon focused={focused} iconName={focused ? "map" : "map-outline"} label="Map" />
           ),
         }}
       />
-
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon
-              focused={focused}
-              iconName={focused ? "person" : "person-outline"}
-              label="Profile"
-            />
+            <TabIcon focused={focused} iconName={focused ? "person" : "person-outline"} label="Profile" />
           ),
         }}
       />
@@ -164,19 +135,9 @@ export default function App() {
   const checkLogin = async () => {
     try {
       const session = await getSession();
-
-      if (!session?.token) {
-        setIsLoggedIn(false);
-        return;
-      }
-
+      if (!session?.token) { setIsLoggedIn(false); return; }
       const valid = await validateToken(session.token);
-      if (!valid) {
-        await clearSession();
-        setIsLoggedIn(false);
-        return;
-      }
-
+      if (!valid) { await clearSession(); setIsLoggedIn(false); return; }
       setIsLoggedIn(true);
     } catch (error) {
       console.error("checkLogin error:", error);
@@ -188,34 +149,20 @@ export default function App() {
   if (isLoggedIn === null) return null;
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName="Splash"
-        screenOptions={{
-          headerShown: false,
-          animation: "slide_from_right",
-        }}
-      >
-        <Stack.Screen
-          name="Splash"
-          component={SplashScreen}
-          initialParams={{ isLoggedIn }}
-          options={{ animation: "fade" }}
-        />
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{ animation: "fade" }}
-        />
-        <Stack.Screen
-          name="Main"
-          component={MainTabs}
-          options={{ gestureEnabled: false }}
-        />
-        <Stack.Screen name="Notifications" component={NotificationsScreen} />
-        <Stack.Screen name="PatrolLog" component={PatrolLogScreen} />
-        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName="Splash"
+          screenOptions={{ headerShown: false, animation: "slide_from_right" }}
+        >
+          <Stack.Screen name="Splash" component={SplashScreen} initialParams={{ isLoggedIn }} options={{ animation: "fade" }} />
+          <Stack.Screen name="Login" component={LoginScreen} options={{ animation: "fade" }} />
+          <Stack.Screen name="Main" component={MainTabs} options={{ gestureEnabled: false }} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="PatrolLog" component={PatrolLogScreen} />
+          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }

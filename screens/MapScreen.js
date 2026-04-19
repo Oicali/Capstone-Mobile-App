@@ -15,7 +15,7 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
+  // SafeAreaView,
   Platform,
   AppState,
   TouchableOpacity,
@@ -26,6 +26,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Asset } from "expo-asset";
 import Mapbox, {
   MapView,

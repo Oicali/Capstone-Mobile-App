@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  SafeAreaView, TextInput, Modal, ActivityIndicator,
+  // SafeAreaView, 
+  TextInput, Modal, ActivityIndicator,
   Platform, Dimensions, FlatList, KeyboardAvoidingView,
   RefreshControl, StatusBar,
 } from 'react-native';
@@ -13,6 +14,7 @@ import Mapbox, {
   MarkerView,
 } from '@rnmapbox/maps';
 import { Asset } from 'expo-asset';
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // ============ FIX 1: MAPBOX BLACK SCREEN FIX ============
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN);
@@ -1537,7 +1539,7 @@ export default function EBlotterScreen() {
   /* ── API ──────────────────────────────────────────────────────────────── */
   const api = useCallback(async (url, method = 'GET', body = null) => {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem('auth_token');
       const opts = { method, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', Authorization: `Bearer ${token}` } };
       if (body) opts.body = JSON.stringify(body);
       const res = await fetch(`${API}${url}`, opts);
