@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useEffect } from "react";
 import { Text, View } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getSession, validateToken, clearSession } from "./screens/services/api";
 
 import SplashScreen from "./screens/SplashScreen";
@@ -26,13 +26,13 @@ function TabIcon({ focused, iconName, label }) {
     <View style={{ alignItems: "center", justifyContent: "center", paddingTop: 8 }}>
       <View
         style={{
-          width: 50,
-          height: 50,
+          width: 40,
+          height: 40,
           borderRadius: 14,
           backgroundColor: focused ? "#1e3a5f" : "transparent",
           alignItems: "center",
           justifyContent: "center",
-          marginBottom: 2,
+          marginBottom: 1,
         }}
       >
         <Ionicons name={iconName} size={24} color={focused ? "#FFFFFF" : "#6c757d"} />
@@ -40,10 +40,9 @@ function TabIcon({ focused, iconName, label }) {
       <Text
         numberOfLines={1}
         style={{
-          fontSize: 10,
+          fontSize: 9,
           fontWeight: focused ? "700" : "600",
           color: focused ? "#1e3a5f" : "#6c757d",
-          marginTop: 2,
           textAlign: "center",
           maxWidth: 70,
         }}
@@ -55,15 +54,17 @@ function TabIcon({ focused, iconName, label }) {
 }
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();  // ← ADD THIS
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          height: 80,
-          paddingBottom: 8,
-          paddingTop: 4,
+          height: 55 + insets.bottom,        // ← was: height: 80
+          paddingBottom: insets.bottom,  // ← was: paddingBottom: 8
+          paddingTop: 8,
           backgroundColor: "#FFFFFF",
           borderTopWidth: 1,
           borderTopColor: "#dee2e6",
@@ -90,7 +91,7 @@ function MainTabs() {
         component={EBlotterScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? "document-text" : "document-text-outline"} label="Reporting" />
+            <TabIcon focused={focused} iconName={focused ? "document-text" : "document-text-outline"} label="Report" />
           ),
         }}
       />
@@ -99,7 +100,7 @@ function MainTabs() {
         component={AssignmentsScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? "clipboard" : "clipboard-outline"} label="Patrols" />
+            <TabIcon focused={focused} iconName={focused ? "clipboard" : "clipboard-outline"} label="Patrol" />
           ),
         }}
       />

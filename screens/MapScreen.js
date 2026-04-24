@@ -1,13 +1,14 @@
 // ================================================================================
-// FILE: screens/CrimeMapScreen.js
+// FILE: screens/MapScreen.js
 // CHANGES:
-//   1. Crime data filtered by dynamic date range (default last 365 days)
-//   2. Dynamic risk thresholds matching web version (based on date range)
-//   3. Officer markers = plain blue dot only, no name/label
-//   4. Manual GPS activation with confirmation modal (no auto-start)
-//   5. Sidebar tabs: Legend, Stats, Hotspots (no Patrol/Recent)
-//   6. Date filter UI inside sidebar
-//   7. UserLocation only renders when GPS is manually enabled
+//   1. Teardrop crime pins (matching web version)
+//   2. Map sits above tab bar (no overlap) via useSafeAreaInsets + flex layout
+//   3. UserLocation blue dot removed — puck only (renderMode="normal")
+//   4. Sidebar tabs: Legend, Recent, Incidence (mirrors web)
+//   5. Heatmap mode — dark map style + heatmap layer + cluster rings
+//   6. Incidence tab shows at-risk barangays (choropleth) or clusters (heatmap)
+//   7. Date filter UI inside sidebar
+//   8. Manual GPS activation with confirmation modal
 // ================================================================================
 
 import React, { useEffect, useRef, useCallback, useState } from "react";
@@ -15,7 +16,6 @@ import {
   View,
   Text,
   StyleSheet,
-  // SafeAreaView,
   Platform,
   AppState,
   TouchableOpacity,
@@ -26,7 +26,10 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Asset } from "expo-asset";
 import Mapbox, {
   MapView,
@@ -37,6 +40,7 @@ import Mapbox, {
   SymbolLayer,
   MarkerView,
   UserLocation,
+  HeatmapLayer,
 } from "@rnmapbox/maps";
 import { Ionicons } from "@expo/vector-icons";
 import { BASE_URL } from "./services/api";
@@ -61,20 +65,21 @@ const getPHTOneYearAgo = () => {
   return d.toISOString().slice(0, 10);
 };
 
-// ── Dynamic risk thresholds — mirrors web + backend exactly ─
+// ── Dynamic risk thresholds ──────────────────────────────────
 const getRiskThresholds = (dateFrom, dateTo) => {
   const days =
     Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000) + 1;
   if (days <= 29) return { lowMax: 1, medMax: 2 };
-  if (days <= 91) return { lowMax: 2, medMax: 4 };
-  if (days <= 364) return { lowMax: 3, medMax: 6 };
-  return { lowMax: 4, medMax: 8 };
+  if (days <= 91) return { lowMax: 1, medMax: 3 };
+  if (days <= 364) return { lowMax: 2, medMax: 5 };
+  return { lowMax: 3, medMax: 8 };
 };
 
 const INCIDENT_COLORS = {
   ROBBERY: "#ef4444",
   THEFT: "#f97316",
   "PHYSICAL INJURIES": "#eab308",
+  "PHYSICAL INJURY": "#eab308",
   HOMICIDE: "#8b5cf6",
   MURDER: "#7c3aed",
   RAPE: "#ec4899",
@@ -100,11 +105,30 @@ const formatTime = (d) => {
   });
 };
 
-// Simple YYYY-MM-DD validator
 const isValidDate = (str) =>
   /^\d{4}-\d{2}-\d{2}$/.test(str) && !isNaN(new Date(str));
 
+// ── Teardrop Pin Component ───────────────────────────────────
+// Matches web .crmap-pin-body / .crmap-pin-tip shape
+function TearDropPin({ color, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={styles.pinWrapper}
+      activeOpacity={0.8}
+    >
+      <View style={[styles.pinBody, { backgroundColor: color }]}>
+        <View style={styles.pinInner} />
+      </View>
+      <View style={[styles.pinTip, { borderTopColor: color }]} />
+    </TouchableOpacity>
+  );
+}
+
 export default function MapScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+  // Tab bar height = 55 + bottom inset (matches App.js tabBarStyle)
+  const TAB_BAR_HEIGHT = 55 + insets.bottom;
   const watchRef = useRef(null);
   const intervalRef = useRef(null);
   const lastCoords = useRef(null);
@@ -113,7 +137,7 @@ export default function MapScreen({ navigation }) {
   const officerPollRef = useRef(null);
   const isMounted = useRef(true);
 
-  // ── Date filter state ──────────────────────────────────────
+  // ── Date filter ──────────────────────────────────────────
   const defaultDateFrom = getPHTOneYearAgo();
   const defaultDateTo = getPHTToday();
 
@@ -123,11 +147,18 @@ export default function MapScreen({ navigation }) {
   const [appliedDateTo, setAppliedDateTo] = useState(defaultDateTo);
   const [showDateFilter, setShowDateFilter] = useState(false);
 
-  // ── GPS state — manual only ────────────────────────────────
+  // ── Heatmap mode ────────────────────────────────────────
+  const [heatmapMode, setHeatmapMode] = useState(false);
+  const [heatGeoJSON, setHeatGeoJSON] = useState(null);
+  const [clusterGeoJSON, setClusterGeoJSON] = useState(null);
+  const [heatLoading, setHeatLoading] = useState(false);
+  const [selectedCluster, setSelectedCluster] = useState(null);
+
+  // ── GPS ─────────────────────────────────────────────────
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [showGpsConfirm, setShowGpsConfirm] = useState(false);
 
-  // ── Map data state ─────────────────────────────────────────
+  // ── Map data ─────────────────────────────────────────────
   const [rawGeoJSON, setRawGeoJSON] = useState(null);
   const [geoJSON, setGeoJSON] = useState(null);
   const [boundaries, setBoundaries] = useState([]);
@@ -161,7 +192,7 @@ export default function MapScreen({ navigation }) {
     if (!rawGeoJSON || !boundaries.length) return;
     const lookup = {};
     boundaries.forEach((b) => {
-      lookup[b.name_kml] = b.color;
+      lookup[b.name_kml] = heatmapMode ? "rgba(255,255,255,0.0)" : b.color;
     });
     setGeoJSON({
       ...rawGeoJSON,
@@ -169,11 +200,13 @@ export default function MapScreen({ navigation }) {
         ...f,
         properties: {
           ...f.properties,
-          fillColor: lookup[f.properties.name_kml] || "#adb5bd",
+          fillColor:
+            lookup[f.properties.name_kml] ||
+            (heatmapMode ? "rgba(255,255,255,0.0)" : "#adb5bd"),
         },
       })),
     });
-  }, [rawGeoJSON, boundaries]);
+  }, [rawGeoJSON, boundaries, heatmapMode]);
 
   // ── GPS helpers ───────────────────────────────────────────
   const pushLocation = useCallback(async () => {
@@ -233,7 +266,6 @@ export default function MapScreen({ navigation }) {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") return;
 
-    // Fast coarse fix so dot appears quickly
     try {
       const fast = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
@@ -251,7 +283,6 @@ export default function MapScreen({ navigation }) {
       console.warn("[GPS] fast fix failed:", err.message);
     }
 
-    // High-accuracy watch refines continuously
     watchRef.current = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.BestForNavigation,
@@ -299,20 +330,49 @@ export default function MapScreen({ navigation }) {
     }
   }, [appliedDateFrom, appliedDateTo]);
 
+  const fetchHeatmap = useCallback(async () => {
+    try {
+      if (isMounted.current) setHeatLoading(true);
+      const token = await getToken();
+      const q = `?date_from=${appliedDateFrom}&date_to=${appliedDateTo}`;
+      const res = await fetch(`${API}/crime-map/heatmap${q}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!isMounted.current) return;
+      if (data.success) {
+        setHeatGeoJSON(data.points);
+        setClusterGeoJSON(data.clusters);
+      }
+    } catch (err) {
+      console.error("[Map] fetchHeatmap error:", err.message);
+    } finally {
+      if (isMounted.current) setHeatLoading(false);
+    }
+  }, [appliedDateFrom, appliedDateTo]);
+
   const fetchOfficers = useCallback(async () => {
     try {
       const token = await getToken();
+      const myUserId = await AsyncStorage.getItem("user_id"); // ← get your own ID
+
       const res = await fetch(`${API}/gps/officers`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (isMounted.current && data.success) setOfficers(data.data);
+      if (isMounted.current && data.success) {
+        setOfficers(
+          data.data.filter(
+            (o) => String(o.user_id) !== String(myUserId), // ← filter yourself out
+          ),
+        );
+      }
     } catch (err) {
       console.warn("[Map] fetchOfficers error:", err.message);
     }
   }, []);
 
-  // ── Lifecycle — no GPS auto-start ─────────────────────────
+  // ── Lifecycle ────────────────────────────────────────────
   useEffect(() => {
     isMounted.current = true;
     fetchMapData();
@@ -345,7 +405,6 @@ export default function MapScreen({ navigation }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── GPS toggle effect ──────────────────────────────────────
   useEffect(() => {
     if (gpsEnabled) {
       startTracking();
@@ -355,29 +414,95 @@ export default function MapScreen({ navigation }) {
     }
   }, [gpsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Re-fetch when applied dates change ────────────────────
   useEffect(() => {
     fetchMapData();
+    if (heatmapMode) fetchHeatmap();
   }, [appliedDateFrom, appliedDateTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Layer styles ──────────────────────────────────────────
-  const fillLayerStyle = { fillColor: ["get", "fillColor"], fillOpacity: 0.4 };
+  // When heatmap mode toggles
+  useEffect(() => {
+    if (heatmapMode && !heatGeoJSON) {
+      fetchHeatmap();
+    }
+    setSelectedPin(null);
+    setSelectedCluster(null);
+  }, [heatmapMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Layer styles ─────────────────────────────────────────
+  const fillLayerStyle = {
+    fillColor: ["get", "fillColor"],
+    fillOpacity: heatmapMode ? 0 : 0.4,
+  };
   const outlineLayerStyle = {
-    lineColor: "#1e3a5f",
+    lineColor: heatmapMode ? "#96c8ff" : "#1e3a5f",
     lineWidth: 1.2,
-    lineOpacity: 0.5,
+    lineOpacity: heatmapMode ? 0.6 : 0.5,
   };
   const labelLayerStyle = {
     textField: ["get", "name_db"],
     textSize: 10,
-    textColor: "#0a1628",
-    textHaloColor: "rgba(255,255,255,0.85)",
+    textColor: heatmapMode ? "rgba(220,235,255,0.9)" : "#0a1628",
+    textHaloColor: heatmapMode ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.85)",
     textHaloWidth: 1.5,
     textMaxWidth: 8,
     textAllowOverlap: false,
   };
 
-  // ── Computed risk thresholds for current applied range ────
+  // Heatmap layer style
+  const heatmapLayerStyle = {
+    heatmapWeight: ["interpolate", ["linear"], ["get", "weight"], 0, 0, 1, 1],
+    heatmapRadius: [
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      10,
+      18,
+      13,
+      32,
+      15,
+      48,
+    ],
+    heatmapIntensity: [
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      10,
+      0.6,
+      13,
+      1.2,
+      15,
+      2.0,
+    ],
+    heatmapColor: [
+      "interpolate",
+      ["linear"],
+      ["heatmap-density"],
+      0,
+      "rgba(0,0,0,0)",
+      0.15,
+      "rgba(234,179,8,0.75)",
+      0.4,
+      "rgba(249,115,22,0.85)",
+      0.65,
+      "rgba(220,38,38,0.90)",
+      0.85,
+      "rgba(153,27,27,0.94)",
+      1.0,
+      "rgba(69,10,10,0.97)",
+    ],
+    heatmapOpacity: [
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      12,
+      0.92,
+      15,
+      0.55,
+      16,
+      0,
+    ],
+  };
+
   const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
   const dayCount =
     Math.round(
@@ -386,18 +511,31 @@ export default function MapScreen({ navigation }) {
 
   // ── Render ────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.container}>
+    // edges={[]} so SafeAreaView doesn't add top/bottom padding —
+    // we handle bottom ourselves so the map doesn't overlap the tab bar
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* HEADER */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Crime Map</Text>
         <View style={styles.headerRight}>
-          {loading && (
+          {(loading || heatLoading) && (
             <ActivityIndicator
               size="small"
               color="#ffffff"
               style={{ marginRight: 8 }}
             />
           )}
+          {/* Heatmap toggle */}
+          <TouchableOpacity
+            onPress={() => setHeatmapMode((v) => !v)}
+            style={[styles.iconBtn, heatmapMode && styles.iconBtnActive]}
+          >
+            <Ionicons
+              name="flame-outline"
+              size={18}
+              color={heatmapMode ? "#ff6b35" : "#ffffff"}
+            />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setShowSidebar((v) => !v)}
             style={styles.iconBtn}
@@ -410,12 +548,19 @@ export default function MapScreen({ navigation }) {
         </View>
       </View>
 
-      {/* MAP */}
+      {/* MAP — marginBottom pushes map above the absolute-positioned tab bar */}
       <View style={styles.mapContainer}>
         <MapView
-          style={styles.map}
-          styleURL="mapbox://styles/mapbox/light-v11"
-          onPress={() => setSelectedPin(null)}
+          style={[styles.map, { marginBottom: TAB_BAR_HEIGHT }]}
+          styleURL={
+            heatmapMode
+              ? "mapbox://styles/mapbox/dark-v11"
+              : "mapbox://styles/mapbox/light-v11"
+          }
+          onPress={() => {
+            setSelectedPin(null);
+            setSelectedCluster(null);
+          }}
           minZoomLevel={11.5}
         >
           <Camera
@@ -434,31 +579,63 @@ export default function MapScreen({ navigation }) {
             </ShapeSource>
           )}
 
-          {/* Crime pins */}
-          {pins.map((pin) => (
-            <MarkerView
-              key={`pin-${pin.blotter_id}`}
-              id={`pin-${pin.blotter_id}`}
-              coordinate={[pin.lng, pin.lat]}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  setSelectedPin(pin);
-                  setShowMorePopup(false);
-                }}
-                style={[
-                  styles.crimePin,
-                  {
-                    backgroundColor:
-                      INCIDENT_COLORS[pin.incident_type?.toUpperCase()] ||
-                      "#6b7280",
-                  },
-                ]}
-              />
-            </MarkerView>
-          ))}
+          {/* Heatmap layer */}
+          {heatmapMode && heatGeoJSON && (
+            <ShapeSource id="heat-points" shape={heatGeoJSON}>
+              <HeatmapLayer id="crime-heat" style={heatmapLayerStyle} />
+            </ShapeSource>
+          )}
 
-          {/* Officer dots — blue only, no name */}
+          {/* Cluster tap markers (invisible tap targets over cluster centers) */}
+          {heatmapMode &&
+            clusterGeoJSON?.features?.map((f, i) => (
+              <MarkerView
+                key={`cluster-${i}`}
+                coordinate={f.geometry.coordinates}
+                anchor={{ x: 0.5, y: 0.5 }}
+              >
+                <TouchableOpacity
+                  style={styles.clusterTapTarget}
+                  onPress={() => {
+                    const p = f.properties;
+                    setSelectedCluster({
+                      lng: f.geometry.coordinates[0],
+                      lat: f.geometry.coordinates[1],
+                      count: p.count,
+                      crime: p.dominant_crime,
+                      barangay: p.dominant_barangay,
+                      rank: p.rank,
+                      modus: p.dominant_modus,
+                    });
+                  }}
+                />
+              </MarkerView>
+            ))}
+
+          {/* Crime teardrop pins — choropleth mode only */}
+          {!heatmapMode &&
+            pins.map((pin) => {
+              const color =
+                INCIDENT_COLORS[pin.incident_type?.toUpperCase()] || "#6b7280";
+              return (
+                <MarkerView
+                  key={`pin-${pin.blotter_id}`}
+                  id={`pin-${pin.blotter_id}`}
+                  coordinate={[pin.lng, pin.lat]}
+                  anchor={{ x: 0.5, y: 1 }}
+                >
+                  <TearDropPin
+                    color={color}
+                    onPress={() => {
+                      setSelectedPin(pin);
+                      setShowMorePopup(false);
+                    }}
+                  />
+                </MarkerView>
+              );
+            })}
+
+          {/* Officer dots — blue shield dot */}
           {officers.map((officer) => (
             <MarkerView
               key={`officer-${officer.user_id}`}
@@ -473,11 +650,22 @@ export default function MapScreen({ navigation }) {
             </MarkerView>
           ))}
 
-          {/* User location — only visible when GPS is manually enabled */}
-          {gpsEnabled && <UserLocation visible={true} />}
+          {/* Native UserLocation — lightest option, runs off JS thread */}
+          {gpsEnabled && (
+            <UserLocation
+              visible={true}
+              renderMode="native"
+              showsUserHeadingIndicator={false}
+              style={{
+                puckColor: "#1d4ed8",
+                puckBearingEnabled: false,
+                puckShadowOpacity: 0,
+              }}
+            />
+          )}
         </MapView>
 
-        {/* Recenter — only useful when GPS active */}
+        {/* Map overlay buttons */}
         <TouchableOpacity
           style={[styles.recenterBtn, !gpsEnabled && { opacity: 0.4 }]}
           onPress={() =>
@@ -492,12 +680,8 @@ export default function MapScreen({ navigation }) {
           <Ionicons name="navigate" size={20} color="#1e3a5f" />
         </TouchableOpacity>
 
-        {/* GPS Toggle Button — below recenter */}
         <TouchableOpacity
-          style={[
-            styles.gpsToggleBtn,
-            gpsEnabled && styles.gpsToggleBtnActive,
-          ]}
+          style={[styles.gpsToggleBtn, gpsEnabled && styles.gpsToggleBtnActive]}
           onPress={() => {
             if (gpsEnabled) {
               setGpsEnabled(false);
@@ -513,7 +697,6 @@ export default function MapScreen({ navigation }) {
           />
         </TouchableOpacity>
 
-        {/* Reset view */}
         <TouchableOpacity
           style={styles.resetBtn}
           onPress={() =>
@@ -527,28 +710,51 @@ export default function MapScreen({ navigation }) {
           <Ionicons name="refresh" size={18} color="#1e3a5f" />
         </TouchableOpacity>
 
-        {/* Risk legend — dynamic thresholds */}
+        {/* Risk legend (bottom-left) */}
         <View style={styles.riskLegend}>
-          {[
-            {
-              color: "#b91c1c",
-              label: `High (${thresholds.medMax + 1}+)`,
-            },
-            {
-              color: "#f97316",
-              label: `Med (${thresholds.lowMax + 1}–${thresholds.medMax})`,
-            },
-            {
-              color: "#eab308",
-              label: `Low (1${thresholds.lowMax > 1 ? `–${thresholds.lowMax}` : ""})`,
-            },
-            { color: "#adb5bd", label: "None" },
-          ].map((r) => (
-            <View key={r.label} style={styles.riskRow}>
-              <View style={[styles.riskDot, { backgroundColor: r.color }]} />
-              <Text style={styles.riskLabel}>{r.label}</Text>
-            </View>
-          ))}
+          {heatmapMode ? (
+            <>
+              <Text
+                style={[
+                  styles.riskLabel,
+                  { marginBottom: 4, fontWeight: "700" },
+                ]}
+              >
+                Heatmap
+              </Text>
+              {[
+                { color: "#450a0a", label: "Very High" },
+                { color: "#dc2626", label: "High" },
+                { color: "#f97316", label: "Medium" },
+                { color: "#eab308", label: "Low" },
+              ].map((r) => (
+                <View key={r.label} style={styles.riskRow}>
+                  <View
+                    style={[styles.riskDot, { backgroundColor: r.color }]}
+                  />
+                  <Text style={styles.riskLabel}>{r.label}</Text>
+                </View>
+              ))}
+            </>
+          ) : (
+            [
+              { color: "#b91c1c", label: `High (${thresholds.medMax + 1}+)` },
+              {
+                color: "#f97316",
+                label: `Med (${thresholds.lowMax + 1}–${thresholds.medMax})`,
+              },
+              {
+                color: "#eab308",
+                label: `Low (1${thresholds.lowMax > 1 ? `–${thresholds.lowMax}` : ""})`,
+              },
+              { color: "#adb5bd", label: "None" },
+            ].map((r) => (
+              <View key={r.label} style={styles.riskRow}>
+                <View style={[styles.riskDot, { backgroundColor: r.color }]} />
+                <Text style={styles.riskLabel}>{r.label}</Text>
+              </View>
+            ))
+          )}
         </View>
 
         {/* Officers online badge */}
@@ -559,7 +765,7 @@ export default function MapScreen({ navigation }) {
           </Text>
         </View>
 
-        {/* GPS status pill — only shown when GPS is enabled */}
+        {/* GPS status pill */}
         {gpsEnabled && (
           <View
             style={[
@@ -583,6 +789,35 @@ export default function MapScreen({ navigation }) {
             <Text style={styles.gpsStatusText}>
               {myLocation ? "GPS Active" : "Acquiring GPS..."}
             </Text>
+          </View>
+        )}
+
+        {/* Cluster selected popup */}
+        {heatmapMode && selectedCluster && (
+          <View style={styles.popup}>
+            <View style={[styles.popupHeader, { backgroundColor: "#1e3a5f" }]}>
+              <Text style={styles.popupType}>
+                Cluster #{selectedCluster.rank}
+              </Text>
+              <TouchableOpacity onPress={() => setSelectedCluster(null)}>
+                <Ionicons name="close" size={18} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.popupBody}>
+              {[
+                ["Incidents", selectedCluster.count],
+                ["Top Crime", selectedCluster.crime || "N/A"],
+                ["Barangay", selectedCluster.barangay || "N/A"],
+                ["Modus", selectedCluster.modus || "N/A"],
+              ].map(([lbl, val]) => (
+                <View key={lbl} style={styles.popupRow}>
+                  <Text style={styles.popupLbl}>{lbl}</Text>
+                  <Text style={styles.popupVal} numberOfLines={2}>
+                    {val}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
         )}
       </View>
@@ -629,7 +864,7 @@ export default function MapScreen({ navigation }) {
       </Modal>
 
       {/* CRIME PIN POPUP */}
-      {selectedPin && (
+      {!heatmapMode && selectedPin && (
         <View style={styles.popup}>
           <View
             style={[
@@ -704,27 +939,34 @@ export default function MapScreen({ navigation }) {
           activeOpacity={1}
           onPress={() => setShowSidebar(false)}
         />
-        <View style={styles.sidebar}>
+        <View style={[styles.sidebar, { paddingBottom: insets.bottom + 16 }]}>
           <View style={styles.sidebarHandle} />
 
-          {/* Tabs: Legend / Stats / Hotspots */}
+          {/* Tabs: Legend / Recent / Incidence */}
           <View style={styles.sidebarTabs}>
-            {["legend", "stats", "hotspots"].map((tab) => (
+            {[
+              { key: "legend", label: "Legend" },
+              { key: "recent", label: "Recent" },
+              {
+                key: "incidence",
+                label: heatmapMode ? "Clusters" : "Incidence",
+              },
+            ].map((tab) => (
               <TouchableOpacity
-                key={tab}
+                key={tab.key}
                 style={[
                   styles.sidebarTab,
-                  activeTab === tab && styles.sidebarTabActive,
+                  activeTab === tab.key && styles.sidebarTabActive,
                 ]}
-                onPress={() => setActiveTab(tab)}
+                onPress={() => setActiveTab(tab.key)}
               >
                 <Text
                   style={[
                     styles.sidebarTabText,
-                    activeTab === tab && styles.sidebarTabTextActive,
+                    activeTab === tab.key && styles.sidebarTabTextActive,
                   ]}
                 >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {tab.label}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -734,7 +976,7 @@ export default function MapScreen({ navigation }) {
             style={styles.sidebarBody}
             showsVerticalScrollIndicator={false}
           >
-            {/* DATE FILTER ROW */}
+            {/* DATE FILTER */}
             <View style={styles.dateFilterRow}>
               <TouchableOpacity
                 style={styles.dateFilterBtn}
@@ -791,6 +1033,7 @@ export default function MapScreen({ navigation }) {
                     setAppliedDateFrom(filterDateFrom);
                     setAppliedDateTo(filterDateTo);
                     setShowDateFilter(false);
+                    if (heatmapMode) fetchHeatmap();
                   }}
                 >
                   <Text style={styles.applyDateBtnText}>Apply</Text>
@@ -834,12 +1077,23 @@ export default function MapScreen({ navigation }) {
                     <View key={name} style={styles.legendRow}>
                       <View style={styles.legendTop}>
                         <View style={styles.legendLeft}>
-                          <View
-                            style={[
-                              styles.legendDot,
-                              { backgroundColor: color },
-                            ]}
-                          />
+                          {/* Teardrop legend icon */}
+                          <View style={styles.legendPinWrap}>
+                            <View
+                              style={[
+                                styles.legendPinBody,
+                                { backgroundColor: color },
+                              ]}
+                            >
+                              <View style={styles.legendPinInner} />
+                            </View>
+                            <View
+                              style={[
+                                styles.legendPinTip,
+                                { borderTopColor: color },
+                              ]}
+                            />
+                          </View>
                           <Text style={styles.legendName}>{name}</Text>
                         </View>
                         <Text style={styles.legendCount}>{count}</Text>
@@ -856,180 +1110,219 @@ export default function MapScreen({ navigation }) {
                   );
                 })}
 
-                {/* Dynamic risk scale */}
                 <Text style={[styles.sectionLabel, { marginTop: 20 }]}>
-                  Barangay Risk Scale
+                  {heatmapMode ? "Heatmap Density" : "Barangay Risk Scale"}
                 </Text>
                 <Text style={styles.dateRangeNote}>
-                  Thresholds for {dayCount}-day range
+                  {heatmapMode
+                    ? "Density of overlapping incidents"
+                    : `Thresholds for ${dayCount}-day range`}
                 </Text>
-                {[
-                  { color: "#adb5bd", label: "No crimes", range: "0" },
-                  {
-                    color: "#eab308",
-                    label: "Low Risk",
-                    range:
-                      thresholds.lowMax === 1 ? "1" : `1–${thresholds.lowMax}`,
-                  },
-                  {
-                    color: "#f97316",
-                    label: "Medium Risk",
-                    range: `${thresholds.lowMax + 1}–${thresholds.medMax}`,
-                  },
-                  {
-                    color: "#b91c1c",
-                    label: "High Risk",
-                    range: `${thresholds.medMax + 1}+`,
-                  },
-                ].map((r) => (
-                  <View key={r.label} style={styles.riskLegendRow}>
-                    <View
-                      style={[
-                        styles.riskLegendDot,
-                        { backgroundColor: r.color },
-                      ]}
-                    />
-                    <Text style={styles.riskLegendLabel}>{r.label}</Text>
-                    <Text style={styles.riskLegendRange}>
-                      {r.range} crimes
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* ── STATS TAB ── */}
-            {activeTab === "stats" && (
-              <View style={styles.tabContent}>
-                <Text style={styles.dateRangeNote}>
-                  {appliedDateFrom} → {appliedDateTo}
-                </Text>
-                <View style={styles.statsGrid}>
-                  {[
-                    {
-                      label: "Mapped Incidents",
-                      val: stats?.total_pins ?? 0,
-                      color: "#1e3a5f",
-                    },
-                    {
-                      label: "Total Blotters",
-                      val: stats?.total_blotters ?? 0,
-                      color: "#6b7280",
-                    },
-                    {
-                      label: "At-Risk Areas",
-                      val: stats?.at_risk_count ?? 0,
-                      color: "#f97316",
-                    },
-                    {
-                      label: "Brgy. Affected",
-                      val: boundaries.filter((b) => b.crime_count > 0).length,
-                      color: "#f97316",
-                    },
-                  ].map((s) => (
-                    <View key={s.label} style={styles.statCard}>
-                      <View
-                        style={[
-                          styles.statAccent,
-                          { backgroundColor: s.color },
-                        ]}
-                      />
-                      <Text style={[styles.statVal, { color: s.color }]}>
-                        {s.val}
-                      </Text>
-                      <Text style={styles.statLbl}>{s.label}</Text>
-                    </View>
-                  ))}
-                </View>
-                {stats?.by_incident_type?.[0] && (
-                  <View style={styles.topCrime}>
-                    <Text style={styles.topCrimeLabel}>
-                      Most Reported Crime
-                    </Text>
-                    <Text
-                      style={[
-                        styles.topCrimeVal,
-                        {
-                          color:
-                            INCIDENT_COLORS[
-                              stats.by_incident_type[0].incident_type?.toUpperCase()
-                            ] || "#fff",
-                        },
-                      ]}
-                    >
-                      {stats.by_incident_type[0].incident_type}
-                    </Text>
-                    <Text style={styles.topCrimeSub}>
-                      {stats.by_incident_type[0].count} incidents
-                    </Text>
-                  </View>
-                )}
-                <Text style={[styles.sectionLabel, { marginTop: 16 }]}>
-                  Officers Online
-                </Text>
-                <Text style={styles.officerCount}>
-                  {officers.length} officer{officers.length !== 1 ? "s" : ""}{" "}
-                  currently active
-                </Text>
-              </View>
-            )}
-
-            {/* ── HOTSPOTS TAB ── */}
-            {activeTab === "hotspots" && (
-              <View style={styles.tabContent}>
-                <Text style={styles.dateRangeNote}>
-                  {appliedDateFrom} → {appliedDateTo}
-                </Text>
-                {stats?.at_risk_barangays?.length > 0 ? (
-                  stats.at_risk_barangays.map((h, i) => (
-                    <View key={i} style={styles.hotspotRow}>
-                      <Text style={styles.hotspotRank}>#{i + 1}</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.hotspotName}>{h.barangay}</Text>
-                        <Text
+                {heatmapMode
+                  ? [
+                      { color: "#450a0a", label: "Very High density" },
+                      { color: "#dc2626", label: "High density" },
+                      { color: "#f97316", label: "Medium density" },
+                      { color: "#eab308", label: "Low density" },
+                    ].map((r) => (
+                      <View key={r.label} style={styles.riskLegendRow}>
+                        <View
                           style={[
-                            styles.hotspotRisk,
-                            {
-                              color:
-                                h.risk === "High"
-                                  ? "#b91c1c"
-                                  : h.risk === "Medium"
-                                    ? "#f97316"
-                                    : "#eab308",
-                            },
+                            styles.riskLegendDot,
+                            { backgroundColor: r.color },
                           ]}
-                        >
-                          {h.risk} Risk
+                        />
+                        <Text style={styles.riskLegendLabel}>{r.label}</Text>
+                      </View>
+                    ))
+                  : [
+                      { color: "#adb5bd", label: "No crimes", range: "0" },
+                      {
+                        color: "#eab308",
+                        label: "Low Risk",
+                        range:
+                          thresholds.lowMax === 1
+                            ? "1"
+                            : `1–${thresholds.lowMax}`,
+                      },
+                      {
+                        color: "#f97316",
+                        label: "Medium Risk",
+                        range: `${thresholds.lowMax + 1}–${thresholds.medMax}`,
+                      },
+                      {
+                        color: "#b91c1c",
+                        label: "High Risk",
+                        range: `${thresholds.medMax + 1}+`,
+                      },
+                    ].map((r) => (
+                      <View key={r.label} style={styles.riskLegendRow}>
+                        <View
+                          style={[
+                            styles.riskLegendDot,
+                            { backgroundColor: r.color },
+                          ]}
+                        />
+                        <Text style={styles.riskLegendLabel}>{r.label}</Text>
+                        <Text style={styles.riskLegendRange}>
+                          {r.range} crimes
                         </Text>
-                        <View style={styles.hotspotBarBg}>
-                          <View
-                            style={[
-                              styles.hotspotBarFill,
-                              {
-                                width: `${Math.min(
-                                  100,
-                                  (h.count /
-                                    stats.at_risk_barangays[0].count) *
-                                    100,
-                                )}%`,
-                                backgroundColor:
-                                  h.risk === "High"
-                                    ? "#b91c1c"
-                                    : h.risk === "Medium"
-                                      ? "#f97316"
-                                      : "#eab308",
-                              },
-                            ]}
-                          />
+                      </View>
+                    ))}
+              </View>
+            )}
+
+            {/* ── RECENT TAB ── */}
+            {activeTab === "recent" && (
+              <View style={styles.tabContent}>
+                <Text style={styles.dateRangeNote}>
+                  {appliedDateFrom} → {appliedDateTo}
+                </Text>
+                {stats?.recent_incidents?.length > 0 ? (
+                  stats.recent_incidents.map((r, i) => {
+                    const color =
+                      INCIDENT_COLORS[r.incident_type?.toUpperCase()] ||
+                      "#6b7280";
+                    return (
+                      <View key={i} style={styles.recentItem}>
+                        <View
+                          style={[styles.recentBar, { backgroundColor: color }]}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.recentType}>
+                            {r.incident_type}
+                          </Text>
+                          <Text style={styles.recentBrgy}>
+                            📍 {r.place_barangay}
+                          </Text>
+                          <Text style={styles.recentDate}>
+                            {formatDate(r.date_time_commission)}
+                          </Text>
                         </View>
                       </View>
-                      <Text style={styles.hotspotCount}>{h.count}</Text>
-                    </View>
-                  ))
+                    );
+                  })
                 ) : (
                   <Text style={styles.emptyText}>
-                    No at-risk barangays detected
+                    No recent incidents found.
                   </Text>
+                )}
+              </View>
+            )}
+
+            {/* ── INCIDENCE / CLUSTERS TAB ── */}
+            {activeTab === "incidence" && (
+              <View style={styles.tabContent}>
+                <Text style={styles.dateRangeNote}>
+                  {appliedDateFrom} → {appliedDateTo}
+                </Text>
+
+                {heatmapMode ? (
+                  // Clusters list
+                  clusterGeoJSON?.features?.length > 0 ? (
+                    clusterGeoJSON.features.map((f, i) => {
+                      const p = f.properties;
+                      return (
+                        <TouchableOpacity
+                          key={`cluster-row-${i}`}
+                          style={styles.clusterRow}
+                          onPress={() => {
+                            setSelectedCluster({
+                              lng: f.geometry.coordinates[0],
+                              lat: f.geometry.coordinates[1],
+                              count: p.count,
+                              crime: p.dominant_crime,
+                              barangay: p.dominant_barangay,
+                              rank: p.rank,
+                              modus: p.dominant_modus,
+                            });
+                            cameraRef.current?.setCamera({
+                              centerCoordinate: f.geometry.coordinates,
+                              zoomLevel: 14,
+                              animationDuration: 800,
+                            });
+                            setShowSidebar(false);
+                          }}
+                        >
+                          <View style={styles.clusterRowLeft}>
+                            <Text style={styles.clusterRank}>#{p.rank}</Text>
+                            <View>
+                              <Text style={styles.clusterCrime}>
+                                {p.dominant_crime || "Multiple crimes"}
+                              </Text>
+                              <Text style={styles.clusterBrgy}>
+                                {p.dominant_barangay || "Unknown"}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={styles.clusterBadge}>
+                            <Text style={styles.clusterBadgeText}>
+                              {p.count}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })
+                  ) : (
+                    <Text style={styles.emptyText}>
+                      No clusters detected for this period.
+                    </Text>
+                  )
+                ) : (
+                  // Incidence list
+                  (() => {
+                    const incidenceList = boundaries
+                      .filter((b) => b.crime_count >= 1)
+                      .sort((a, b) => b.crime_count - a.crime_count);
+
+                    return incidenceList.length > 0 ? (
+                      incidenceList.map((h, i) => {
+                        const barColor =
+                          h.risk === "High Incidence"
+                            ? "#b91c1c"
+                            : h.risk === "Moderate Incidence"
+                              ? "#f97316"
+                              : "#eab308";
+                        const maxCount = incidenceList[0].crime_count || 1;
+                        return (
+                          <View key={h.name_db} style={styles.hotspotRow}>
+                            <Text style={styles.hotspotRank}>#{i + 1}</Text>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.hotspotName}>
+                                {h.name_db}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.hotspotRisk,
+                                  { color: barColor },
+                                ]}
+                              >
+                                {h.risk}
+                              </Text>
+                              <View style={styles.hotspotBarBg}>
+                                <View
+                                  style={[
+                                    styles.hotspotBarFill,
+                                    {
+                                      width: `${Math.min(100, (h.crime_count / maxCount) * 100)}%`,
+                                      backgroundColor: barColor,
+                                    },
+                                  ]}
+                                />
+                              </View>
+                            </View>
+                            <Text style={styles.hotspotCount}>
+                              {h.crime_count}
+                            </Text>
+                          </View>
+                        );
+                      })
+                    ) : (
+                      <Text style={styles.emptyText}>
+                        No barangays with recorded incidents.
+                      </Text>
+                    );
+                  })()
                 )}
               </View>
             )}
@@ -1041,7 +1334,10 @@ export default function MapScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0a285c" },
+  container: {
+    flex: 1,
+    backgroundColor: "#0a285c",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -1062,20 +1358,77 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  iconBtnActive: {
+    backgroundColor: "rgba(255,107,53,0.25)",
+  },
+
+  // Map container — flex:1 fills space between header and tab bar
   mapContainer: { flex: 1, position: "relative" },
   map: { flex: 1 },
-
-  crimePin: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: "#ffffff",
+  // ── Teardrop pin ──────────────────────────────────────────
+  pinWrapper: {
+    alignItems: "center",
+    width: 22,
+    height: 30,
+  },
+  pinBody: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 3,
-    elevation: 4,
+    elevation: 5,
+  },
+  pinInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.7)",
+  },
+  pinTip: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 7,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    marginTop: -1,
+  },
+
+  // ── Legend teardrop icon (smaller) ────────────────────────
+  legendPinWrap: {
+    alignItems: "center",
+    width: 14,
+    height: 20,
+    marginRight: 6,
+  },
+  legendPinBody: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  legendPinInner: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.7)",
+  },
+  legendPinTip: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderTopWidth: 5,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    marginTop: -1,
   },
 
   officerDot: {
@@ -1092,9 +1445,15 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
+  // Cluster tap target
+  clusterTapTarget: {
+    width: 44,
+    height: 44,
+  },
+
   recenterBtn: {
     position: "absolute",
-    bottom: 184,
+    bottom: 240,
     right: 16,
     width: 44,
     height: 44,
@@ -1108,10 +1467,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-
   gpsToggleBtn: {
     position: "absolute",
-    bottom: 130,
+    bottom: 180,
     right: 16,
     width: 44,
     height: 44,
@@ -1125,13 +1483,10 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  gpsToggleBtnActive: {
-    backgroundColor: "#1e3a5f",
-  },
-
+  gpsToggleBtnActive: { backgroundColor: "#1e3a5f" },
   resetBtn: {
     position: "absolute",
-    bottom: 76,
+    bottom: 120,
     right: 16,
     width: 44,
     height: 44,
@@ -1148,7 +1503,7 @@ const styles = StyleSheet.create({
 
   riskLegend: {
     position: "absolute",
-    bottom: 16,
+    bottom: 120,
     left: 16,
     backgroundColor: "rgba(255,255,255,0.92)",
     borderRadius: 10,
@@ -1171,7 +1526,7 @@ const styles = StyleSheet.create({
   officersBadge: {
     position: "absolute",
     top: 12,
-    left: 12,
+    right: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -1209,6 +1564,7 @@ const styles = StyleSheet.create({
   },
   gpsStatusText: { fontSize: 11, color: "#ffffff", fontWeight: "700" },
 
+  // GPS confirm modal
   confirmBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
@@ -1259,6 +1615,7 @@ const styles = StyleSheet.create({
   },
   confirmOkText: { color: "#ffffff", fontWeight: "700", fontSize: 14 },
 
+  // Crime/cluster popup (bottom sheet)
   popup: {
     position: "absolute",
     bottom: 0,
@@ -1304,14 +1661,23 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: "right",
   },
+  popupToggleBtn: {
+    marginTop: 8,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  popupToggleText: { fontSize: 12, fontWeight: "600", color: "#1e3a5f" },
 
+  // Sidebar
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.3)" },
   sidebar: {
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: "80%",
-    paddingBottom: Platform.OS === "ios" ? 30 : 16,
+    maxHeight: "82%",
   },
   sidebarHandle: {
     width: 40,
@@ -1360,6 +1726,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  // Date filter
   dateFilterRow: {
     paddingVertical: 10,
     borderBottomWidth: 1,
@@ -1424,15 +1791,15 @@ const styles = StyleSheet.create({
   },
   clearDateBtnText: { color: "#6b7280", fontSize: 12 },
 
+  // Legend rows
   legendRow: { gap: 5 },
   legendTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  legendLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendName: { fontSize: 13, color: "#374151", fontWeight: "500" },
+  legendLeft: { flexDirection: "row", alignItems: "center" },
+  legendName: { fontSize: 12, color: "#374151", fontWeight: "500" },
   legendCount: { fontSize: 13, fontWeight: "700", color: "#0a285c" },
   barBg: {
     height: 4,
@@ -1442,6 +1809,7 @@ const styles = StyleSheet.create({
   },
   barFill: { height: "100%", borderRadius: 4 },
 
+  // Risk legend in sidebar
   riskLegendRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1452,57 +1820,25 @@ const styles = StyleSheet.create({
   riskLegendLabel: { fontSize: 13, color: "#374151", flex: 1 },
   riskLegendRange: { fontSize: 11, color: "#6b7280" },
 
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  statCard: {
-    width: "47%",
-    backgroundColor: "#f8f9fa",
-    borderRadius: 10,
-    padding: 14,
-    position: "relative",
-    overflow: "hidden",
+  // Recent tab
+  recentItem: {
+    flexDirection: "row",
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
   },
-  statAccent: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    borderRadius: 10,
-  },
-  statVal: { fontSize: 26, fontWeight: "700", marginTop: 8 },
-  statLbl: {
-    fontSize: 11,
-    color: "#6b7280",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    fontWeight: "600",
-    marginTop: 4,
-  },
-
-  topCrime: {
-    backgroundColor: "#0a285c",
-    borderRadius: 10,
-    padding: 16,
-    alignItems: "center",
-    marginTop: 4,
-  },
-  topCrimeLabel: {
-    fontSize: 10,
-    color: "rgba(255,255,255,0.5)",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 6,
-  },
-  topCrimeVal: { fontSize: 15, fontWeight: "700" },
-  topCrimeSub: { fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 4 },
-
-  officerCount: {
+  recentBar: { width: 4, borderRadius: 2 },
+  recentType: {
     fontSize: 13,
-    color: "#374151",
-    fontWeight: "500",
-    paddingVertical: 4,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 2,
   },
+  recentBrgy: { fontSize: 11, color: "#6b7280", marginBottom: 2 },
+  recentDate: { fontSize: 11, color: "#9ca3af" },
 
+  // Incidence / clusters tab
   hotspotRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1518,41 +1854,50 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginBottom: 2,
   },
-  hotspotRisk: {
-    fontSize: 10,
-    fontWeight: "700",
-    marginBottom: 5,
-  },
+  hotspotRisk: { fontSize: 10, fontWeight: "700", marginBottom: 5 },
   hotspotBarBg: {
     height: 4,
     backgroundColor: "#fee2e2",
     borderRadius: 4,
     overflow: "hidden",
   },
-  hotspotBarFill: {
-    height: "100%",
-    borderRadius: 4,
-  },
+  hotspotBarFill: { height: "100%", borderRadius: 4 },
   hotspotCount: { fontSize: 15, fontWeight: "700", color: "#c1272d" },
+
+  clusterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 10,
+    backgroundColor: "rgba(239,68,68,0.04)",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(239,68,68,0.15)",
+    borderLeftWidth: 3,
+    borderLeftColor: "#ef4444",
+    marginBottom: 8,
+  },
+  clusterRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  clusterRank: { fontSize: 14, fontWeight: "700", color: "#9ca3af", width: 28 },
+  clusterCrime: { fontSize: 12, fontWeight: "700", color: "#111827" },
+  clusterBrgy: { fontSize: 11, color: "#6b7280", marginTop: 2 },
+  clusterBadge: {
+    backgroundColor: "#ef4444",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  clusterBadgeText: { fontSize: 11, color: "#ffffff", fontWeight: "700" },
 
   emptyText: {
     textAlign: "center",
     color: "#9ca3af",
     fontSize: 13,
     paddingVertical: 24,
-  },
-
-  popupToggleBtn: {
-    marginTop: 8,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: "#dee2e6",
-    borderRadius: 6,
-    alignItems: "center",
-  },
-  popupToggleText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#1e3a5f",
   },
 });
