@@ -288,30 +288,49 @@ function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
   const [showDate, setShowDate] = useState(false);
   const [showTime, setShowTime] = useState(false);
   const [tempDate, setTempDate] = useState(value ? new Date(value) : new Date());
-
+ 
   const formatDisplay = (dt) => {
     if (!dt) return '';
     const d = new Date(dt);
     if (isNaN(d.getTime())) return '';
     const hrs = d.getHours();
-const ampm = hrs >= 12 ? 'PM' : 'AM';
-const h12 = hrs % 12 || 12;
-return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()} ${h12}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
-
+    const ampm = hrs >= 12 ? 'PM' : 'AM';
+    const h12 = hrs % 12 || 12;
+    return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()} ${h12}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
   };
-
+ 
+  // NEW: Clear handler
+  const handleClear = () => {
+    onChange('');
+    if (fieldKey && _formErrRef.setter) {
+      _formErrRef.setter(prev => { const n = {...prev}; delete n[fieldKey]; return n; });
+    }
+  };
+ 
   return (
     <View>
-      <TouchableOpacity
-        style={[inp.base, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, error && inp.err]}
-        onPress={() => { setTempDate(value ? new Date(value) : new Date()); setShowDate(true); }}
-      >
-        <Text style={{ fontSize: 14, color: value ? C.text : C.faint }}>
-          {formatDisplay(value) || 'Select date & time'}
-        </Text>
-        <Ionicons name="calendar-outline" size={16} color={C.muted} />
-      </TouchableOpacity>
-
+      {/* CHANGED: Wrapped in flex row with clear button */}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <TouchableOpacity
+          style={[inp.base, { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, error && inp.err]}
+          onPress={() => { setTempDate(value ? new Date(value) : new Date()); setShowDate(true); }}
+        >
+          <Text style={{ fontSize: 14, color: value ? C.text : C.faint, flex: 1 }}>
+            {formatDisplay(value) || 'Select date & time'}
+          </Text>
+          <Ionicons name="calendar-outline" size={16} color={C.muted} />
+        </TouchableOpacity>
+        {/* NEW: Clear button - only shows when there's a value */}
+        {value && (
+          <TouchableOpacity
+            style={{ paddingHorizontal: 12, paddingVertical: 12, backgroundColor: C.redBg, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', justifyContent: 'center' }}
+            onPress={handleClear}
+          >
+            <Ionicons name="close" size={16} color={C.red} />
+          </TouchableOpacity>
+        )}
+      </View>
+ 
       {showDate && (
         <DateTimePicker
           value={tempDate}
@@ -319,11 +338,11 @@ return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padSt
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={(e, d) => {
             setShowDate(false);
-           if (e.type !== 'dismissed' && d) {
-  const updated = new Date(d);
-  setTempDate(updated);
-  setTimeout(() => setShowTime(true), 50);
-}
+            if (e.type !== 'dismissed' && d) {
+              const updated = new Date(d);
+              setTempDate(updated);
+              setTimeout(() => setShowTime(true), 50);
+            }
           }}
           maximumDate={new Date()}
         />
@@ -333,25 +352,24 @@ return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padSt
           value={tempDate}
           mode="time"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-         onChange={(e, t) => {
-  setShowTime(false);
-  if (e.type !== 'dismissed' && t) {
-    // Android gives UTC-shifted date, use local hours directly
-    const localHours = t.getHours();
-    const localMinutes = t.getMinutes();
-    const combined = new Date(tempDate);
-    combined.setHours(localHours, localMinutes, 0, 0);
-    const yr  = combined.getFullYear();
-    const mo  = String(combined.getMonth() + 1).padStart(2, '0');
-    const day = String(combined.getDate()).padStart(2, '0');
-    const hr  = String(localHours).padStart(2, '0');
-    const min = String(localMinutes).padStart(2, '0');
-    onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
-if (fieldKey && _formErrRef.setter) {
-  _formErrRef.setter(prev => { const n = {...prev}; delete n[fieldKey]; return n; });
-}
-  }
-}}
+          onChange={(e, t) => {
+            setShowTime(false);
+            if (e.type !== 'dismissed' && t) {
+              const localHours = t.getHours();
+              const localMinutes = t.getMinutes();
+              const combined = new Date(tempDate);
+              combined.setHours(localHours, localMinutes, 0, 0);
+              const yr  = combined.getFullYear();
+              const mo  = String(combined.getMonth() + 1).padStart(2, '0');
+              const day = String(combined.getDate()).padStart(2, '0');
+              const hr  = String(localHours).padStart(2, '0');
+              const min = String(localMinutes).padStart(2, '0');
+              onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
+              if (fieldKey && _formErrRef.setter) {
+                _formErrRef.setter(prev => { const n = {...prev}; delete n[fieldKey]; return n; });
+              }
+            }
+          }}
         />
       )}
     </View>
@@ -364,56 +382,48 @@ if (fieldKey && _formErrRef.setter) {
 function DatePickerBtn({ label, value, onChange, maximumDate }) {
   const [show, setShow] = useState(false);
   const [temp, setTemp] = useState(new Date());
-
+ 
   const fmtDisplay = (d) => d
     ? `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`
     : '';
-  const fmtISO = (d) => d
-    ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    : '';
-  const maxISO = fmtISO(maximumDate || new Date());
-
-  if (Platform.OS === 'web') {
-    return (
-      <View style={[inp.base, { padding: 0, overflow: 'hidden', flexDirection: 'row', alignItems: 'center' }]}>
-        <input
-          type="date" value={fmtISO(value)} max={maxISO}
-          onChange={e => {
-            if (e.target.value) {
-              const parts = e.target.value.split('-');
-              onChange(new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
-            }
-          }}
-          style={{ border: 'none', outline: 'none', padding: '12px 14px', fontSize: 14, color: value ? '#0F172A' : '#CBD5E1', width: '100%', backgroundColor: 'white', cursor: 'pointer', fontFamily: 'inherit', height: '46px', boxSizing: 'border-box' }}
-        />
-      </View>
-    );
-  }
-
+ 
+  const handleClear = () => {
+    onChange(null);
+  };
+ 
   return (
     <View>
-      <TouchableOpacity style={[inp.base, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => { setTemp(value || new Date()); setShow(true); }}>
-        <Text style={{ fontSize: 14, color: value ? C.text : C.faint, flex: 1 }}>{fmtDisplay(value) || 'mm/dd/yyyy'}</Text>
-        <Ionicons name="calendar-outline" size={16} color={C.muted} />
-      </TouchableOpacity>
-      {Platform.OS === 'ios' && show && (
-        <Modal visible transparent animationType="slide">
-          <View style={dpk.iosOverlay}>
-            <View style={dpk.iosSheet}>
-              <View style={dpk.iosHdr}>
-                <TouchableOpacity onPress={() => setShow(false)}><Text style={dpk.iosCancel}>Cancel</Text></TouchableOpacity>
-                <Text style={dpk.iosTitle}>{label}</Text>
-                <TouchableOpacity onPress={() => { onChange(temp); setShow(false); }}><Text style={dpk.iosDone}>Done</Text></TouchableOpacity>
-              </View>
-              <DateTimePicker value={temp} mode="date" display="spinner" onChange={(_, d) => d && setTemp(d)} maximumDate={maximumDate || new Date()} />
-            </View>
-          </View>
-        </Modal>
-      )}
-      {Platform.OS === 'android' && show && (
-        <DateTimePicker value={temp} mode="date" display="calendar"
-          onChange={(evt, d) => { setShow(false); if (evt.type !== 'dismissed' && d) onChange(d); }}
-          maximumDate={maximumDate || new Date()} />
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <TouchableOpacity 
+          style={[inp.base, { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} 
+          onPress={() => { setTemp(value || new Date()); setShow(true); }}
+        >
+          <Text style={{ fontSize: 14, color: value ? C.text : C.faint, flex: 1 }}>
+            {fmtDisplay(value) || 'mm/dd/yyyy'}
+          </Text>
+          <Ionicons name="calendar-outline" size={16} color={C.muted} />
+        </TouchableOpacity>
+        {value && (
+          <TouchableOpacity
+            style={{ paddingHorizontal: 12, paddingVertical: 12, backgroundColor: C.redBg, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', justifyContent: 'center' }}
+            onPress={handleClear}
+          >
+            <Ionicons name="close" size={16} color={C.red} />
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      {show && (
+        <DateTimePicker 
+          value={temp} 
+          mode="date" 
+          display="calendar"
+          onChange={(evt, d) => { 
+            setShow(false); 
+            if (evt.type !== 'dismissed' && d) onChange(d); 
+          }}
+          maximumDate={maximumDate || new Date()} 
+        />
       )}
     </View>
   );
@@ -430,7 +440,7 @@ const dpk = StyleSheet.create({
 /* ═══════════════════════════════════════════════════════════════════════════
    PICKER MODAL
 ═══════════════════════════════════════════════════════════════════════════ */
-const PickerModal = memo(function PickerModal({ visible, title, options, selected, onSelect, onClose }) {
+const PickerModal = memo(function PickerModal({ visible, title, options, selected, onSelect, onClose, noSearch }) {
   const [q, setQ] = useState('');
   useEffect(() => { if (!visible) setQ(''); }, [visible]);
   if (!visible) return null;
@@ -450,14 +460,16 @@ const PickerModal = memo(function PickerModal({ visible, title, options, selecte
               <Ionicons name="close" size={16} color={C.sub} />
             </TouchableOpacity>
           </View>
-          <View style={pk.searchRow}>
-            <Ionicons name="search-outline" size={14} color={C.muted} />
-           <TextInput style={pk.searchIn} placeholder="Search…" value={q} onChangeText={setQ} placeholderTextColor={C.muted} />
-            {q.length > 0 && <TouchableOpacity onPress={() => setQ('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={14} color={C.muted} /></TouchableOpacity>}
-          </View>
+          {!noSearch && (
+  <View style={pk.searchRow}>
+    <Ionicons name="search-outline" size={14} color={C.muted} />
+    <TextInput style={pk.searchIn} placeholder="Search…" value={q} onChangeText={setQ} placeholderTextColor={C.muted} />
+    {q.length > 0 && <TouchableOpacity onPress={() => setQ('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={14} color={C.muted} /></TouchableOpacity>}
+  </View>
+)}
           <FlatList
-            data={filtered} keyExtractor={(_, i) => String(i)}
-            style={{ maxHeight: SH * 0.45 }} keyboardShouldPersistTaps="handled"
+  data={filtered} keyExtractor={(_, i) => String(i)}
+  style={{ height: SH * 0.45 }} keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => {
               const isObj = typeof item === 'object' && item !== null && !item.code;
               const l   = isObj ? item.label : (typeof item === 'string' ? item : (item.name || ''));
@@ -729,7 +741,7 @@ const Step1 = memo(function Step1({ comp, setComp, formErr, activePick, setActiv
               <FField label="Qualifier">
                 <SelBtn label="None" value={c.qualifier} onPress={() => setActivePick(`cq${i}`)} />
               </FField>
-              <PickerModal visible={activePick === `cq${i}`} title="Qualifier" options={QUALIFIERS} selected={c.qualifier} onSelect={v => { uC(i, 'qualifier', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
+              <PickerModal noSearch visible={activePick === `cq${i}`} title="Qualifier" options={QUALIFIERS} selected={c.qualifier} onSelect={v => { uC(i, 'qualifier', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
             </View>
             <View style={{ width: 8 }} />
             <View style={{ flex: 1 }}>
@@ -765,7 +777,7 @@ const Step1 = memo(function Step1({ comp, setComp, formErr, activePick, setActiv
           <FField label="Info Obtained" required error={formErr[`c${i}inf`]}>
             <SelBtn label="Select" value={c.info_obtained} onPress={() => setActivePick(`ci${i}`)} error={formErr[`c${i}inf`]} />
           </FField>
-          <PickerModal visible={activePick === `ci${i}`} title="Info Obtained" options={INFO_OB} selected={c.info_obtained} onSelect={v => { uC(i, 'info_obtained', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
+          <PickerModal noSearch visible={activePick === `ci${i}`} title="Info Obtained" options={INFO_OB} selected={c.info_obtained} onSelect={v => { uC(i, 'info_obtained', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
         </View>
       ))}
       <TouchableOpacity style={sx.addBtn} onPress={() => setComp(p => [...p, mkC()])}>
@@ -827,7 +839,7 @@ const Step2 = memo(function Step2({ susp, setSusp, formErr, activePick, setActiv
               <FField label="Qualifier">
                 <SelBtn label="None" value={s.qualifier} onPress={() => setActivePick(`sq${i}`)} />
               </FField>
-              <PickerModal visible={activePick === `sq${i}`} title="Qualifier" options={QUALIFIERS} selected={s.qualifier} onSelect={v => { uS(i, 'qualifier', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
+              <PickerModal noSearch visible={activePick === `sq${i}`} title="Qualifier" options={QUALIFIERS} selected={s.qualifier} onSelect={v => { uS(i, 'qualifier', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
             </View>
             <View style={{ width: 8 }} />
             <View style={{ flex: 1 }}>
@@ -856,7 +868,7 @@ const Step2 = memo(function Step2({ susp, setSusp, formErr, activePick, setActiv
 
           {/* FIX 4: Arrest location shown AND required when Arrested/In Custody/Detained */}
           {['Arrested', 'In Custody', 'Detained'].includes(s.status) && (
-            <FField label="Arrest / Detention Location" required error={formErr[`s${i}loc`]}>
+            <FField label="Arrest / Detention Location" error={formErr[`s${i}loc`]}>
               <TInput value={s.location_if_arrested} onChange={v => uS(i, 'location_if_arrested', v)} placeholder="Where detained/arrested (min. 5 chars)" error={formErr[`s${i}loc`]} maxLen={200} fieldKey={`s${i}loc`} />
             </FField>
           )}
@@ -864,7 +876,7 @@ const Step2 = memo(function Step2({ susp, setSusp, formErr, activePick, setActiv
           <FField label="Degree of Participation" error={formErr[`s${i}dg`]}>
             <SelBtn label="Select Degree" value={s.degree_participation} onPress={() => setActivePick(`sd${i}`)} error={formErr[`s${i}dg`]} />
           </FField>
-          <PickerModal visible={activePick === `sd${i}`} title="Degree" options={DEGREES} selected={s.degree_participation} onSelect={v => { uS(i, 'degree_participation', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
+          <PickerModal noSearch visible={activePick === `sd${i}`} title="Degree" options={DEGREES} selected={s.degree_participation} onSelect={v => { uS(i, 'degree_participation', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
           <FField label="Nationality" error={formErr[`s${i}nat`]}>
   <SelBtn label="Select Nationality" value={s.nationality} onPress={() => setActivePick(`sn${i}`)} error={formErr[`s${i}nat`]} />
 </FField>
@@ -909,16 +921,11 @@ const Step3 = memo(function Step3({
   const cameraRef = useRef(null);
   const pinColor = INCIDENT_COLORS[caseD.incident_type] || '#c1272d';
   const [mapFocused, setMapFocused] = useState(false);
-const mapPanResponder = useRef(
-  PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: () => setMapFocused(true),
-    onPanResponderRelease: () => setMapFocused(false),
-    onPanResponderTerminate: () => setMapFocused(false),
-  })
-).current;
-const [outsideBrgy, setOutsideBrgy] = useState(false);
+  const [cameraKey, setCameraKey] = useState(0);
+  const [mapFullscreen, setMapFullscreen] = useState(false);
+  const [outsideBrgy, setOutsideBrgy] = useState(false);
+  
+  // Helper function - MUST be defined BEFORE it's used
   const isInsideBoundary = (lng, lat, feature) => {
     if (!feature) return true;
     const rings = feature.geometry.type === 'Polygon'
@@ -935,34 +942,52 @@ const [outsideBrgy, setOutsideBrgy] = useState(false);
     }
     return inside;
   };
-
+  
+  const getBrgyCenter = (feature) => {
+    if (!feature) return BACOOR_CENTER;
+    const coords = feature.geometry.type === 'Polygon'
+      ? feature.geometry.coordinates[0]
+      : feature.geometry.coordinates[0][0];
+    const lng = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+    const lat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+    return [lng, lat];
+  };
+  
+  // Calculate selectedFeature FIRST
   const selectedFeature = geoJSON && caseD.place_barangay
     ? (geoJSON.features || []).find(f => f.properties.name_db === caseD.place_barangay) || null
     : null;
+  
+  // Then use it in useEffect with correct dependencies
+  useEffect(() => {
+    // When barangay changes, force camera to recenter
+    if (caseD.place_barangay && selectedFeature && geoJSON) {
+      setCameraKey(prev => prev + 1);
+      setTimeout(() => {
+        const center = getBrgyCenter(selectedFeature);
+        cameraRef.current?.setCamera({
+          centerCoordinate: center,
+          zoomLevel: 13,
+          animationDuration: 500,
+        });
+      }, 100);
+    }
+  }, [caseD.place_barangay, geoJSON]); 
 
   const handleMapPress = (e) => {
-  if (!caseD.place_barangay) return;
-  const { coordinates } = e.geometry;
-  const [lng, lat] = coordinates;
-  if (selectedFeature && !isInsideBoundary(lng, lat, selectedFeature)) {
-    setOutsideBrgy(true);
-    setTimeout(() => setOutsideBrgy(false), 2500);
-    return;
-  }
-  setOutsideBrgy(false);
-  uCase('lat', lat.toFixed(6));
-  uCase('lng', lng.toFixed(6));
-  if (_formErrRef.setter) _formErrRef.setter(prev => { const n={...prev}; delete n.pin; return n; });
-};
-const getBrgyCenter = (feature) => {
-  if (!feature) return BACOOR_CENTER;
-  const coords = feature.geometry.type === 'Polygon'
-    ? feature.geometry.coordinates[0]
-    : feature.geometry.coordinates[0][0];
-  const lng = coords.reduce((s, c) => s + c[0], 0) / coords.length;
-  const lat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
-  return [lng, lat];
-};
+    if (!caseD.place_barangay) return;
+    const { coordinates } = e.geometry;
+    const [lng, lat] = coordinates;
+    if (selectedFeature && !isInsideBoundary(lng, lat, selectedFeature)) {
+      setOutsideBrgy(true);
+      setTimeout(() => setOutsideBrgy(false), 2500);
+      return;
+    }
+    setOutsideBrgy(false);
+    uCase('lat', lat.toFixed(6));
+    uCase('lng', lng.toFixed(6));
+    if (_formErrRef.setter) _formErrRef.setter(prev => { const n={...prev}; delete n.pin; return n; });
+  };
    return (
     <ScrollView ref={scrollRef} style={sx.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" scrollEnabled={!mapFocused}>
       <View style={sx.card}>
@@ -985,7 +1010,8 @@ onClose={() => setActivePick(null)} />
         <FField label="Stage of Felony" required error={formErr.stg}>
           <SelBtn label="Select Stage" value={offs[0]?.stage_of_felony} onPress={() => setActivePick('stg')} error={formErr.stg} />
         </FField>
-        <PickerModal visible={activePick === 'stg'} title="Stage of Felony" options={STAGES} selected={offs[0]?.stage_of_felony}
+        <PickerModal noSearch visible={activePick === 'stg'}  title="Stage of Felony" options={STAGES} selected={offs[0]?.stage_of_felony}
+        
          onSelect={v => { 
   uO(0, 'stage_of_felony', v); 
   setActivePick(null); 
@@ -1022,7 +1048,7 @@ onClose={() => setActivePick(null)} />
 }} 
 onClose={() => setActivePick(null)}/>
 
-        <FField label="COP (Officer on Case)" error={formErr.cop}>
+        <FField label="COP (Chief of Police)" error={formErr.cop}>
           <TInput value={caseD.cop} onChange={v => uCase('cop', v)} placeholder="Officer Name (optional)" error={formErr.cop} maxLen={100} fieldKey="cop" />
         </FField>
 
@@ -1054,6 +1080,8 @@ onClose={() => setActivePick(null)}/>
     uCase('lat', ''); 
     uCase('lng', ''); 
     setActivePick(null);
+    // Trigger camera recenter by updating the key
+    setCameraKey(prev => prev + 1);
     if (_formErrRef.setter) _formErrRef.setter(prev => { const n={...prev}; delete n.brgy; return n; });
   }
 }}
@@ -1065,7 +1093,7 @@ onClose={() => setActivePick(null)}/>
         <FField label="Private Place?">
           <SelBtn label="Select…" value={caseD.is_private_place} onPress={() => setActivePick('priv')} />
         </FField>
-        <PickerModal visible={activePick === 'priv'} title="Private Place?" options={PRIV} selected={caseD.is_private_place} onSelect={v => { uCase('is_private_place', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
+        <PickerModal noSearch visible={activePick === 'priv'} title="Private Place?" options={PRIV} selected={caseD.is_private_place} onSelect={v => { uCase('is_private_place', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
 
         {/* MAP PICKER */}
 <View style={ff.g}>
@@ -1108,31 +1136,34 @@ onClose={() => setActivePick(null)}/>
       <Ionicons name="location-outline" size={40} color={C.muted} />
       <Text style={{ fontSize: 14, fontWeight: '600', color: C.muted, marginTop: 10, textAlign: 'center', paddingHorizontal: 20 }}>Select a barangay above to activate the map</Text>
     </View>
-  ) : (
+    ) : (
     <View
   style={{ height: 420, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: formErr.pin ? C.red : C.border }}
-  {...mapPanResponder.panHandlers}
+  onTouchMove={() => setMapFocused(true)}
+  onTouchEnd={() => setMapFocused(false)}
+  onTouchCancel={() => setMapFocused(false)}
 >
-  <MapView
-    style={{ flex: 1 }}
-    styleURL="mapbox://styles/mapbox/streets-v12"
-    onPress={handleMapPress}
-    scrollEnabled={true}
-    zoomEnabled={true}
-    pitchEnabled={false}
-    rotateEnabled={false}
-  >
+      <MapView
+        style={{ flex: 1 }}
+        styleURL="mapbox://styles/mapbox/streets-v12"
+        onPress={handleMapPress}
+        scrollEnabled={true}
+        zoomEnabled={true}
+        pitchEnabled={false}
+        rotateEnabled={false}
+      >
         {/* Auto-center on selected barangay or pin */}
-        <Camera
+      <Camera
+  key={cameraKey} // Forces re-render when key changes
   ref={cameraRef}
-  zoomLevel={caseD.lat && caseD.lng ? 16 : 13}
-  centerCoordinate={
-    caseD.lat && caseD.lng
+  defaultSettings={{
+    centerCoordinate: caseD.lat && caseD.lng
       ? [parseFloat(caseD.lng), parseFloat(caseD.lat)]
-      : getBrgyCenter(selectedFeature)
-  }
+      : getBrgyCenter(selectedFeature),
+    zoomLevel: caseD.lat && caseD.lng ? 15 : 12,
+  }}
   animationMode="flyTo"
-  animationDuration={800}
+  animationDuration={500}
 />
 
         {/* Barangay boundary */}
@@ -1145,27 +1176,22 @@ onClose={() => setActivePick(null)}/>
 
         {/* Pin marker — larger for mobile */}
         {caseD.lat && caseD.lng && (
-          <MarkerView coordinate={[parseFloat(caseD.lng), parseFloat(caseD.lat)]}>
-            <View style={{ alignItems: 'center' }}>
-              <View style={{
-                width: 36, height: 36,
-                borderRadius: 18,
-                backgroundColor: pinColor,
-                borderWidth: 3,
-                borderColor: C.white,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 3 },
-                shadowOpacity: 0.5,
-                shadowRadius: 5,
-                elevation: 8,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <Ionicons name="location" size={18} color={C.white} />
-              </View>
-              <View style={{ width: 4, height: 10, backgroundColor: pinColor, borderRadius: 2, marginTop: -2 }} />
-            </View>
-          </MarkerView>
+         <MarkerView
+  coordinate={[parseFloat(caseD.lng), parseFloat(caseD.lat)]}
+>
+  <View style={{ alignItems: 'center' }}>
+    <View style={{
+      width: 36, height: 36, borderRadius: 18,
+      backgroundColor: pinColor, borderWidth: 3, borderColor: C.white,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.5, shadowRadius: 5, elevation: 8,
+      alignItems: 'center', justifyContent: 'center',
+    }}>
+      <Ionicons name="location" size={18} color={C.white} />
+    </View>
+    <View style={{ width: 4, height: 10, backgroundColor: pinColor, borderRadius: 2, marginTop: -2 }} />
+  </View>
+</MarkerView>
         )}
       </MapView>
 
@@ -1180,12 +1206,16 @@ onClose={() => setActivePick(null)}/>
 
       {/* Instruction overlay */}
       <View style={{ position: 'absolute', bottom: 10, left: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.65)', borderRadius: 10, padding: 10, alignItems: 'center' }}>
-        <Text style={{ color: C.white, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>
-          {caseD.lat && caseD.lng
-            ? '✅ Pin placed — tap anywhere to move it'
-            : '👆 Tap anywhere inside the highlighted area to drop a pin'}
-        </Text>
-      </View>
+  <Text style={{ color: C.white, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>
+  {caseD.lat && caseD.lng ? '✅ Pin placed — tap map to move it' : '👆 Tap inside the highlighted area to drop a pin'}
+</Text>
+</View>
+<TouchableOpacity
+  style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: 8 }}
+  onPress={() => setMapFullscreen(true)}
+>
+  <Ionicons name="expand-outline" size={18} color={C.white} />
+</TouchableOpacity>
     </View>
   )}
 
@@ -1207,6 +1237,61 @@ onClose={() => setActivePick(null)}/>
           <TInput value={caseD.amount_involved} onChange={v => uCase('amount_involved', v.replace(/[^0-9.]/g, ''))} placeholder="0.00" kb="decimal-pad" maxLen={15} />
         </FField>
       </View>
+      {/* FULLSCREEN MAP MODAL */}
+<Modal visible={mapFullscreen} animationType="slide" onRequestClose={() => setMapFullscreen(false)}>
+  <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, backgroundColor: C.navy }}>
+      <Text style={{ color: C.white, fontWeight: '700', fontSize: 15 }}>
+  {caseD.lat && caseD.lng ? '📍 Tap to move pin' : '👆 Tap to drop pin'}
+</Text>
+      <TouchableOpacity onPress={() => setMapFullscreen(false)} style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: 8 }}>
+        <Ionicons name="contract-outline" size={18} color={C.white} />
+      </TouchableOpacity>
+    </View>
+    <MapView
+      style={{ flex: 1 }}
+      styleURL="mapbox://styles/mapbox/streets-v12"
+      onPress={handleMapPress}
+      scrollEnabled={true}
+      zoomEnabled={true}
+      pitchEnabled={false}
+      rotateEnabled={false}
+    >
+      <Camera
+        defaultSettings={{
+          centerCoordinate: caseD.lat && caseD.lng
+            ? [parseFloat(caseD.lng), parseFloat(caseD.lat)]
+            : getBrgyCenter(selectedFeature),
+          zoomLevel: caseD.lat && caseD.lng ? 16 : 14,
+        }}
+        animationMode="none"
+      />
+      {selectedFeature && (
+        <ShapeSource id="fs-brgy-boundary" shape={selectedFeature}>
+          <FillLayer id="fs-brgy-fill" style={{ fillColor: '#1e3a5f', fillOpacity: 0.12 }} />
+          <LineLayer id="fs-brgy-outline" style={{ lineColor: '#1e3a5f', lineWidth: 3, lineDasharray: [3, 2] }} />
+        </ShapeSource>
+      )}
+      {caseD.lat && caseD.lng && (
+       <MarkerView
+  coordinate={[parseFloat(caseD.lng), parseFloat(caseD.lat)]}
+>
+          <View style={{ alignItems: 'center' }}>
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: pinColor, borderWidth: 3, borderColor: C.white, elevation: 10, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="location" size={22} color={C.white} />
+            </View>
+            <View style={{ width: 4, height: 12, backgroundColor: pinColor, borderRadius: 2, marginTop: -2 }} />
+          </View>
+        </MarkerView>
+      )}
+    </MapView>
+    {outsideBrgy && (
+      <View style={{ position: 'absolute', top: 70, left: 14, right: 14, backgroundColor: 'rgba(185,28,28,0.9)', borderRadius: 10, padding: 10, alignItems: 'center' }}>
+        <Text style={{ color: C.white, fontSize: 13, fontWeight: '700' }}>⚠️ Outside {caseD.place_barangay} boundary</Text>
+      </View>
+    )}
+  </SafeAreaView>
+</Modal>
       <View style={{ height: 80 }} />
     </ScrollView>
   );
@@ -1291,30 +1376,24 @@ const bcc = StyleSheet.create({
    FIX 9: VIEW CONTENT — with map showing crime location pin
 ═══════════════════════════════════════════════════════════════════════════ */
 const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, offenseSelModus }) {
+  // FIX 3: Loading state
   if (!viewData) return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       <ActivityIndicator size="large" color={C.navyMid} />
     </View>
   );
+  
   const d = viewData;
-const [viewMapFocused, setViewMapFocused] = useState(false);
-const viewMapPanResponder = useRef(
-  PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: () => setViewMapFocused(true),
-    onPanResponderRelease: () => setViewMapFocused(false),
-    onPanResponderTerminate: () => setViewMapFocused(false),
-  })
-).current;
-
+  const [mapFullscreen, setMapFullscreen] = useState(false); // FIX 4: State for fullscreen map
+  const [mapFocused, setMapFocused] = useState(false); // FIX 4: State for map focus
+ 
   const VI = (label, value) => (!value && value !== 0 && value !== false) ? null : (
     <View style={vw.item} key={label}>
       <Text style={vw.label}>{label}</Text>
       <Text style={vw.value}>{String(value)}</Text>
     </View>
   );
-
+ 
   const Sec = ({ title, icon, color, children }) => (
     <View style={vw.sec}>
       <View style={[vw.secHd, { backgroundColor: color || C.navyMid }]}>
@@ -1324,151 +1403,238 @@ const viewMapPanResponder = useRef(
       {children}
     </View>
   );
-
+ 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} scrollEnabled={!viewMapFocused}>
-      {/* Hero banner */}
-      <View style={vw.hero}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={vw.heroId}>{d.blotter_entry_number}</Text>
-          <SBadge status={d.status || 'Pending'} />
-        </View>
-        <Text style={vw.heroType}>{d.incident_type}</Text>
-        <View style={{ gap: 5 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.65)" /><Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>Brgy. {d.place_barangay}, {d.place_city_municipality}</Text></View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.65)" /><Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>{fmt(d.date_time_reported)}</Text></View>
-        </View>
-      </View>
-
-      {/* Victim */}
-      <Sec title="VICTIM INFORMATION" icon="person-outline" color={C.navyMid}>
-        {(d.complainants || []).map((c, i) => (
-          <View key={i} style={vw.card}>
-            <Text style={vw.cardTitle}>Victim #{i + 1}</Text>
-            {VI('Name', [c.first_name, c.middle_name, c.last_name, c.qualifier].filter(Boolean).join(' '))}
-            {VI('Gender', c.gender)}
-            {VI('Nationality', c.nationality)}
-            {VI('Contact', c.contact_number || 'N/A')}
-            {VI('Alias', c.alias || 'N/A')}
-            {VI('Occupation', c.occupation || 'N/A')}
-            {VI('Address', [c.house_street, c.barangay || c.barangay_code, c.city_municipality || c.municipality_code, c.district_province || c.province_code, c.region || c.region_code].filter(v => v && v !== 'null' && v.trim()).join(', ') || 'N/A')}
-            {VI('Info Obtained', c.info_obtained)}
+    <>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={!mapFocused} // FIX 4: Disable scroll when map is focused
+        removeClippedSubviews={true} // FIX 3: Performance optimization
+        windowSize={5} // FIX 3: Performance optimization
+      >
+        {/* Hero banner */}
+        <View style={vw.hero}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={vw.heroId}>{d.blotter_entry_number}</Text>
+            <SBadge status={d.status || 'Pending'} />
           </View>
-        ))}
-      </Sec>
-
-      {/* SUSPECT */}
-      <Sec title="SUSPECT INFORMATION" icon="alert-circle-outline" color={C.navy}>
-        {(d.suspects || []).length === 0 ? (
-          <View style={[vw.card, { padding: 20, alignItems: 'center', gap: 8 }]}>
-            <Ionicons name="person-remove-outline" size={28} color={C.faint} />
-            <Text style={{ fontSize: 13, fontWeight: '600', color: C.muted }}>No Suspect Identified</Text>
-            <Text style={{ fontSize: 12, color: C.faint, textAlign: 'center' }}>Suspect information was not provided for this report</Text>
-          </View>
-        ) : (d.suspects || []).map((s, i) => (
-          <View key={i} style={vw.card}>
-            <Text style={vw.cardTitle}>Suspect #{i + 1}</Text>
-            {VI('Name', [s.first_name, s.middle_name, s.last_name, s.qualifier].filter(Boolean).join(' ') || 'Unknown')}
-            {VI('Alias', s.alias || 'N/A')}
-            {VI('Gender', s.gender)}
-            {VI('Status', s.status)}
-            {VI('Degree of Participation', s.degree_participation)}
-            {VI('Birthday', s.birthday || 'N/A')}
-            {VI('Age', s.age || 'N/A')}
-            {VI('Birth Place', s.birth_place || 'N/A')}
-            {VI('Nationality', s.nationality)}
-            {VI('Educational Attainment', s.educational_attainment || 'N/A')}
-            {VI('Height', s.height_cm ? `${s.height_cm} cm` : 'N/A')}
-            {VI('Drug Used', s.drug_used ? 'Yes' : 'No')}
-            {VI('Occupation', s.occupation || 'N/A')}
-            {VI('Relation to Victim', s.relation_to_victim || 'N/A')}
-            {s.location_if_arrested ? VI('Arrest Location', s.location_if_arrested) : null}
-            {VI('Address', [s.house_street, s.barangay || s.barangay_code, s.city_municipality || s.municipality_code, s.district_province || s.province_code].filter(v => v && v.trim()).join(', ') || 'N/A')}
-            {VI('Motive', s.motive || 'N/A')}
-          </View>
-        ))}
-      </Sec>
-
-      {/* CASE DETAILS with MAP */}
-      <Sec title="CASE DETAILS" icon="clipboard-outline" color={C.slate}>
-        <View style={vw.card}>
-          {VI('Incident Type', d.incident_type)}
-          {VI('COP', d.cop || 'N/A')}
-          {VI('Date of Commission', fmt(d.date_time_commission))}
-          {VI('Date Reported', fmt(d.date_time_reported))}
-          {VI('Location', `${d.place_street}, Brgy. ${d.place_barangay}, ${d.place_city_municipality}, ${d.place_district_province}, ${d.place_region}`)}
-          {VI('Type of Place', d.type_of_place || 'N/A')}
-          {VI('Private Place?', d.is_private_place || 'N/A')}
-          {VI('Amount Involved', d.amount_involved ? `₱${d.amount_involved}` : 'N/A')}
-          {d.lat && d.lng && VI('Coordinates', `${d.lat}, ${d.lng}`)}
-
-          {/* FIX 9: MAP VIEW — shows crime location pin */}
-          {d.lat && d.lng && (
-           <View style={vw.item}>
-  <Text style={vw.label}>PIN LOCATION</Text>
- <View
-  style={{ height: 340, borderRadius: 10, overflow: 'hidden', marginTop: 6, borderWidth: 1, borderColor: C.border }}
-  {...viewMapPanResponder.panHandlers}
->
-    <MapView
-      style={{ flex: 1 }}
-      styleURL="mapbox://styles/mapbox/streets-v12"
-      zoomEnabled={true}
-      scrollEnabled={true}
-      pitchEnabled={false}
-      rotateEnabled={false}
-      attributionEnabled={false}
-      logoEnabled={false}
-    >
-                  <Camera
-                    centerCoordinate={[parseFloat(d.lng), parseFloat(d.lat)]}
-                    zoomLevel={15}
-                    animationMode="flyTo"
-                    animationDuration={0}
-                  />
-                  <MarkerView
-                    id="view-crime-location"
-                    coordinate={[parseFloat(d.lng), parseFloat(d.lat)]}
-                  >
-                    <View style={{ alignItems: 'center' }}>
-                      <View style={{
-                        width: 22, height: 22,
-                        borderRadius: 11,
-                        backgroundColor: INCIDENT_COLORS[d.incident_type] || '#c1272d',
-                        borderWidth: 2.5,
-                        borderColor: C.white,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.4,
-                        shadowRadius: 4,
-                        elevation: 6,
-                      }} />
-                      <View style={{
-                        width: 4, height: 8,
-                        backgroundColor: INCIDENT_COLORS[d.incident_type] || '#c1272d',
-                        borderRadius: 2,
-                        marginTop: -2,
-                      }} />
-                    </View>
-                  </MarkerView>
-                </MapView>
-              </View>
+          <Text style={vw.heroType}>{d.incident_type}</Text>
+          <View style={{ gap: 5 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.65)" />
+              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>
+                Brgy. {d.place_barangay}, {d.place_city_municipality}
+              </Text>
             </View>
-          )}
-
-          {d.narrative && <View style={vw.item}><Text style={vw.label}>Narrative</Text><Text style={[vw.value, { lineHeight: 22 }]}>{d.narrative}</Text></View>}
-        {/* Offense info merged into case details */}
-{(d.offenses || []).map((o, i) => (
-  <React.Fragment key={i}>
-    {VI('Stage of Felony', o.stage_of_felony || 'N/A')}
-    {VI('Index Type', o.index_type || 'N/A')}
-  </React.Fragment>
-))}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.65)" />
+              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>
+                {fmt(d.date_time_reported)}
+              </Text>
+            </View>
+          </View>
         </View>
-      </Sec>
-
-      <View style={{ height: 60 }} />
-    </ScrollView>
+ 
+        {/* Victim */}
+        <Sec title="VICTIM INFORMATION" icon="person-outline" color={C.navyMid}>
+          {(d.complainants || []).map((c, i) => (
+            <View key={i} style={vw.card}>
+              <Text style={vw.cardTitle}>Victim #{i + 1}</Text>
+              {VI('Name', [c.first_name, c.middle_name, c.last_name, c.qualifier].filter(Boolean).join(' '))}
+              {VI('Gender', c.gender)}
+              {VI('Nationality', c.nationality)}
+              {VI('Contact', c.contact_number || 'N/A')}
+              {VI('Alias', c.alias || 'N/A')}
+              {VI('Occupation', c.occupation || 'N/A')}
+              {VI('Address', [c.house_street, c.barangay || c.barangay_code, c.city_municipality || c.municipality_code, c.district_province || c.province_code, c.region || c.region_code].filter(v => v && v !== 'null' && v.trim()).join(', ') || 'N/A')}
+              {VI('Info Obtained', c.info_obtained)}
+            </View>
+          ))}
+        </Sec>
+ 
+        {/* SUSPECT */}
+        <Sec title="SUSPECT INFORMATION" icon="alert-circle-outline" color={C.navy}>
+          {(d.suspects || []).length === 0 ? (
+            <View style={[vw.card, { padding: 20, alignItems: 'center', gap: 8 }]}>
+              <Ionicons name="person-remove-outline" size={28} color={C.faint} />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: C.muted }}>No Suspect Identified</Text>
+              <Text style={{ fontSize: 12, color: C.faint, textAlign: 'center' }}>
+                Suspect information was not provided for this report
+              </Text>
+            </View>
+          ) : (d.suspects || []).map((s, i) => (
+            <View key={i} style={vw.card}>
+              <Text style={vw.cardTitle}>Suspect #{i + 1}</Text>
+              {VI('Name', [s.first_name, s.middle_name, s.last_name, s.qualifier].filter(Boolean).join(' ') || 'Unknown')}
+              {VI('Alias', s.alias || 'N/A')}
+              {VI('Gender', s.gender)}
+              {VI('Status', s.status)}
+              {VI('Degree of Participation', s.degree_participation)}
+              {VI('Birthday', s.birthday || 'N/A')}
+              {VI('Age', s.age || 'N/A')}
+              {VI('Birth Place', s.birth_place || 'N/A')}
+              {VI('Nationality', s.nationality)}
+              {VI('Educational Attainment', s.educational_attainment || 'N/A')}
+              {VI('Height', s.height_cm ? `${s.height_cm} cm` : 'N/A')}
+              {VI('Drug Used', s.drug_used ? 'Yes' : 'No')}
+              {VI('Occupation', s.occupation || 'N/A')}
+              {VI('Relation to Victim', s.relation_to_victim || 'N/A')}
+              {s.location_if_arrested ? VI('Arrest Location', s.location_if_arrested) : null}
+              {VI('Address', [s.house_street, s.barangay || s.barangay_code, s.city_municipality || s.municipality_code, s.district_province || s.province_code].filter(v => v && v.trim()).join(', ') || 'N/A')}
+              {VI('Motive', s.motive || 'N/A')}
+            </View>
+          ))}
+        </Sec>
+ 
+        {/* CASE DETAILS with MAP */}
+        <Sec title="CASE DETAILS" icon="clipboard-outline" color={C.slate}>
+          <View style={vw.card}>
+            {VI('Incident Type', d.incident_type)}
+            {VI('COP', d.cop || 'N/A')}
+            {VI('Date of Commission', fmt(d.date_time_commission))}
+            {VI('Date Reported', fmt(d.date_time_reported))}
+            {VI('Location', `${d.place_street}, Brgy. ${d.place_barangay}, ${d.place_city_municipality}, ${d.place_district_province}, ${d.place_region}`)}
+            {VI('Type of Place', d.type_of_place || 'N/A')}
+            {VI('Private Place?', d.is_private_place || 'N/A')}
+            {VI('Amount Involved', d.amount_involved ? `₱${d.amount_involved}` : 'N/A')}
+            {d.lat && d.lng && VI('Coordinates', `${d.lat}, ${d.lng}`)}
+ 
+            {/* FIX 4: SMOOTH MAP VIEW */}
+            {d.lat && d.lng && (
+              <View style={vw.item}>
+                <Text style={vw.label}>PIN LOCATION</Text>
+                <View 
+                  style={{ height: 420, borderRadius: 10, overflow: 'hidden', marginTop: 6, borderWidth: 1, borderColor: C.border }}
+                  onTouchStart={() => setMapFocused(true)} // FIX 4: Prevent scroll when touching map
+                  onTouchEnd={() => setMapFocused(false)}
+                  onTouchCancel={() => setMapFocused(false)}
+                >
+                  <MapView
+                    style={{ flex: 1 }}
+                    styleURL="mapbox://styles/mapbox/streets-v12"
+                    zoomEnabled={true}
+                    scrollEnabled={true}
+                    pitchEnabled={false}
+                    rotateEnabled={false}
+                    attributionEnabled={false}
+                    logoEnabled={false}
+                    compassEnabled={false}
+                    scaleBarEnabled={false}
+                  >
+                    <Camera
+                      centerCoordinate={[parseFloat(d.lng), parseFloat(d.lat)]}
+                      zoomLevel={15}
+                      animationMode="flyTo"
+                      animationDuration={0}
+                    />
+                    <MarkerView
+                      id="view-crime-location"
+                      coordinate={[parseFloat(d.lng), parseFloat(d.lat)]}
+                    >
+                      <View style={{ alignItems: 'center' }}>
+                        <View style={{
+                          width: 22, height: 22,
+                          borderRadius: 11,
+                          backgroundColor: INCIDENT_COLORS[d.incident_type] || '#c1272d',
+                          borderWidth: 2.5,
+                          borderColor: C.white,
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.4,
+                          shadowRadius: 4,
+                          elevation: 6,
+                        }} />
+                        <View style={{
+                          width: 4, height: 8,
+                          backgroundColor: INCIDENT_COLORS[d.incident_type] || '#c1272d',
+                          borderRadius: 2,
+                          marginTop: -2,
+                        }} />
+                      </View>
+                    </MarkerView>
+                  </MapView>
+                  
+                  {/* FIX 4: Fullscreen button */}
+                  <TouchableOpacity
+                    style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: 8 }}
+                    onPress={() => setMapFullscreen(true)}
+                  >
+                    <Ionicons name="expand-outline" size={18} color={C.white} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+ 
+            {d.narrative && (
+              <View style={vw.item}>
+                <Text style={vw.label}>Narrative</Text>
+                <Text style={[vw.value, { lineHeight: 22 }]}>{d.narrative}</Text>
+              </View>
+            )}
+            
+            {/* Offense info merged into case details */}
+            {(d.offenses || []).map((o, i) => (
+              <React.Fragment key={i}>
+                {VI('Stage of Felony', o.stage_of_felony || 'N/A')}
+                {VI('Index Type', o.index_type || 'N/A')}
+              </React.Fragment>
+            ))}
+          </View>
+        </Sec>
+ 
+        <View style={{ height: 60 }} />
+      </ScrollView>
+ 
+      {/* FIX 4: FULLSCREEN MAP MODAL */}
+      {d.lat && d.lng && (
+        <Modal visible={mapFullscreen} animationType="slide" onRequestClose={() => setMapFullscreen(false)}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, backgroundColor: C.navy }}>
+              <Text style={{ color: C.white, fontWeight: '700', fontSize: 15 }}>Crime Location</Text>
+              <TouchableOpacity 
+                onPress={() => setMapFullscreen(false)} 
+                style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: 8 }}
+              >
+                <Ionicons name="contract-outline" size={18} color={C.white} />
+              </TouchableOpacity>
+            </View>
+            <MapView
+              style={{ flex: 1 }}
+              styleURL="mapbox://styles/mapbox/streets-v12"
+              scrollEnabled={true}
+              zoomEnabled={true}
+              pitchEnabled={false}
+              rotateEnabled={false}
+            >
+              <Camera
+                defaultSettings={{
+                  centerCoordinate: [parseFloat(d.lng), parseFloat(d.lat)],
+                  zoomLevel: 15,
+                }}
+                animationMode="none"
+              />
+              <MarkerView
+                id="view-fullscreen-location"
+                coordinate={[parseFloat(d.lng), parseFloat(d.lat)]}
+              >
+                <View style={{ alignItems: 'center' }}>
+                  <View style={{
+                    width: 44, height: 44, borderRadius: 22,
+                    backgroundColor: INCIDENT_COLORS[d.incident_type] || '#c1272d',
+                    borderWidth: 3, borderColor: C.white,
+                    elevation: 10,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Ionicons name="location" size={22} color={C.white} />
+                  </View>
+                  <View style={{ width: 4, height: 12, backgroundColor: INCIDENT_COLORS[d.incident_type] || '#c1272d', borderRadius: 2, marginTop: -2 }} />
+                </View>
+              </MarkerView>
+            </MapView>
+          </SafeAreaView>
+        </Modal>
+      )}
+    </>
   );
 });
 const vw = StyleSheet.create({
@@ -1527,6 +1693,14 @@ export default function EBlotterScreen() {
   const [formErr, setFormErr]   = useState({});
   const [saving, setSaving]     = useState(false);
   const [activePick, setActivePick] = useState(null);
+  const [referredCount, setReferredCount] = useState(0);
+const [seenReferredCount, setSeenReferredCount] = useState(0);
+const hasNewReferral = referredCount > seenReferredCount;
+  const [successModal, setSuccessModal] = useState({
+  show: false,
+  reportId: "",
+  message: "",
+});
 
   // FIX 2: Wire formErr into the module-level ref so TInput can clear errors
   useEffect(() => {
@@ -1608,10 +1782,31 @@ export default function EBlotterScreen() {
 
   useEffect(() => { load(BLANK_F, activeReportTab); }, [activeReportTab]);
   useEffect(() => { load(BLANK_F, 'reports'); }, []);
+// Load seen count from AsyncStorage on mount
+useEffect(() => {
+  AsyncStorage.getItem('auth_user').then(raw => {
+  const userId = raw ? JSON.parse(raw)?.user_id : 'default';
+  AsyncStorage.getItem(`seen_referred_count_${userId}`).then(val => {
+    if (val) setSeenReferredCount(parseInt(val));
+  });
+});
+}, []);
 
+// Poll referred count every 30s
+useEffect(() => {
+  const fetchCount = async () => {
+    const data = await api('/blotters/referred/count');
+    if (data?.success) setReferredCount(data.count);
+  };
+  fetchCount();
+  const interval = setInterval(fetchCount, 30000);
+  return () => clearInterval(interval);
+}, [api]);
  const fmt = useCallback((d) => {
   if (!d) return 'N/A';
-  const dt = new Date(d); if (isNaN(dt)) return String(d);
+  const cleaned = String(d).replace('Z', '').replace(/\+\d{2}:\d{2}$/, '');
+  const dt = new Date(cleaned);
+  if (isNaN(dt)) return String(d);
   const pad = n => String(n).padStart(2, '0');
   let h = dt.getHours(), ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
   return `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()} ${h}:${pad(dt.getMinutes())} ${ap}`;
@@ -1630,6 +1825,11 @@ export default function EBlotterScreen() {
     setActivePick(null);
   };
   const closeModal = () => { setModal(false); reset(); };
+  const closeSuccessModal = () => {
+  setSuccessModal({ show: false, reportId: "", message: "" });
+  closeModal();
+  load(filters, activeReportTab);
+};
   const askClose = () => {
     if (viewMode) { closeModal(); return; }
     showConfirm('Close Form', 'Unsaved data will be lost. Are you sure?', 'Close', C.red, () => { hideConfirm(); closeModal(); });
@@ -1650,11 +1850,15 @@ export default function EBlotterScreen() {
     if (!data?.success) { closeModal(); return; }
     const d = data.data;
     const newM = {}, newSel = {};
-    for (let i = 0; i < (d.offenses || []).length; i++) {
-      const ct = CRIME_MAP[d.offenses[i].offense_name];
-      if (ct) { const md = await api(`/blotters/modus/${encodeURIComponent(ct)}`); if (md?.success) { newM[i] = md.data; newSel[i] = (d.modus || []).map(m => m.modus_reference_id); } }
-      else { newM[i] = []; newSel[i] = []; }
-    }
+    await Promise.all((d.offenses || []).map(async (offense, i) => {
+  const ct = CRIME_MAP[offense.offense_name];
+  if (ct) {
+    const md = await api(`/blotters/modus/${encodeURIComponent(ct)}`);
+    if (md?.success) { newM[i] = md.data; newSel[i] = (d.modus || []).map(m => m.modus_reference_id); }
+    else { newM[i] = []; newSel[i] = []; }
+  } else { newM[i] = []; newSel[i] = []; }
+}));
+
     setModus(newM); setSelM(newSel);
     setViewData(d); setMLoad(false);
   }, [api]);
@@ -1692,25 +1896,40 @@ export default function EBlotterScreen() {
     });
 
     const nCP = {}, nCC = {}, nCB = {};
-    for (let i = 0; i < (dd.complainants || []).length; i++) {
-      const c = dd.complainants[i];
-      if (c.region_code) { nCP[i] = await getProvinces(c.region_code); if (c.province_code) { nCC[i] = await getCities(c.province_code); if (c.municipality_code) nCB[i] = await getBarangays(c.municipality_code); } else if (c.region_code === NCR_CODE) { nCC[i] = await getCities(NCR_CODE); } }
-    }
-    setCPr(nCP); setCCi(nCC); setCBr(nCB);
+await Promise.all((dd.complainants || []).map(async (c, i) => {
+  if (!c.region_code) return;
+  nCP[i] = await getProvinces(c.region_code);
+  if (c.province_code) {
+    nCC[i] = await getCities(c.province_code);
+    if (c.municipality_code) nCB[i] = await getBarangays(c.municipality_code);
+  } else if (c.region_code === NCR_CODE) {
+    nCC[i] = await getCities(NCR_CODE);
+  }
+}));
+setCPr(nCP); setCCi(nCC); setCBr(nCB);
 
     const nSP = {}, nSC = {}, nSB = {};
-    for (let i = 0; i < (dd.suspects || []).length; i++) {
-      const s = dd.suspects[i];
-      if (s.region_code) { nSP[i] = await getProvinces(s.region_code); if (s.province_code) { nSC[i] = await getCities(s.province_code); if (s.municipality_code) nSB[i] = await getBarangays(s.municipality_code); } else if (s.region_code === NCR_CODE) { nSC[i] = await getCities(NCR_CODE); } }
-    }
-    setSPr(nSP); setSCi(nSC); setSBr(nSB);
+await Promise.all((dd.suspects || []).map(async (s, i) => {
+  if (!s.region_code) return;
+  nSP[i] = await getProvinces(s.region_code);
+  if (s.province_code) {
+    nSC[i] = await getCities(s.province_code);
+    if (s.municipality_code) nSB[i] = await getBarangays(s.municipality_code);
+  } else if (s.region_code === NCR_CODE) {
+    nSC[i] = await getCities(NCR_CODE);
+  }
+}));
+setSPr(nSP); setSCi(nSC); setSBr(nSB);
 
     const nM = {}, nSel = {};
-    for (let i = 0; i < (dd.offenses || []).length; i++) {
-      const ct = CRIME_MAP[dd.offenses[i].offense_name];
-      if (ct) { const md = await api(`/blotters/modus/${encodeURIComponent(ct)}`); if (md?.success) { nM[i] = md.data; nSel[i] = (dd.modus || []).map(m => m.modus_reference_id); } }
-      else { nM[i] = []; nSel[i] = []; }
-    }
+    await Promise.all((dd.offenses || []).map(async (offense, i) => {
+  const ct = CRIME_MAP[offense.offense_name];
+  if (ct) {
+    const md = await api(`/blotters/modus/${encodeURIComponent(ct)}`);
+    if (md?.success) { nM[i] = md.data; nSel[i] = (dd.modus || []).map(m => m.modus_reference_id); }
+    else { nM[i] = []; nSel[i] = []; }
+  } else { nM[i] = []; nSel[i] = []; }
+}));
     setModus(nM); setSelM(nSel);
     setEditMode(true); setEditId(id); setMLoad(false);
   }, [api, getProvinces, getCities, getBarangays]);
@@ -1747,17 +1966,26 @@ export default function EBlotterScreen() {
     });
 
     const nCP = {}, nCC = {}, nCB = {};
-    for (let i = 0; i < (dd.complainants || []).length; i++) {
-      const c = dd.complainants[i];
-      if (c.region_code) { nCP[i] = await getProvinces(c.region_code); if (c.province_code) { nCC[i] = await getCities(c.province_code); if (c.municipality_code) nCB[i] = await getBarangays(c.municipality_code); } else if (c.region_code === NCR_CODE) { nCC[i] = await getCities(NCR_CODE); } }
-    }
-    setCPr(nCP); setCCi(nCC); setCBr(nCB);
+await Promise.all((dd.complainants || []).map(async (c, i) => {
+  if (!c.region_code) return;
+  nCP[i] = await getProvinces(c.region_code);
+  if (c.province_code) {
+    nCC[i] = await getCities(c.province_code);
+    if (c.municipality_code) nCB[i] = await getBarangays(c.municipality_code);
+  } else if (c.region_code === NCR_CODE) {
+    nCC[i] = await getCities(NCR_CODE);
+  }
+}));
+setCPr(nCP); setCCi(nCC); setCBr(nCB);
     const nM = {}, nSel = {};
-    for (let i = 0; i < (dd.offenses || []).length; i++) {
-      const ct = CRIME_MAP[dd.offenses[i].offense_name];
-      if (ct) { const md = await api(`/blotters/modus/${encodeURIComponent(ct)}`); if (md?.success) { nM[i] = md.data; nSel[i] = (dd.modus || []).map(m => m.modus_reference_id); } }
-      else { nM[i] = []; nSel[i] = []; }
-    }
+    await Promise.all((dd.offenses || []).map(async (offense, i) => {
+  const ct = CRIME_MAP[offense.offense_name];
+  if (ct) {
+    const md = await api(`/blotters/modus/${encodeURIComponent(ct)}`);
+    if (md?.success) { nM[i] = md.data; nSel[i] = (dd.modus || []).map(m => m.modus_reference_id); }
+    else { nM[i] = []; nSel[i] = []; }
+  } else { nM[i] = []; nSel[i] = []; }
+}));
     setModus(nM); setSelM(nSel);
     setEditId(id); setMLoad(false);
   }, [api, getProvinces, getCities, getBarangays]);
@@ -1906,12 +2134,12 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
 
       // FIX 4: Arrest location is REQUIRED when status is Arrested/In Custody/Detained
       if (['Arrested', 'In Custody', 'Detained'].includes(s.status)) {
-        if (!s.location_if_arrested || !s.location_if_arrested.trim()) {
-          e[`s${i}loc`] = 'Required when arrested/custody/detained';
-        } else if (s.location_if_arrested.trim().length < 5) {
-          e[`s${i}loc`] = 'At least 5 characters';
-        }
-      }
+  if (s.location_if_arrested && s.location_if_arrested.trim().length > 0) {
+    if (s.location_if_arrested.trim().length < 5) {
+      e[`s${i}loc`] = 'At least 5 characters';
+    }
+  }
+}
 
       if (s.house_street && s.house_street.trim().length > 0 && s.house_street.trim().length < 2) e[`s${i}hs`] = 'At least 2 characters';
         if (s.nationality && s.nationality.trim().length > 0) {
@@ -2051,10 +2279,20 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
         payload,
       );
       if (data?.success) {
-        setSaving(false);
-        closeModal();
-        load(filters, activeReportTab);
-      } else {
+  setSaving(false);
+  if (editMode) {
+    // Edit mode: just close and reload
+    closeModal();
+    load(filters, activeReportTab);
+  } else {
+    // New submission: show success modal
+    setSuccessModal({
+      show: true,
+      reportId: data.data.blotter_entry_number,
+      message: "Report Entry Created Successfully!",
+    });
+  }
+} else {
         setSaving(false);
         showConfirm('Error', data?.errors?.join('\n') || data?.error || 'Submission failed.', 'OK', C.navyMid, hideConfirm);
       }
@@ -2144,13 +2382,33 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         {/* Report Tabs */}
         <View style={ml.tabRow}>
-          {[{ key: 'reports', label: 'My Reports' }, { key: 'referred', label: 'Referred (Brgy)' }].map(tab => (
-            <TouchableOpacity key={tab.key}
-              style={[ml.tabBtn, activeReportTab === tab.key && ml.tabBtnActive]}
-              onPress={() => { if (activeReportTab !== tab.key) setActiveReportTab(tab.key); }}>
-              <Text style={[ml.tabTxt, activeReportTab === tab.key && ml.tabTxtActive]}>{tab.label}</Text>
-            </TouchableOpacity>
-          ))}
+         {[{ key: 'reports', label: 'My Reports' }, { key: 'referred', label: 'Referred (Brgy)' }].map(tab => (
+  <TouchableOpacity key={tab.key}
+    style={[ml.tabBtn, activeReportTab === tab.key && ml.tabBtnActive]}
+    onPress={() => {
+      if (activeReportTab !== tab.key) setActiveReportTab(tab.key);
+      if (tab.key === 'referred') {
+        setSeenReferredCount(referredCount);
+        AsyncStorage.getItem('auth_user').then(raw => {
+  const userId = raw ? JSON.parse(raw)?.user_id : 'default';
+  AsyncStorage.setItem(`seen_referred_count_${userId}`, String(referredCount));
+});
+      }
+    }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Text style={[ml.tabTxt, activeReportTab === tab.key && ml.tabTxtActive]}>{tab.label}</Text>
+      {tab.key === 'referred' && hasNewReferral && (
+        <View style={{
+          marginLeft: 6, backgroundColor: '#dc2626',
+          borderRadius: 10, minWidth: 18, height: 18,
+          alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
+        }}>
+          <Text style={{ color: 'white', fontSize: 10, fontWeight: '800' }}>{referredCount}</Text>
+        </View>
+      )}
+    </View>
+  </TouchableOpacity>
+))}
         </View>
 
         {/* Filter bar */}
@@ -2382,7 +2640,136 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
             )}
           </View>
         </SafeAreaView>
-      </Modal>
+     </Modal>
+
+      {/* ═══ SUCCESS MODAL ═══ */}
+      {successModal.show && (
+        <Modal transparent animationType="fade" visible={successModal.show}>
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}>
+            <View style={{
+              backgroundColor: 'white',
+              borderRadius: 16,
+              padding: 0,
+              width: '100%',
+              maxWidth: 400,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+              overflow: 'hidden',
+            }}>
+              {/* Header */}
+              <View style={{
+                backgroundColor: '#16a34a',
+                padding: 24,
+                alignItems: 'center',
+              }}>
+                <View style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 12,
+                }}>
+                  <Text style={{ fontSize: 36, color: 'white' }}>✓</Text>
+                </View>
+                <Text style={{
+                  color: 'white',
+                  fontSize: 20,
+                  fontWeight: '700',
+                  textAlign: 'center',
+                }}>
+                  {successModal.message}
+                </Text>
+              </View>
+
+              {/* Body */}
+              <View style={{ padding: 24 }}>
+                <View style={{
+                  backgroundColor: '#f0fdf4',
+                  borderRadius: 8,
+                  padding: 16,
+                  borderWidth: 1,
+                  borderColor: '#86efac',
+                  marginBottom: 20,
+                }}>
+                  <Text style={{
+                    fontSize: 12,
+                    fontWeight: '600',
+                    color: '#166534',
+                    marginBottom: 8,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}>
+                    Report ID
+                  </Text>
+                  <Text style={{
+                    fontSize: 18,
+                    fontWeight: '700',
+                    color: '#15803d',
+                    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+                  }}>
+                    {successModal.reportId}
+                  </Text>
+                </View>
+
+                <View style={{
+                  backgroundColor: '#f8fafc',
+                  borderRadius: 8,
+                  padding: 16,
+                  borderLeftWidth: 3,
+                  borderLeftColor: '#3b82f6',
+                }}>
+                  <Text style={{
+                    fontSize: 13,
+                    color: '#64748b',
+                    lineHeight: 20,
+                    textAlign: 'center',
+                  }}>
+                    Your report has been successfully recorded. The report ID has been generated and can be used for tracking purposes.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Footer */}
+              <View style={{
+                padding: 16,
+                borderTopWidth: 1,
+                borderTopColor: '#e5e7eb',
+                backgroundColor: '#f8fafc',
+              }}>
+                <TouchableOpacity
+                  onPress={closeSuccessModal}
+                  style={{
+                    backgroundColor: '#16a34a',
+                    paddingVertical: 14,
+                    borderRadius: 8,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 15,
+                    fontWeight: '700',
+                    letterSpacing: 0.3,
+                  }}>
+                    Done
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
