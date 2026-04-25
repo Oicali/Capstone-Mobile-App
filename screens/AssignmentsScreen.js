@@ -48,7 +48,7 @@ export default function AssignmentsScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 100 }}>
         <Text style={styles.sectionTitle}>Today's Patrols</Text>
 
         {assignments.map((assignment) => (
@@ -97,7 +97,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: width > 768 ? 30 : 20,
-    paddingBottom: 100,
   },
   header: {
     flexDirection: 'row',

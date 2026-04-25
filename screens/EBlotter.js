@@ -2519,7 +2519,7 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
             />
           )}
           keyExtractor={item => String(item.blotter_id)}
-          contentContainerStyle={{ padding: 14, paddingBottom: 20 }}
+          contentContainerStyle={{ padding: 14, paddingBottom: 80 }}
           refreshControl={<RefreshControl refreshing={refreshing} colors={[C.navyMid]} tintColor={C.navyMid} onRefresh={async () => { setRef(true); await load(filters, activeReportTab); setRef(false); }} />}
           ListEmptyComponent={!loading && (
             <View style={{ alignItems: 'center', paddingTop: 64 }}>

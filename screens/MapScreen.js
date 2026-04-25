@@ -939,7 +939,7 @@ export default function MapScreen({ navigation }) {
           activeOpacity={1}
           onPress={() => setShowSidebar(false)}
         />
-        <View style={[styles.sidebar, { paddingBottom: insets.bottom + 16 }]}>
+        <View style={[styles.sidebar, { paddingBottom: insets.bottom }]}>
           <View style={styles.sidebarHandle} />
 
           {/* Tabs: Legend / Recent / Incidence */}
@@ -1677,7 +1677,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: "82%",
+    maxHeight: "72%",
   },
   sidebarHandle: {
     width: 40,
