@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   // SafeAreaView, 
@@ -44,7 +44,7 @@ const C = {
 };
 
 const STATUS_CFG = {
-  'Pending':             { bg: '#EFF6FF', fg: '#1D4ED8', dot: '#3B82F6' },
+  'Pending':             { bg: '#F1F5F9', fg: '#475569', dot: '#64748b' },
   'Under Investigation': { bg: '#FEF3C7', fg: '#B45309', dot: '#F59E0B' }, // amber/yellow
   'Resolved':            { bg: '#F3E8FF', fg: '#7C3AED', dot: '#7C3AED' }, // violet
   'Cleared':             { bg: '#F3E8FF', fg: '#7C3AED', dot: '#7C3AED' }, // violet
@@ -379,39 +379,26 @@ function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
 /* ═══════════════════════════════════════════════════════════════════════════
    DATE PICKER BTN (for filter dates — date only, no time)
 ═══════════════════════════════════════════════════════════════════════════ */
-function DatePickerBtn({ label, value, onChange, maximumDate }) {
+function DatePickerBtn({ label, value, onChange, maximumDate, fieldKey }) {
   const [show, setShow] = useState(false);
   const [temp, setTemp] = useState(new Date());
  
   const fmtDisplay = (d) => d
     ? `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`
     : '';
- 
-  const handleClear = () => {
-    onChange(null);
-  };
+
  
   return (
-    <View>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <TouchableOpacity 
-          style={[inp.base, { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} 
-          onPress={() => { setTemp(value || new Date()); setShow(true); }}
-        >
-          <Text style={{ fontSize: 14, color: value ? C.text : C.faint, flex: 1 }}>
-            {fmtDisplay(value) || 'mm/dd/yyyy'}
-          </Text>
-          <Ionicons name="calendar-outline" size={16} color={C.muted} />
-        </TouchableOpacity>
-        {value && (
-          <TouchableOpacity
-            style={{ paddingHorizontal: 12, paddingVertical: 12, backgroundColor: C.redBg, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', justifyContent: 'center' }}
-            onPress={handleClear}
-          >
-            <Ionicons name="close" size={16} color={C.red} />
-          </TouchableOpacity>
-        )}
-      </View>
+  <View>
+    <TouchableOpacity 
+      style={[inp.base, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} 
+      onPress={() => { setTemp(value || new Date()); setShow(true); }}
+    >
+      <Text style={{ fontSize: 14, color: value ? C.text : C.faint, flex: 1 }}>
+        {fmtDisplay(value) || 'mm/dd/yyyy'}
+      </Text>
+      <Ionicons name="calendar-outline" size={16} color={C.muted} />
+    </TouchableOpacity>
       
       {show && (
         <DateTimePicker 
@@ -851,8 +838,20 @@ const Step2 = memo(function Step2({ susp, setSusp, formErr, activePick, setActiv
           </View>
           <FField label="Gender"><Toggle opts={[{ l: 'Male', v: 'Male', ic: 'male' }, { l: 'Female', v: 'Female', ic: 'female' }]} value={s.gender} onChange={v => uS(i, 'gender', v)} /></FField>
           <FField label="Birthday" error={formErr[`s${i}bday`]}>
-            <DatePickerBtn label="Birthday" value={s.birthday ? new Date(s.birthday) : null} onChange={d => uS(i, 'birthday', d.toISOString().split('T')[0])} maximumDate={new Date()} />
-          </FField>
+  <View style={{ flexDirection: 'row', gap: 8 }}>
+    <View style={{ flex: 1 }}>
+      <DatePickerBtn label="Birthday" value={s.birthday ? new Date(s.birthday) : null} onChange={d => uS(i, 'birthday', d ? d.toISOString().split('T')[0] : '')} maximumDate={new Date()} fieldKey={`s${i}bday`} />
+    </View>
+    {s.birthday && (
+      <TouchableOpacity
+        style={{ alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 12, backgroundColor: C.redBg, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5', justifyContent: 'center' }}
+        onPress={() => uS(i, 'birthday', '')}
+      >
+        <Ionicons name="close" size={16} color={C.red} />
+      </TouchableOpacity>
+    )}
+  </View>
+</FField>
           <View style={sx.row2}>
             <View style={{ flex: 1 }}><FField label="Age" error={formErr[`s${i}age`]}><TInput value={s.age} onChange={v => uS(i, 'age', v.replace(/\D/g, ''))} placeholder="Age" kb="number-pad" maxLen={3} error={formErr[`s${i}age`]} fieldKey={`s${i}age`} /></FField></View>
             <View style={{ width: 8 }} />
@@ -954,9 +953,10 @@ const Step3 = memo(function Step3({
   };
   
   // Calculate selectedFeature FIRST
-  const selectedFeature = geoJSON && caseD.place_barangay
-    ? (geoJSON.features || []).find(f => f.properties.name_db === caseD.place_barangay) || null
-    : null;
+  const selectedFeature = useMemo(() => {
+  if (!geoJSON?.features || !caseD.place_barangay) return null;
+  return geoJSON.features.find(f => f?.properties?.name_db === caseD.place_barangay) || null;
+}, [geoJSON, caseD.place_barangay]);
   
   // Then use it in useEffect with correct dependencies
   useEffect(() => {
@@ -993,10 +993,10 @@ const Step3 = memo(function Step3({
       <View style={sx.card}>
         <Text style={sx.sectionHdr}>Case Detail</Text>
 
-        <FField label="Crime Type / Incident Type" required error={formErr.inc}>
+        <FField label="Crime Type" required error={formErr.inc}>
           <SelBtn label="Select Crime Type" value={caseD.incident_type} onPress={() => setActivePick('inc')} error={formErr.inc} />
         </FField>
-        <PickerModal visible={activePick === 'inc'} title="Incident Type" options={INCIDENTS} selected={caseD.incident_type}
+        <PickerModal visible={activePick === 'inc'} title="Crime Type" options={INCIDENTS} selected={caseD.incident_type}
  onSelect={v => { 
   uCase('incident_type', v); 
   uO(0, 'offense_name', v); 
@@ -1023,6 +1023,7 @@ onClose={() => setActivePick(null)} />
           <TInput value={offs[0]?.index_type || 'Non-Index'} editable={false} />
         </FField>
 
+        {console.log('🔍 DEBUG Step3 Modus:', { modus0: modus[0], selM0: selM[0] })}
         {modus[0]?.length > 0 && (
           <FField label="Modus Operandi" error={formErr.modus}>
             <SelBtn label="Select Modus" value={modus[0].find(m => m.id === selM[0]?.[0])?.modus_name || ''}
@@ -1048,7 +1049,7 @@ onClose={() => setActivePick(null)} />
 }} 
 onClose={() => setActivePick(null)}/>
 
-        <FField label="COP (Officer on Case)" error={formErr.cop}>
+        <FField label="COP (Chief of Police)" error={formErr.cop}>
           <TInput value={caseD.cop} onChange={v => uCase('cop', v)} placeholder="Officer Name (optional)" error={formErr.cop} maxLen={100} fieldKey="cop" />
         </FField>
 
@@ -1102,13 +1103,18 @@ onClose={() => setActivePick(null)}/>
   {/* Status bar */}
   <View style={{ backgroundColor: C.navyMid, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
     <Text style={{ color: C.white, fontSize: 12, fontWeight: '700' }}>Crime Location Pin</Text>
+   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+  {caseD.lat && caseD.lng ? (
+    <>
+      <Ionicons name="checkmark-circle" size={11} color="rgba(255,255,255,0.9)" />
+      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>Pinned</Text>
+    </>
+  ) : (
     <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>
-      {caseD.lat && caseD.lng
-        ? '📍 Pinned'
-        : caseD.place_barangay
-          ? `Tap map to pin in ${caseD.place_barangay}`
-          : 'Select barangay first'}
+      {caseD.place_barangay ? 'Tap inside highlighted area' : 'Select barangay first'}
     </Text>
+  )}
+</View>
   </View>
 
   {/* Coords + clear */}
@@ -1198,16 +1204,21 @@ onClose={() => setActivePick(null)}/>
 {/* Outside boundary warning */}
 {outsideBrgy && (
   <View style={{ position: 'absolute', top: 10, left: 10, right: 10, backgroundColor: 'rgba(185,28,28,0.9)', borderRadius: 10, padding: 10, alignItems: 'center', zIndex: 10 }}>
-    <Text style={{ color: C.white, fontSize: 13, fontWeight: '700' }}>
-      ⚠️ Outside {caseD.place_barangay} boundary — tap inside the highlighted area
-    </Text>
+   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+  <Ionicons name="warning" size={16} color={C.white} />
+  <Text style={{ color: C.white, fontSize: 13, fontWeight: '700', flex: 1 }}>
+    Outside {caseD.place_barangay} boundary — tap inside the highlighted area
+  </Text>
+</View>
   </View>
 )}
 
       {/* Instruction overlay */}
       <View style={{ position: 'absolute', bottom: 10, left: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.65)', borderRadius: 10, padding: 10, alignItems: 'center' }}>
   <Text style={{ color: C.white, fontSize: 12, fontWeight: '600', textAlign: 'center' }}>
-  {caseD.lat && caseD.lng ? '✅ Pin placed — tap map to move it' : '👆 Tap inside the highlighted area to drop a pin'}
+  {caseD.lat && caseD.lng 
+    ? '✓ Pin placed — tap map to move it' 
+    : 'Tap inside the highlighted area to drop a pin'}
 </Text>
 </View>
 <TouchableOpacity
@@ -1242,7 +1253,7 @@ onClose={() => setActivePick(null)}/>
   <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, backgroundColor: C.navy }}>
       <Text style={{ color: C.white, fontWeight: '700', fontSize: 15 }}>
-  {caseD.lat && caseD.lng ? '📍 Tap to move pin' : '👆 Tap to drop pin'}
+  {caseD.lat && caseD.lng ? 'Tap to move pin' : 'Tap to drop pin'}
 </Text>
       <TouchableOpacity onPress={() => setMapFullscreen(false)} style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: 8 }}>
         <Ionicons name="contract-outline" size={18} color={C.white} />
@@ -1287,7 +1298,10 @@ onClose={() => setActivePick(null)}/>
     </MapView>
     {outsideBrgy && (
       <View style={{ position: 'absolute', top: 70, left: 14, right: 14, backgroundColor: 'rgba(185,28,28,0.9)', borderRadius: 10, padding: 10, alignItems: 'center' }}>
-        <Text style={{ color: C.white, fontSize: 13, fontWeight: '700' }}>⚠️ Outside {caseD.place_barangay} boundary</Text>
+       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+  <Ionicons name="warning" size={16} color={C.white} />
+  <Text style={{ color: C.white, fontSize: 13, fontWeight: '700' }}>Outside {caseD.place_barangay} boundary</Text>
+</View>
       </View>
     )}
   </SafeAreaView>
@@ -1376,7 +1390,6 @@ const bcc = StyleSheet.create({
    FIX 9: VIEW CONTENT — with map showing crime location pin
 ═══════════════════════════════════════════════════════════════════════════ */
 const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, offenseSelModus }) {
-  // FIX 3: Loading state
   if (!viewData) return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       <ActivityIndicator size="large" color={C.navyMid} />
@@ -1384,8 +1397,16 @@ const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, off
   );
   
   const d = viewData;
-  const [mapFullscreen, setMapFullscreen] = useState(false); // FIX 4: State for fullscreen map
-  const [mapFocused, setMapFocused] = useState(false); // FIX 4: State for map focus
+  const [mapFocused, setMapFocused] = useState(false);
+  const [showMap, setShowMap] = useState(false); // NEW: Lazy load map
+  
+  // NEW: Delay map rendering
+  useEffect(() => {
+    if (d.lat && d.lng) {
+      const timer = setTimeout(() => setShowMap(true), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [d.lat, d.lng]);
  
   const VI = (label, value) => (!value && value !== 0 && value !== false) ? null : (
     <View style={vw.item} key={label}>
@@ -1446,7 +1467,13 @@ const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, off
               {VI('Contact', c.contact_number || 'N/A')}
               {VI('Alias', c.alias || 'N/A')}
               {VI('Occupation', c.occupation || 'N/A')}
-              {VI('Address', [c.house_street, c.barangay || c.barangay_code, c.city_municipality || c.municipality_code, c.district_province || c.province_code, c.region || c.region_code].filter(v => v && v !== 'null' && v.trim()).join(', ') || 'N/A')}
+             {VI('Address', [
+  c.house_street, 
+  c.barangay, 
+  c.city_municipality, 
+  c.district_province, 
+  c.region
+].filter(v => v && v !== 'null' && String(v).trim()).join(', ') || 'N/A')}
               {VI('Info Obtained', c.info_obtained)}
             </View>
           ))}
@@ -1480,7 +1507,13 @@ const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, off
               {VI('Occupation', s.occupation || 'N/A')}
               {VI('Relation to Victim', s.relation_to_victim || 'N/A')}
               {s.location_if_arrested ? VI('Arrest Location', s.location_if_arrested) : null}
-              {VI('Address', [s.house_street, s.barangay || s.barangay_code, s.city_municipality || s.municipality_code, s.district_province || s.province_code].filter(v => v && v.trim()).join(', ') || 'N/A')}
+             {VI('Address', [
+  s.house_street, 
+  s.barangay, 
+  s.city_municipality, 
+  s.district_province,
+  s.region
+].filter(v => v && String(v).trim()).join(', ') || 'N/A')}
               {VI('Motive', s.motive || 'N/A')}
             </View>
           ))}
@@ -1488,152 +1521,129 @@ const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, off
  
         {/* CASE DETAILS with MAP */}
         <Sec title="CASE DETAILS" icon="clipboard-outline" color={C.slate}>
-          <View style={vw.card}>
-            {VI('Incident Type', d.incident_type)}
-            {VI('COP', d.cop || 'N/A')}
-            {VI('Date of Commission', fmt(d.date_time_commission))}
-            {VI('Date Reported', fmt(d.date_time_reported))}
-            {VI('Location', `${d.place_street}, Brgy. ${d.place_barangay}, ${d.place_city_municipality}, ${d.place_district_province}, ${d.place_region}`)}
-            {VI('Type of Place', d.type_of_place || 'N/A')}
-            {VI('Private Place?', d.is_private_place || 'N/A')}
-            {VI('Amount Involved', d.amount_involved ? `₱${d.amount_involved}` : 'N/A')}
-            {d.lat && d.lng && VI('Coordinates', `${d.lat}, ${d.lng}`)}
- 
-            {/* FIX 4: SMOOTH MAP VIEW */}
-            {d.lat && d.lng && (
-              <View style={vw.item}>
-                <Text style={vw.label}>PIN LOCATION</Text>
-                <View 
-                  style={{ height: 420, borderRadius: 10, overflow: 'hidden', marginTop: 6, borderWidth: 1, borderColor: C.border }}
-                  onTouchStart={() => setMapFocused(true)} // FIX 4: Prevent scroll when touching map
-                  onTouchEnd={() => setMapFocused(false)}
-                  onTouchCancel={() => setMapFocused(false)}
-                >
-                  <MapView
-                    style={{ flex: 1 }}
-                    styleURL="mapbox://styles/mapbox/streets-v12"
-                    zoomEnabled={true}
-                    scrollEnabled={true}
-                    pitchEnabled={false}
-                    rotateEnabled={false}
-                    attributionEnabled={false}
-                    logoEnabled={false}
-                    compassEnabled={false}
-                    scaleBarEnabled={false}
-                  >
-                    <Camera
-                      centerCoordinate={[parseFloat(d.lng), parseFloat(d.lat)]}
-                      zoomLevel={15}
-                      animationMode="flyTo"
-                      animationDuration={0}
-                    />
-                    <MarkerView
-                      id="view-crime-location"
-                      coordinate={[parseFloat(d.lng), parseFloat(d.lat)]}
-                    >
-                      <View style={{ alignItems: 'center' }}>
-                        <View style={{
-                          width: 22, height: 22,
-                          borderRadius: 11,
-                          backgroundColor: INCIDENT_COLORS[d.incident_type] || '#c1272d',
-                          borderWidth: 2.5,
-                          borderColor: C.white,
-                          shadowColor: '#000',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: 0.4,
-                          shadowRadius: 4,
-                          elevation: 6,
-                        }} />
-                        <View style={{
-                          width: 4, height: 8,
-                          backgroundColor: INCIDENT_COLORS[d.incident_type] || '#c1272d',
-                          borderRadius: 2,
-                          marginTop: -2,
-                        }} />
-                      </View>
-                    </MarkerView>
-                  </MapView>
-                  
-                  {/* FIX 4: Fullscreen button */}
-                  <TouchableOpacity
-                    style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: 8 }}
-                    onPress={() => setMapFullscreen(true)}
-                  >
-                    <Ionicons name="expand-outline" size={18} color={C.white} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
- 
-            {d.narrative && (
-              <View style={vw.item}>
-                <Text style={vw.label}>Narrative</Text>
-                <Text style={[vw.value, { lineHeight: 22 }]}>{d.narrative}</Text>
-              </View>
-            )}
-            
-            {/* Offense info merged into case details */}
-            {(d.offenses || []).map((o, i) => (
-              <React.Fragment key={i}>
-                {VI('Stage of Felony', o.stage_of_felony || 'N/A')}
-                {VI('Index Type', o.index_type || 'N/A')}
-              </React.Fragment>
-            ))}
+  <View style={vw.card}>
+    {/* 1. CRIME TYPE */}
+    {VI('Crime Type', d.incident_type)}
+    
+    {/* 2. INDEX TYPE */}
+    {(d.offenses || []).map((o, i) => (
+      <React.Fragment key={`index-${i}`}>
+        {VI('Index Type', o.index_type || 'N/A')}
+      </React.Fragment>
+    ))}
+    
+    {/* 3. MODUS OPERANDI */}
+{console.log('DEBUG MODUS:', d.modus)} 
+{VI('Modus Operandi', 
+  Array.isArray(d.modus_refs) && d.modus_refs.length > 0 
+    ? d.modus_refs.map(m => m.modus_name).join(', ') 
+    : (d.modus_text || 'N/A')
+)}
+    
+    {/* 4. STAGE OF FELONY */}
+    {(d.offenses || []).map((o, i) => (
+      <React.Fragment key={`stage-${i}`}>
+        {VI('Stage of Felony', o.stage_of_felony || 'N/A')}
+      </React.Fragment>
+    ))}
+    
+    {/* 5. DATE COMMISSION */}
+    {VI('Date of Commission', fmt(d.date_time_commission))}
+    
+    {/* 6. DATE REPORTED */}
+    {VI('Date Reported', fmt(d.date_time_reported))}
+    
+    {/* 7. COP */}
+    {VI('COP (Officer on Case)', d.cop || 'N/A')}
+    
+    {/* 8. PRIVATE PLACE */}
+    {VI('Private Place?', d.is_private_place || 'N/A')}
+    
+    {/* 9. AMOUNT INVOLVED */}
+    {VI('Amount Involved', d.amount_involved ? `₱${d.amount_involved}` : 'N/A')}
+    
+    {/* 10. PLACE OF COMMISSION */}
+    {VI('Place of Commission', `${d.place_street}, Brgy. ${d.place_barangay}, ${d.place_city_municipality}, ${d.place_district_province}, ${d.place_region}`)}
+    
+    {/* 11. TYPE OF PLACE */}
+    {VI('Type of Place', d.type_of_place || 'N/A')}
+    
+    {/* 12. NARRATIVE (before map) */}
+    {d.narrative && (
+      <View style={vw.item}>
+        <Text style={vw.label}>Narrative</Text>
+        <Text style={[vw.value, { lineHeight: 22 }]}>{d.narrative}</Text>
+      </View>
+    )}
+    
+    {/* Coordinates (hidden but before map) */}
+    {d.lat && d.lng && VI('Coordinates', `${d.lat}, ${d.lng}`)}
+    
+    {/* 13. MAP (LAST) */}
+    {d.lat && d.lng && (
+      <View style={vw.item}>
+        <Text style={vw.label}>PIN LOCATION MAP</Text>
+        {!showMap ? (
+          <View style={{ height: 320, borderRadius: 10, backgroundColor: C.slate100, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border }}>
+            <ActivityIndicator size="small" color={C.navyMid} />
+            <Text style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Loading map...</Text>
           </View>
-        </Sec>
- 
-        <View style={{ height: 60 }} />
-      </ScrollView>
- 
-      {/* FIX 4: FULLSCREEN MAP MODAL */}
-      {d.lat && d.lng && (
-        <Modal visible={mapFullscreen} animationType="slide" onRequestClose={() => setMapFullscreen(false)}>
-          <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, backgroundColor: C.navy }}>
-              <Text style={{ color: C.white, fontWeight: '700', fontSize: 15 }}>Crime Location</Text>
-              <TouchableOpacity 
-                onPress={() => setMapFullscreen(false)} 
-                style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: 8 }}
-              >
-                <Ionicons name="contract-outline" size={18} color={C.white} />
-              </TouchableOpacity>
-            </View>
+        ) : (
+          <View style={{ height: 320, borderRadius: 10, overflow: 'hidden', marginTop: 6, borderWidth: 1, borderColor: C.border }}>
             <MapView
               style={{ flex: 1 }}
               styleURL="mapbox://styles/mapbox/streets-v12"
-              scrollEnabled={true}
-              zoomEnabled={true}
+              zoomEnabled={false}
+              scrollEnabled={false}
               pitchEnabled={false}
               rotateEnabled={false}
+              attributionEnabled={false}
+              logoEnabled={false}
+              compassEnabled={false}
+              scaleBarEnabled={false}
+              pointerEvents="none"
             >
               <Camera
-                defaultSettings={{
-                  centerCoordinate: [parseFloat(d.lng), parseFloat(d.lat)],
-                  zoomLevel: 15,
-                }}
-                animationMode="none"
-              />
+  centerCoordinate={[
+    parseFloat(d.lng) || 0, 
+    parseFloat(d.lat) || 0
+  ]}
+  zoomLevel={16}
+  animationMode="none"
+/>
               <MarkerView
-                id="view-fullscreen-location"
-                coordinate={[parseFloat(d.lng), parseFloat(d.lat)]}
-              >
+  id="view-crime-location"
+  coordinate={[
+    parseFloat(d.lng) || 0, 
+    parseFloat(d.lat) || 0
+  ]}
+>
                 <View style={{ alignItems: 'center' }}>
                   <View style={{
-                    width: 44, height: 44, borderRadius: 22,
+                    width: 22, height: 22, borderRadius: 11,
                     backgroundColor: INCIDENT_COLORS[d.incident_type] || '#c1272d',
-                    borderWidth: 3, borderColor: C.white,
-                    elevation: 10,
-                    alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Ionicons name="location" size={22} color={C.white} />
-                  </View>
-                  <View style={{ width: 4, height: 12, backgroundColor: INCIDENT_COLORS[d.incident_type] || '#c1272d', borderRadius: 2, marginTop: -2 }} />
+                    borderWidth: 2.5, borderColor: C.white,
+                    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.4, shadowRadius: 4, elevation: 6,
+                  }} />
+                  <View style={{
+                    width: 4, height: 8,
+                    backgroundColor: INCIDENT_COLORS[d.incident_type] || '#c1272d',
+                    borderRadius: 2, marginTop: -2,
+                  }} />
                 </View>
               </MarkerView>
             </MapView>
-          </SafeAreaView>
-        </Modal>
-      )}
+          </View>
+        )}
+      </View>
+    )}
+  </View>
+</Sec>
+ 
+        <View style={{ height: 60 }} />
+      </ScrollView>
+
     </>
   );
 });
@@ -1694,8 +1704,7 @@ export default function EBlotterScreen() {
   const [saving, setSaving]     = useState(false);
   const [activePick, setActivePick] = useState(null);
   const [referredCount, setReferredCount] = useState(0);
-const [seenReferredCount, setSeenReferredCount] = useState(0);
-const hasNewReferral = referredCount > seenReferredCount;
+const hasNewReferral = referredCount > 0;
   const [successModal, setSuccessModal] = useState({
   show: false,
   reportId: "",
@@ -1724,6 +1733,7 @@ const hasNewReferral = referredCount > seenReferredCount;
   // FIX 7: Trash pagination state
   const [trashPage, setTrashPage]   = useState(1);
 
+  const listRef = useRef(null);
   const STEPS = 3;
   const paged = allData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const activeFC = [filters.status, filters.incident_type, filters.barangay, filters.date_from, filters.date_to, filters.data_source].filter(v => v && v !== '').length;
@@ -1782,15 +1792,7 @@ const hasNewReferral = referredCount > seenReferredCount;
 
   useEffect(() => { load(BLANK_F, activeReportTab); }, [activeReportTab]);
   useEffect(() => { load(BLANK_F, 'reports'); }, []);
-// Load seen count from AsyncStorage on mount
-useEffect(() => {
-  AsyncStorage.getItem('auth_user').then(raw => {
-  const userId = raw ? JSON.parse(raw)?.user_id : 'default';
-  AsyncStorage.getItem(`seen_referred_count_${userId}`).then(val => {
-    if (val) setSeenReferredCount(parseInt(val));
-  });
-});
-}, []);
+
 
 // Poll referred count every 30s
 useEffect(() => {
@@ -1845,94 +1847,129 @@ useEffect(() => {
 
   /* ── View ─────────────────────────────────────────────────────────────── */
   const handleView = useCallback(async (id) => {
-    setModal(true); setViewMode(true); setMLoad(true);
-    const data = await api(`/blotters/${id}`);
-    if (!data?.success) { closeModal(); return; }
-    const d = data.data;
-    const newM = {}, newSel = {};
-    await Promise.all((d.offenses || []).map(async (offense, i) => {
-  const ct = CRIME_MAP[offense.offense_name];
-  if (ct) {
-    const md = await api(`/blotters/modus/${encodeURIComponent(ct)}`);
-    if (md?.success) { newM[i] = md.data; newSel[i] = (d.modus || []).map(m => m.modus_reference_id); }
-    else { newM[i] = []; newSel[i] = []; }
-  } else { newM[i] = []; newSel[i] = []; }
-}));
-
-    setModus(newM); setSelM(newSel);
-    setViewData(d); setMLoad(false);
-  }, [api]);
+  setModal(true); setViewMode(true); setMLoad(true);
+  const data = await api(`/blotters/${id}`);
+  if (!data?.success) { closeModal(); return; }
+  
+  // Show data immediately, skip modus loading for view mode
+  setViewData(data.data);
+  setMLoad(false);
+}, [api]);
 
   /* ── Edit ─────────────────────────────────────────────────────────────── */
-  const handleEdit = useCallback(async (id) => {
-    setModal(true); setMLoad(true);
-    const data = await api(`/blotters/${id}`);
-    if (!data?.success) { closeModal(); return; }
-    const dd = data.data;
+const handleEdit = useCallback(async (id) => {
+  setModal(true); setMLoad(true);
+  const data = await api(`/blotters/${id}`);
+  if (!data?.success) { closeModal(); return; }
+  const dd = data.data;
 
-    const hasNoPsgc = (dd.complainants || []).every(c => 
-  !c.region_code && !c.province_code && !c.municipality_code &&
-  (c.region || c.district_province || c.city_municipality || c.barangay)
-);
-    setIsImportedRecord(hasNoPsgc);
-    setComp(dd.complainants?.length ? dd.complainants : [mkC()]);
-    const hasSusp = (dd.suspects || []).length > 0;
-    setHasSuspect(hasSusp);
-    setSusp(hasSusp ? dd.suspects : [mkS()]);
-    setOffs(dd.offenses?.length ? dd.offenses.map(o => ({ is_principal_offense: o.is_principal_offense, offense_name: o.offense_name, stage_of_felony: o.stage_of_felony, index_type: o.index_type || 'Non-Index' })) : [mkO(true)]);
-    setTopPl(dd.type_of_place || '');
+  const hasNoPsgc = (dd.complainants || []).every(c => 
+    !c.region_code && !c.province_code && !c.municipality_code &&
+    (c.region || c.district_province || c.city_municipality || c.barangay)
+  );
+  
+  // Set basic data first - show modal immediately
+  setIsImportedRecord(hasNoPsgc);
+  setComp(dd.complainants?.length ? dd.complainants : [mkC()]);
+  const hasSusp = (dd.suspects || []).length > 0;
+  setHasSuspect(hasSusp);
+  setSusp(hasSusp ? dd.suspects : [mkS()]);
+  setOffs(dd.offenses?.length ? dd.offenses.map(o => ({ 
+    is_principal_offense: o.is_principal_offense, 
+    offense_name: o.offense_name, 
+    stage_of_felony: o.stage_of_felony, 
+    index_type: o.index_type || 'Non-Index' 
+  })) : [mkO(true)]);
+  setTopPl(dd.type_of_place || '');
 
-    const resolvedBrgy = BRGY_MAP[(dd.place_barangay || '').toUpperCase()] || dd.place_barangay || '';
-    setCaseD({
-      incident_type: dd.incident_type || '', cop: dd.cop || '',
-      date_time_commission: dd.date_time_commission || '', date_time_reported: dd.date_time_reported || '',
-      place_region: 'Region IV-A (CALABARZON)', place_district_province: 'Cavite', place_city_municipality: 'Bacoor City',
-      place_barangay: resolvedBrgy, place_street: dd.place_street || '',
-      is_private_place: dd.is_private_place || '', narrative: dd.narrative || '',
-      amount_involved: dd.amount_involved || '',
-      referred_by_barangay: dd.referred_by_barangay || false, referred_to_barangay: dd.referred_to_barangay || '',
-      referred_by_dilg: dd.referred_by_dilg || false,
-      lat: dd.lat != null ? String(dd.lat) : '', lng: dd.lng != null ? String(dd.lng) : '',
-    });
-
+  const resolvedBrgy = BRGY_MAP[(dd.place_barangay || '').toUpperCase()] || dd.place_barangay || '';
+  setCaseD({
+    incident_type: dd.incident_type || '', cop: dd.cop || '',
+    date_time_commission: dd.date_time_commission || '', 
+    date_time_reported: dd.date_time_reported || '',
+    place_region: 'Region IV-A (CALABARZON)', 
+    place_district_province: 'Cavite', 
+    place_city_municipality: 'Bacoor City',
+    place_barangay: resolvedBrgy, 
+    place_street: dd.place_street || '',
+    is_private_place: dd.is_private_place || '', 
+    narrative: dd.narrative || '',
+    amount_involved: dd.amount_involved || '',
+    referred_by_barangay: dd.referred_by_barangay || false, 
+    referred_to_barangay: dd.referred_to_barangay || '',
+    referred_by_dilg: dd.referred_by_dilg || false,
+    lat: dd.lat != null ? String(dd.lat) : '', 
+    lng: dd.lng != null ? String(dd.lng) : '',
+  });
+  
+  setEditMode(true); 
+  setEditId(id); 
+  setMLoad(false); // Show form NOW
+  
+  // Load address data in background (won't block UI)
+  if (!hasNoPsgc) {
+    // Complainant addresses
     const nCP = {}, nCC = {}, nCB = {};
-await Promise.all((dd.complainants || []).map(async (c, i) => {
-  if (!c.region_code) return;
-  nCP[i] = await getProvinces(c.region_code);
-  if (c.province_code) {
-    nCC[i] = await getCities(c.province_code);
-    if (c.municipality_code) nCB[i] = await getBarangays(c.municipality_code);
-  } else if (c.region_code === NCR_CODE) {
-    nCC[i] = await getCities(NCR_CODE);
-  }
-}));
-setCPr(nCP); setCCi(nCC); setCBr(nCB);
+    for (let i = 0; i < (dd.complainants || []).length; i++) {
+      const c = dd.complainants[i];
+      if (c.region_code) {
+        nCP[i] = await getProvinces(c.region_code);
+        if (c.province_code) {
+          nCC[i] = await getCities(c.province_code);
+          if (c.municipality_code) {
+            nCB[i] = await getBarangays(c.municipality_code);
+          }
+        } else if (c.region_code === NCR_CODE) {
+          nCC[i] = await getCities(NCR_CODE);
+        }
+      }
+    }
+    setCPr(nCP); setCCi(nCC); setCBr(nCB);
 
+    // Suspect addresses
     const nSP = {}, nSC = {}, nSB = {};
-await Promise.all((dd.suspects || []).map(async (s, i) => {
-  if (!s.region_code) return;
-  nSP[i] = await getProvinces(s.region_code);
-  if (s.province_code) {
-    nSC[i] = await getCities(s.province_code);
-    if (s.municipality_code) nSB[i] = await getBarangays(s.municipality_code);
-  } else if (s.region_code === NCR_CODE) {
-    nSC[i] = await getCities(NCR_CODE);
+    for (let i = 0; i < (dd.suspects || []).length; i++) {
+      const s = dd.suspects[i];
+      if (s.region_code) {
+        nSP[i] = await getProvinces(s.region_code);
+        if (s.province_code) {
+          nSC[i] = await getCities(s.province_code);
+          if (s.municipality_code) {
+            nSB[i] = await getBarangays(s.municipality_code);
+          }
+        } else if (s.region_code === NCR_CODE) {
+          nSC[i] = await getCities(NCR_CODE);
+        }
+      }
+    }
+    setSPr(nSP); setSCi(nSC); setSBr(nSB);
   }
-}));
-setSPr(nSP); setSCi(nSC); setSBr(nSB);
-
-    const nM = {}, nSel = {};
-    await Promise.all((dd.offenses || []).map(async (offense, i) => {
-  const ct = CRIME_MAP[offense.offense_name];
-  if (ct) {
-    const md = await api(`/blotters/modus/${encodeURIComponent(ct)}`);
-    if (md?.success) { nM[i] = md.data; nSel[i] = (dd.modus || []).map(m => m.modus_reference_id); }
-    else { nM[i] = []; nSel[i] = []; }
-  } else { nM[i] = []; nSel[i] = []; }
-}));
-    setModus(nM); setSelM(nSel);
-    setEditMode(true); setEditId(id); setMLoad(false);
-  }, [api, getProvinces, getCities, getBarangays]);
+  
+  // Load modus data in background
+// Load modus data in background
+  const nM = {}, nSel = {};
+  for (let i = 0; i < (dd.offenses || []).length; i++) {
+    const offense = dd.offenses[i];
+    const ct = CRIME_MAP[offense.offense_name];
+    if (ct) {
+      const md = await api(`/blotters/modus/${encodeURIComponent(ct)}`);
+      if (md?.success) { 
+        nM[i] = md.data; 
+        // ✅ FIX: Only store the FIRST modus ID (not array of all)
+        const firstModus = (dd.modus_refs || [])[0];
+        nSel[i] = firstModus ? [firstModus.modus_reference_id] : [];
+      } else { 
+        nM[i] = []; 
+        nSel[i] = []; 
+      }
+    } else { 
+      nM[i] = []; 
+      nSel[i] = []; 
+    }
+  }
+  setModus(nM); 
+  setSelM(nSel);
+}, [api, getProvinces, getCities, getBarangays]);
 
   /* ── Accept Referral ──────────────────────────────────────────────────── */
   const handleAcceptReferral = useCallback(async (id) => {
@@ -1950,7 +1987,17 @@ setSPr(nSP); setSCi(nSC); setSBr(nSB);
     const hasSusp = (dd.suspects || []).length > 0;
     setHasSuspect(hasSusp);
     setSusp(hasSusp ? dd.suspects : [mkS()]);
-    setOffs(dd.offenses?.length ? dd.offenses.map(o => ({ is_principal_offense: o.is_principal_offense, offense_name: o.offense_name, stage_of_felony: o.stage_of_felony, index_type: o.index_type || 'Non-Index' })) : [mkO(true)]);
+    const VALID_STAGES = ['CONSUMMATED', 'ATTEMPTED', 'FRUSTRATED'];
+setOffs(dd.offenses?.length ? dd.offenses.map(o => {
+  const raw = (o.stage_of_felony || '').toUpperCase();
+  const normalized = raw === 'COMPLETED' ? 'CONSUMMATED' : o.stage_of_felony || '';
+  return {
+    is_principal_offense: o.is_principal_offense,
+    offense_name: o.offense_name,
+    stage_of_felony: VALID_STAGES.includes(normalized) ? normalized : '',
+    index_type: o.index_type || 'Non-Index',
+  };
+}) : [mkO(true)]);
     setTopPl(dd.type_of_place || '');
     const resolvedBrgy = BRGY_MAP[(dd.place_barangay || '').toUpperCase()] || dd.place_barangay || '';
     setCaseD({
@@ -1982,7 +2029,11 @@ setCPr(nCP); setCCi(nCC); setCBr(nCB);
   const ct = CRIME_MAP[offense.offense_name];
   if (ct) {
     const md = await api(`/blotters/modus/${encodeURIComponent(ct)}`);
-    if (md?.success) { nM[i] = md.data; nSel[i] = (dd.modus || []).map(m => m.modus_reference_id); }
+    if (md?.success) { 
+      nM[i] = md.data; 
+      const firstModus = (dd.modus_refs || [])[0];
+      nSel[i] = firstModus ? [firstModus.modus_reference_id] : [];
+    }
     else { nM[i] = []; nSel[i] = []; }
   } else { nM[i] = []; nSel[i] = []; }
 }));
@@ -1992,13 +2043,18 @@ setCPr(nCP); setCCi(nCC); setCBr(nCB);
 
   /* ── Delete ───────────────────────────────────────────────────────────── */
   const handleDelete = useCallback((id) => {
-    showConfirm('Delete Record', 'Move this blotter record to Deleted Records?', 'Delete', C.red, async () => {
-      hideConfirm();
-      const data = await api(`/blotters/${id}`, 'DELETE');
-      if (data?.success) load(filters, activeReportTab);
-      else showConfirm('Error', data?.message || data?.error || 'Delete failed.', 'OK', C.navyMid, hideConfirm);
-    });
-  }, [api, load, filters, activeReportTab]);
+  showConfirm('Delete Record', 'Move this blotter record to Deleted Records?', 'Delete', C.red, async () => {
+    hideConfirm();
+    const data = await api(`/blotters/${id}`, 'DELETE');
+    if (data?.success) {
+      load(filters, activeReportTab);
+      const countData = await api('/blotters/referred/count');
+      if (countData?.success) setReferredCount(countData.count);
+    } else {
+      showConfirm('Error', data?.message || data?.error || 'Delete failed.', 'OK', C.navyMid, hideConfirm);
+    }
+  });
+}, [api, load, filters, activeReportTab]);
 
   /* ── Trash / Restore ──────────────────────────────────────────────────── */
   const loadTrash = async () => {
@@ -2007,14 +2063,22 @@ setCPr(nCP); setCCi(nCC); setCBr(nCB);
     if (data?.success) { setTrashList(data.data || []); setTrashPage(1); }
     setTrashLoad(false);
   };
-  const handleRestore = useCallback((id) => {
-    showConfirm('Restore Record', 'Move this record back to active records?', 'Restore', C.green, async () => {
-      hideConfirm();
-      const data = await api(`/blotters/${id}/restore`, 'PUT');
-      if (data?.success) { loadTrash(); load(filters, activeReportTab); }
-      else showConfirm('Error', data?.message || data?.error || 'Restore failed.', 'OK', C.navyMid, hideConfirm);
-    });
-  }, [api, load, filters, activeReportTab]);
+const handleRestore = useCallback((id) => {
+  showConfirm('Restore Record', 'Move this record back to active records?', 'Restore', C.green, async () => {
+    hideConfirm();
+    const data = await api(`/blotters/${id}/restore`, 'PUT');
+    if (data?.success) {
+      const [countData] = await Promise.all([
+        api('/blotters/referred/count'),
+        load(filters, activeReportTab),
+        loadTrash(),
+      ]);
+      if (countData?.success) setReferredCount(countData.count);
+    } else {
+      showConfirm('Error', data?.message || data?.error || 'Restore failed.', 'OK', C.navyMid, hideConfirm);
+    }
+  });
+}, [api, load, filters, activeReportTab]);
 
   /* ── FIX 4 + VALIDATE ─────────────────────────────────────────────────── */
   const validate = () => {
@@ -2261,10 +2325,12 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
       if (upd?.success) {
         const acc = await api(`/blotters/${editId}/accept`, 'PATCH');
         if (acc?.success) {
-          setSaving(false);
-          closeModal();
-          load(filters, activeReportTab);
-        } else {
+  setSaving(false);
+  closeModal();
+  load(filters, activeReportTab);
+  const countData = await api('/blotters/referred/count');
+  if (countData?.success) setReferredCount(countData.count);
+} else {
           setSaving(false);
           showConfirm('Accept Failed', acc?.error || 'Could not accept referral.', 'OK', C.navyMid, hideConfirm);
         }
@@ -2387,13 +2453,6 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
     style={[ml.tabBtn, activeReportTab === tab.key && ml.tabBtnActive]}
     onPress={() => {
       if (activeReportTab !== tab.key) setActiveReportTab(tab.key);
-      if (tab.key === 'referred') {
-        setSeenReferredCount(referredCount);
-        AsyncStorage.getItem('auth_user').then(raw => {
-  const userId = raw ? JSON.parse(raw)?.user_id : 'default';
-  AsyncStorage.setItem(`seen_referred_count_${userId}`, String(referredCount));
-});
-      }
     }}>
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <Text style={[ml.tabTxt, activeReportTab === tab.key && ml.tabTxtActive]}>{tab.label}</Text>
@@ -2436,7 +2495,7 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
                   </TouchableOpacity>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={ml.filterLabel}>INCIDENT TYPE</Text>
+                  <Text style={ml.filterLabel}>CRIME TYPE</Text>
                   <TouchableOpacity style={[ml.filterChip, tempF.incident_type && ml.filterChipOn]} onPress={() => setFPick('type')}>
                     <Text style={[ml.filterChipTxt, tempF.incident_type && ml.filterChipTxtOn]} numberOfLines={1}>{tempF.incident_type || 'All Types'}</Text>
                     <Ionicons name="chevron-down" size={11} color={tempF.incident_type ? C.navyMid : C.muted} />
@@ -2494,7 +2553,7 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
         </View>
 
         <PickerModal visible={fPick === 'status'} title="Filter by Status"        options={STATUS_OPTIONS}   selected={tempF.status}        onSelect={v => { setTempF(p => ({ ...p, status: v })); setFPick(null); }}        onClose={() => setFPick(null)} />
-        <PickerModal visible={fPick === 'type'}   title="Filter by Incident Type" options={INCIDENT_OPTIONS} selected={tempF.incident_type} onSelect={v => { setTempF(p => ({ ...p, incident_type: v })); setFPick(null); }} onClose={() => setFPick(null)} />
+        <PickerModal visible={fPick === 'type'}   title="Filter by Crime Type" options={INCIDENT_OPTIONS} selected={tempF.incident_type} onSelect={v => { setTempF(p => ({ ...p, incident_type: v })); setFPick(null); }} onClose={() => setFPick(null)} />
         <PickerModal visible={fPick === 'brgy'}   title="Filter by Barangay"      options={BARANGAY_OPTIONS} selected={tempF.barangay}      onSelect={v => { if (v !== '__divider__') { setTempF(p => ({ ...p, barangay: v })); setFPick(null); } }}  onClose={() => setFPick(null)} />
 
         {/* Count bar */}
@@ -2508,6 +2567,7 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
 
         {/* List */}
         <FlatList
+        ref={listRef}
           data={paged}
           renderItem={({ item }) => (
             <BlotterCard item={item} fmt={fmt}
@@ -2528,7 +2588,17 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
               <Text style={{ fontSize: 13, color: C.muted }}>{activeFC > 0 ? 'Try adjusting your filters' : activeReportTab === 'referred' ? 'No referred records for this station' : 'Tap + to add a new blotter entry'}</Text>
             </View>
           )}
-          ListFooterComponent={allData.length > PAGE_SIZE ? <Pagination page={page} total={allData.length} pageSize={PAGE_SIZE} onChange={p2 => setPage(p2)} /> : null}
+          ListFooterComponent={allData.length > PAGE_SIZE ? (
+  <Pagination 
+    page={page} 
+    total={allData.length} 
+    pageSize={PAGE_SIZE} 
+    onChange={p2 => {
+      setPage(p2);
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }} 
+  />
+) : null}
         />
       </View>
 
@@ -2680,7 +2750,7 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
                   justifyContent: 'center',
                   marginBottom: 12,
                 }}>
-                  <Text style={{ fontSize: 36, color: 'white' }}>✓</Text>
+                  <Ionicons name="checkmark-circle" size={48} color="white" />
                 </View>
                 <Text style={{
                   color: 'white',
