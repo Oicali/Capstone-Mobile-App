@@ -10,7 +10,8 @@
 //   7. Date filter UI inside sidebar
 //   8. Manual GPS activation with confirmation modal
 // ================================================================================
-
+import * as TaskManager from "expo-task-manager";
+import { LOCATION_TASK_NAME } from "../tasks/locationTask";
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import {
   View,
@@ -248,41 +249,81 @@ export default function MapScreen({ navigation }) {
     }
   }, []);
 
-  const stopTracking = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+  const stopTracking = useCallback(async () => {
+  // Stop foreground watcher
+  if (watchRef.current) {
+    watchRef.current.remove();
+    watchRef.current = null;
+  }
+  if (intervalRef.current) {
+    clearInterval(intervalRef.current);
+    intervalRef.current = null;
+  }
+  lastCoords.current = null;
+
+  // Stop background task
+  try {
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+    if (isRegistered) {
+      await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
     }
-    if (watchRef.current) {
-      watchRef.current.remove();
-      watchRef.current = null;
-    }
-    lastCoords.current = null;
-    callOffDuty();
-  }, [callOffDuty]);
+  } catch (err) {
+    console.warn("[GPS] stopLocationUpdates failed:", err.message);
+  }
+
+  callOffDuty();
+}, [callOffDuty]);
 
   const startTracking = useCallback(async () => {
-    if (intervalRef.current || watchRef.current) return;
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") return;
+  const { status: fg } = await Location.requestForegroundPermissionsAsync();
+  if (fg !== "granted") return;
 
-    try {
-      const fast = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+  const { status: bg } = await Location.requestBackgroundPermissionsAsync();
+  if (bg !== "granted") {
+    console.warn("[GPS] Background permission denied — foreground only");
+  }
+
+  // Get initial position for camera
+  try {
+    const fast = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    if (isMounted.current) {
+      lastCoords.current = fast.coords;
+      setMyLocation([fast.coords.longitude, fast.coords.latitude]);
+      cameraRef.current?.setCamera({
+        centerCoordinate: [fast.coords.longitude, fast.coords.latitude],
+        zoomLevel: 15,
+        animationDuration: 800,
       });
-      if (isMounted.current) {
-        lastCoords.current = fast.coords;
-        setMyLocation([fast.coords.longitude, fast.coords.latitude]);
-        cameraRef.current?.setCamera({
-          centerCoordinate: [fast.coords.longitude, fast.coords.latitude],
-          zoomLevel: 15,
-          animationDuration: 800,
-        });
-      }
-    } catch (err) {
-      console.warn("[GPS] fast fix failed:", err.message);
     }
+  } catch (err) {
+    console.warn("[GPS] Initial fix failed:", err.message);
+  }
 
+  // Start background task only if not already running
+  const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+if (!isRegistered) {
+  await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+    accuracy: Location.Accuracy.BestForNavigation,
+    timeInterval: 5000,
+    distanceInterval: 0,
+    showsBackgroundLocationIndicator: true,
+    foregroundService: {
+  notificationTitle: "BANTAY GPS Active",
+  notificationBody: "Tap to open.",
+  notificationColor: "#0a285c",
+  killServiceOnDestroy: false,
+  notificationChannelName: "BANTAY Location",  // must match above
+  sticky: true,
+},
+    pausesUpdatesAutomatically: false,
+    activityType: Location.ActivityType.Other,
+  });
+}
+
+  // Foreground watch — only for updating the dot on map while app is open
+  if (!watchRef.current) {
     watchRef.current = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.BestForNavigation,
@@ -295,10 +336,8 @@ export default function MapScreen({ navigation }) {
           setMyLocation([loc.coords.longitude, loc.coords.latitude]);
       },
     );
-
-    intervalRef.current = setInterval(pushLocation, INTERVAL_MS);
-    pushLocation();
-  }, [pushLocation]);
+  }
+}, []);
 
   // ── Data fetching ─────────────────────────────────────────
   const getToken = async () => await AsyncStorage.getItem("auth_token");
@@ -383,12 +422,12 @@ export default function MapScreen({ navigation }) {
       const prev = appStateRef.current;
       appStateRef.current = next;
       if (prev === "active" && next.match(/inactive|background/)) {
-        if (gpsEnabled) stopTracking();
-        if (officerPollRef.current) {
-          clearInterval(officerPollRef.current);
-          officerPollRef.current = null;
-        }
-      } else if (prev.match(/inactive|background/) && next === "active") {
+  // GPS background task keeps running — do NOT stop it here
+  if (officerPollRef.current) {
+    clearInterval(officerPollRef.current);
+    officerPollRef.current = null;
+  }
+} else if (prev.match(/inactive|background/) && next === "active") {
         fetchMapData();
         if (!officerPollRef.current)
           officerPollRef.current = setInterval(fetchOfficers, INTERVAL_MS);

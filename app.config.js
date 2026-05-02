@@ -1,7 +1,7 @@
 module.exports = {
   expo: {
     name: "BANTAY",
-    slug: "BANTAY", // ← match what EAS has registered
+    slug: "BANTAY",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
@@ -15,6 +15,17 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.anonymous.bantay",
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+        // Required for iOS background GPS (like Waze)
+        NSLocationWhenInUseUsageDescription:
+          "BANTAY needs your location to track your patrol area in real time.",
+        NSLocationAlwaysAndWhenInUseUsageDescription:
+          "BANTAY needs your location in the background to share with dispatchers while GPS is active.",
+        NSLocationAlwaysUsageDescription:
+          "BANTAY needs your location in the background to share with dispatchers while GPS is active.",
+        UIBackgroundModes: ["location"],
+      },
     },
     android: {
       adaptiveIcon: {
@@ -46,14 +57,17 @@ module.exports = {
             "BANTAY needs your location to track your patrol area in real time.",
           locationWhenInUsePermission:
             "BANTAY needs your location to track your patrol area in real time.",
+          locationAlwaysPermission:
+            "BANTAY needs your location in the background to share with dispatchers while GPS is active.",
           isIosBackgroundLocationEnabled: true,
           isAndroidBackgroundLocationEnabled: true,
+          notificationChannelName: "BANTAY Location", // ← top-level, not nested under android:{}
         },
       ],
       [
         "@rnmapbox/maps",
         {
-          RNMapboxMapsDownloadToken: process.env.RNMAPBOX_MAPS_DOWNLOAD_TOKEN, // ← already here
+          RNMapboxMapsDownloadToken: process.env.RNMAPBOX_MAPS_DOWNLOAD_TOKEN,
         },
       ],
     ],
