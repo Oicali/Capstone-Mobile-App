@@ -439,136 +439,6 @@ function SectionCard({
     </View>
   );
 }
-const sc = StyleSheet.create({
-  card: {
-    backgroundColor: C.white,
-    marginHorizontal: 16,
-    marginTop: 10,
-    borderRadius: 18,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    backgroundColor: C.white,
-  },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  title: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: C.text,
-    letterSpacing: -0.2,
-  },
-  subtitle: {
-    fontSize: 11,
-    color: C.textMuted,
-    fontWeight: "500",
-    marginTop: 2,
-  },
-  chevronWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: C.surfaceAlt,
-  },
-  body: {
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-  },
-});
-
-// ── Action Card (top quick-action buttons) ────────────────────────────────────
-function ActionCard({ icon, label, sublabel, color, onPress }) {
-  return (
-    <TouchableOpacity style={ac.card} onPress={onPress} activeOpacity={0.75}>
-      <View style={[ac.iconWrap, { backgroundColor: color }]}>
-        <Ionicons name={icon} size={20} color={C.white} />
-      </View>
-      <View style={ac.textWrap}>
-        <Text style={ac.label}>{label}</Text>
-        {!!sublabel && <Text style={ac.sub}>{sublabel}</Text>}
-      </View>
-      <View style={ac.arrow}>
-        <Ionicons name="chevron-forward" size={14} color={C.textMuted} />
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-const ac = StyleSheet.create({
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: C.white,
-    borderRadius: 16,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    gap: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: C.border,
-    marginBottom: 10,
-  },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  textWrap: { flex: 1 },
-  label: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: C.text,
-  },
-  sub: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: C.textMuted,
-    marginTop: 2,
-  },
-  arrow: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: C.surfaceAlt,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
-
 // ── Edit Section Label ─────────────────────────────────────────────────────────
 function SectionLabel({ icon, color, children }) {
   return (
@@ -637,6 +507,7 @@ export default function ProfileScreen({ navigation }) {
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(null);
   const [showUsername, setShowUsername] = useState(false);
+  const [activeTab, setActiveTab] = useState("Personal");
   const [confirm, setConfirm] = useState({
     visible: false,
     title: "",
@@ -2336,355 +2207,398 @@ export default function ProfileScreen({ navigation }) {
 
   const displayName = getDisplayName();
 
-  return (
+ return (
     <SafeAreaView style={st.safe}>
       <ScrollView
         style={[st.scroll, { backgroundColor: C.bg }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ════════════════════ HEADER ════════════════════ */}
+        {/* ════════════ HEADER ════════════ */}
         <View style={st.header}>
-          {/* Avatar */}
-          <TouchableOpacity
-            style={st.avatarWrap}
-            onPress={() => !uploadingPhoto && setShowPhotoModal(true)}
-            activeOpacity={0.85}
-          >
-            {profileData.profile_picture ? (
-              <Image
-                source={{ uri: profileData.profile_picture }}
-                style={st.avatar}
-              />
-            ) : (
-              <View style={st.avatarPlaceholder}>
-                <Text style={st.avatarInitials}>
-                  {profileData.first_name?.[0] ?? ""}
-                  {profileData.last_name?.[0] ?? ""}
-                </Text>
-              </View>
-            )}
-            <View style={st.cameraOverlay}>
-              <Ionicons name="camera" size={11} color={C.white} />
-            </View>
-            {uploadingPhoto && (
-              <View style={st.avatarUploadingOverlay}>
-                <ActivityIndicator size="small" color={C.white} />
-              </View>
-            )}
-          </TouchableOpacity>
-
-          {/* Name */}
-          <Text style={st.headerName}>
-            {profileData.rank_abbreviation
-              ? `${profileData.rank_abbreviation}. `
-              : ""}
-            {displayName}
-          </Text>
-
-          {/* Username pill */}
-          {!!profileData.username && (
-            <View style={st.usernamePill}>
-              <Ionicons
-                name="at-outline"
-                size={12}
-                color="rgba(255,255,255,0.55)"
-              />
-              <Text style={st.usernameText}>
-                {showUsername
-                  ? profileData.username
-                  : "•".repeat(Math.min(profileData.username.length, 12))}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowUsername((v) => !v)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons
-                  name={showUsername ? "eye-outline" : "eye-off-outline"}
-                  size={13}
-                  color="rgba(255,255,255,0.4)"
+          {/* Top row: avatar + name + settings btn */}
+          <View style={st.headerTopRow}>
+            {/* Avatar */}
+            <TouchableOpacity
+              style={st.avatarWrap}
+              onPress={() => !uploadingPhoto && setShowPhotoModal(true)}
+              activeOpacity={0.85}
+            >
+              {profileData.profile_picture ? (
+                <Image
+                  source={{ uri: profileData.profile_picture }}
+                  style={st.avatar}
                 />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Role / Rank / Dept pills */}
-          <View style={st.pillsRow}>
-            {!!profileData.role && (
-              <View style={st.rolePill}>
-                <Ionicons
-                  name="shield-checkmark-outline"
-                  size={11}
-                  color="rgba(255,255,255,0.9)"
-                />
-                <Text style={st.rolePillTxt}>{profileData.role}</Text>
-              </View>
-            )}
-            {/* {!!profileData.rank && (
-              <View style={st.rankPill}>
-                <Ionicons name="star-outline" size={10} color={C.gold} />
-                <Text style={st.rankPillTxt}>{profileData.rank}</Text>
-              </View>
-            )} */}
-            {!!profileData.department && (
-              <View style={st.deptPill}>
-                <Text style={st.deptPillTxt}>{profileData.department}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Stats strip */}
-          {(profileData.department || profileData.mobile_patrol) && (
-            <View style={st.statsStrip}>
-              {!!profileData.department && (
-                <View style={st.statItem}>
-                  <Ionicons
-                    name="briefcase-outline"
-                    size={13}
-                    color="rgba(255,255,255,0.6)"
-                  />
-                  <Text style={st.statItemTxt}>{profileData.department}</Text>
-                </View>
-              )}
-              {profileData.department && profileData.mobile_patrol && (
-                <View style={st.statSep} />
-              )}
-              {!!profileData.mobile_patrol && (
-                <View style={st.statItem}>
-                  <Ionicons
-                    name="car-outline"
-                    size={13}
-                    color="rgba(255,255,255,0.6)"
-                  />
-                  <Text style={st.statItemTxt}>
-                    Patrol {profileData.mobile_patrol}
+              ) : (
+                <View style={st.avatarPlaceholder}>
+                  <Text style={st.avatarInitials}>
+                    {profileData.first_name?.[0] ?? ""}
+                    {profileData.last_name?.[0] ?? ""}
                   </Text>
                 </View>
               )}
+              <View style={st.cameraOverlay}>
+                <Ionicons name="add" size={11} color={C.white} />
+              </View>
+              {uploadingPhoto && (
+                <View style={st.avatarUploadingOverlay}>
+                  <ActivityIndicator size="small" color={C.white} />
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Name + username + role */}
+            <View style={st.headerInfo}>
+              <Text style={st.headerName} numberOfLines={1}>
+                {profileData.rank_abbreviation
+                  ? `${profileData.rank_abbreviation}. `
+                  : ""}
+                {displayName}
+              </Text>
+
+              {/* Username pill */}
+              {!!profileData.username && (
+                <View style={st.usernamePill}>
+                  <Ionicons
+                    name="at-outline"
+                    size={11}
+                    color="rgba(255,255,255,0.55)"
+                  />
+                  <Text style={st.usernameText}>
+                    {showUsername
+                      ? profileData.username
+                      : "•".repeat(
+                          Math.min(profileData.username.length, 12)
+                        )}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowUsername((v) => !v)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons
+                      name={
+                        showUsername ? "eye-outline" : "eye-off-outline"
+                      }
+                      size={12}
+                      color="rgba(255,255,255,0.4)"
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Role pill */}
+              {!!profileData.role && (
+                <View style={st.rolePill}>
+                  <Ionicons
+                    name="shield-checkmark-outline"
+                    size={10}
+                    color="rgba(255,255,255,0.9)"
+                  />
+                  <Text style={st.rolePillTxt}>{profileData.role}</Text>
+                </View>
+              )}
             </View>
-          )}
+
+          </View>
 
           {refreshing && (
             <View style={st.syncIndicator}>
-              <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />
+              <ActivityIndicator
+                size="small"
+                color="rgba(255,255,255,0.8)"
+              />
             </View>
           )}
         </View>
 
-        {/* ════════════════════ QUICK ACTIONS ════════════════════ */}
-        <View style={st.actionSection}>
-          <View style={st.actionRow}>
-            <ActionCard
-              icon="create-outline"
-              label="Edit Profile"
-              sublabel="Update info"
-              color={C.navy}
-              onPress={startEdit}
-            />
-            <ActionCard
-              icon="lock-closed-outline"
-              label="Change Password"
-              color={C.red}
-              onPress={() => navigation.navigate("ChangePassword")}
-            />
-            <ActionCard
-              icon="mail-outline"
-              label="Update Email"
-              color={C.cyan}
-              onPress={openEmailModal}
-            />
-          </View>
+        {/* ════════════ ACTION CARDS (grouped) ════════════ */}
+        <View style={st.actionGroupCard}>
+          <TouchableOpacity
+            style={st.actionRow}
+            onPress={startEdit}
+            activeOpacity={0.75}
+          >
+            <View style={[st.actionIcon, { backgroundColor: C.navy }]}>
+              <Ionicons name="create-outline" size={18} color={C.white} />
+            </View>
+            <View style={st.actionText}>
+              <Text style={st.actionLabel}>Edit Profile</Text>
+              <Text style={st.actionSub}>Update personal info</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
+          </TouchableOpacity>
+
+          <View style={st.actionDivider} />
+
+          <TouchableOpacity
+            style={st.actionRow}
+            onPress={() => navigation.navigate("ChangePassword")}
+            activeOpacity={0.75}
+          >
+            <View style={[st.actionIcon, { backgroundColor: C.red }]}>
+              <Ionicons name="lock-closed-outline" size={18} color={C.white} />
+            </View>
+            <View style={st.actionText}>
+              <Text style={st.actionLabel}>Change Password</Text>
+              <Text style={st.actionSub}>Update your password</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
+          </TouchableOpacity>
+
+          <View style={st.actionDivider} />
+
+          <TouchableOpacity
+            style={st.actionRow}
+            onPress={openEmailModal}
+            activeOpacity={0.75}
+          >
+            <View style={[st.actionIcon, { backgroundColor: C.cyan }]}>
+              <Ionicons name="mail-outline" size={18} color={C.white} />
+            </View>
+            <View style={st.actionText}>
+              <Text style={st.actionLabel}>Update Email</Text>
+              <Text style={st.actionSub}>Change email address</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
+          </TouchableOpacity>
         </View>
 
-        {/* ════════════════════ INFO SECTIONS ════════════════════ */}
-        <SectionCard
-          collapsible
-          title="Personal Information"
-          subtitle="Name · Birthday · Gender"
-          icon="person-outline"
-          accentColor={C.navy}
-        >
-          <InfoRow
-            icon="person-outline"
-            label="Full Name"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={[
-              profileData.first_name,
-              profileData.middle_name,
-              profileData.last_name,
-              profileData.suffix,
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          />
-          <InfoRow
-            icon="calendar-outline"
-            label="Date of Birth"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={
-              profileData.date_of_birth
-                ? new Date(profileData.date_of_birth).toLocaleDateString(
-                    "en-PH",
-                    { year: "numeric", month: "long", day: "numeric" },
-                  )
-                : null
-            }
-          />
-          <InfoRow
-            icon="male-female-outline"
-            label="Gender"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={profileData.gender}
-            last
-          />
-        </SectionCard>
+        {/* ════════════ TABS ════════════ */}
+   <View style={st.tabsWrapper}>
+  <View style={st.tabsRow}>
+    {["Personal", "Contact", "Address", "Official"].map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                style={[st.tabBtn, activeTab === tab && st.tabBtnActive]}
+                onPress={() => setActiveTab(tab)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    st.tabTxt,
+                    activeTab === tab && st.tabTxtActive,
+                  ]}
+                >
+                  {tab}
+                </Text>
+              </TouchableOpacity>
+            ))}
+      </View>
+</View>
 
-        <SectionCard
-          collapsible
-          title="Contact Information"
-          subtitle="Phone · Email · Alternate"
-          icon="call-outline"
-          accentColor={C.green}
-        >
-          <InfoRow
-            icon="call-outline"
-            label="Phone Number"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={
-              profileData.phone ? `+63 ${V.maskPhone(profileData.phone)}` : null
-            }
-          />
-          <InfoRow
-            icon="phone-portrait-outline"
-            label="Alternate Phone"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={
-              profileData.alternate_phone
-                ? `+63 ${V.maskPhone(profileData.alternate_phone)}`
-                : null
-            }
-          />
-          <InfoRow
-            icon="mail-outline"
-            label="Email Address"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={profileData.email ? V.maskEmail(profileData.email) : null}
-            last
-          />
-        </SectionCard>
-
-        <SectionCard
-          collapsible
-          title="Address"
-          subtitle="Region · Province · Barangay"
-          icon="location-outline"
-          accentColor="#D97706"
-        >
-          <InfoRow
-            icon="flag-outline"
-            label="Region"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={resolvedAddr.region || profileData.region}
-          />
-          <InfoRow
-            icon="map-outline"
-            label="Province"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={resolvedAddr.province || profileData.province}
-          />
-          <InfoRow
-            icon="business-outline"
-            label="City / Municipality"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={
-              resolvedAddr.municipality ||
-              profileData.municipality ||
-              profileData.city
-            }
-          />
-          <InfoRow
-            icon="home-outline"
-            label="Barangay"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={resolvedAddr.barangay || profileData.barangay}
-          />
-          <InfoRow
-            icon="pin-outline"
-            label="Address Line"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={profileData.address_line}
-            last
-          />
-        </SectionCard>
-
-        {/* Official Information — always show all fields, use "—" for blanks like the web */}
-        <SectionCard
-          collapsible
-          title="Official Information"
-          subtitle="Role · Rank · Department"
-          icon="briefcase-outline"
-          accentColor="#7C3AED"
-        >
-          <InfoRow
-            icon="shield-outline"
-            label="Role"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={profileData.role || "—"}
-          />
-          <InfoRow
-            icon="medal-outline"
-            label="Rank"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={
-              profileData.rank_abbreviation && profileData.rank
-                ? `${profileData.rank_abbreviation}. — ${profileData.rank}`
-                : profileData.rank || "—"
-            }
-          />
-          <InfoRow
-            icon="calendar-outline"
-            label="Date Joined"
-            iconColor={C.navy}
-            iconBg={C.navyLight}
-            value={
-              profileData.date_joined
-                ? new Date(profileData.date_joined).toLocaleDateString(
-                    "en-PH",
-                    {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    },
-                  )
-                : profileData.created_at
-                  ? new Date(profileData.created_at).toLocaleDateString(
-                      "en-PH",
-                      {
+        {/* ════════════ TAB CONTENT ════════════ */}
+        <View style={st.tabContent}>
+          {activeTab === "Personal" && (
+            <View>
+              <View style={st.tabSectionHeader}>
+                <View style={st.tabSectionIconWrap}>
+                  <Ionicons name="person-outline" size={16} color={C.navy} />
+                </View>
+                <Text style={st.tabSectionTitle}>Personal Information</Text>
+              </View>
+              <InfoRow
+                icon="person-outline"
+                label="Full Name"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={[
+                  profileData.first_name,
+                  profileData.middle_name,
+                  profileData.last_name,
+                  profileData.suffix,
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              />
+              <InfoRow
+                icon="calendar-outline"
+                label="Birthday"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={
+                  profileData.date_of_birth
+                    ? new Date(
+                        profileData.date_of_birth
+                      ).toLocaleDateString("en-PH", {
                         year: "numeric",
                         month: "long",
                         day: "numeric",
-                      },
-                    )
-                  : "—"
-            }
-            last
-          />
-        </SectionCard>
+                      })
+                    : null
+                }
+              />
+              <InfoRow
+                icon="male-female-outline"
+                label="Gender"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={profileData.gender}
+                last
+              />
+            </View>
+          )}
 
-        {/* ════════════════════ LOGOUT ════════════════════ */}
+          {activeTab === "Contact" && (
+            <View>
+              <View style={st.tabSectionHeader}>
+                <View style={st.tabSectionIconWrap}>
+                  <Ionicons name="call-outline" size={16} color={C.navy} />
+                </View>
+                <Text style={st.tabSectionTitle}>Contact Information</Text>
+              </View>
+              <InfoRow
+                icon="call-outline"
+                label="Phone Number"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={
+                  profileData.phone
+                    ? `+63 ${V.maskPhone(profileData.phone)}`
+                    : null
+                }
+              />
+              <InfoRow
+                icon="phone-portrait-outline"
+                label="Alternate Phone"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={
+                  profileData.alternate_phone
+                    ? `+63 ${V.maskPhone(profileData.alternate_phone)}`
+                    : null
+                }
+              />
+              <InfoRow
+                icon="mail-outline"
+                label="Email Address"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={
+                  profileData.email
+                    ? V.maskEmail(profileData.email)
+                    : null
+                }
+                last
+              />
+            </View>
+          )}
+
+          {activeTab === "Address" && (
+            <View>
+              <View style={st.tabSectionHeader}>
+                <View style={st.tabSectionIconWrap}>
+                  <Ionicons
+                    name="location-outline"
+                    size={16}
+                    color={C.navy}
+                  />
+                </View>
+                <Text style={st.tabSectionTitle}>Address</Text>
+              </View>
+              <InfoRow
+                icon="flag-outline"
+                label="Region"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={resolvedAddr.region || profileData.region}
+              />
+              <InfoRow
+                icon="map-outline"
+                label="Province"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={resolvedAddr.province || profileData.province}
+              />
+              <InfoRow
+                icon="business-outline"
+                label="City / Municipality"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={
+                  resolvedAddr.municipality ||
+                  profileData.municipality ||
+                  profileData.city
+                }
+              />
+              <InfoRow
+                icon="home-outline"
+                label="Barangay"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={resolvedAddr.barangay || profileData.barangay}
+              />
+              <InfoRow
+                icon="pin-outline"
+                label="Address Line"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={profileData.address_line}
+                last
+              />
+            </View>
+          )}
+
+          {activeTab === "Official" && (
+            <View>
+              <View style={st.tabSectionHeader}>
+                <View style={st.tabSectionIconWrap}>
+                  <Ionicons
+                    name="briefcase-outline"
+                    size={16}
+                    color={C.navy}
+                  />
+                </View>
+                <Text style={st.tabSectionTitle}>Official Information</Text>
+              </View>
+              <InfoRow
+                icon="shield-outline"
+                label="Role"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={profileData.role || "—"}
+              />
+              <InfoRow
+                icon="medal-outline"
+                label="Rank"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={
+                  profileData.rank_abbreviation && profileData.rank
+                    ? `${profileData.rank_abbreviation}. — ${profileData.rank}`
+                    : profileData.rank || "—"
+                }
+              />
+              <InfoRow
+                icon="calendar-outline"
+                label="Date Joined"
+                iconColor={C.navy}
+                iconBg={C.navyLight}
+                value={
+                  profileData.date_joined
+                    ? new Date(
+                        profileData.date_joined
+                      ).toLocaleDateString("en-PH", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : profileData.created_at
+                    ? new Date(
+                        profileData.created_at
+                      ).toLocaleDateString("en-PH", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : "—"
+                }
+                last
+              />
+            </View>
+          )}
+        </View>
+
+        {/* ════════════ LOGOUT ════════════ */}
         <View style={st.logoutSection}>
           <TouchableOpacity
             style={st.logoutBtn}
@@ -2694,28 +2608,12 @@ export default function ProfileScreen({ navigation }) {
             <View style={st.logoutIconWrap}>
               <Ionicons name="log-out-outline" size={20} color={C.white} />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={st.logoutBtnTxt}>Logout</Text>
-              <Text style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
-                Sign out of your account
-              </Text>
-            </View>
-            <View
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 8,
-                backgroundColor: "#FEF2F2",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons name="chevron-forward" size={14} color={C.red} />
-            </View>
+            <Text style={st.logoutBtnTxt}>Logout</Text>
+      
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 80 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Toasts */}
@@ -2740,7 +2638,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
       )}
 
-      {/* ════════════════════ EMAIL MODAL ════════════════════ */}
+      {/* EMAIL MODAL — unchanged */}
       <Modal
         visible={emailModalVisible}
         animationType="slide"
@@ -2781,7 +2679,10 @@ export default function ProfileScreen({ navigation }) {
             "done",
           ].includes(emailStep) && (
             <View style={em.progressWrap}>
-              <ProgressDots current={emailStepIdx} total={EMAIL_STEPS.length} />
+              <ProgressDots
+                current={emailStepIdx}
+                total={EMAIL_STEPS.length}
+              />
             </View>
           )}
           <KeyboardAvoidingView
@@ -2828,7 +2729,11 @@ export default function ProfileScreen({ navigation }) {
                     You can update your email again in:
                   </Text>
                   <View style={em.countdownBadge}>
-                    <Ionicons name="time-outline" size={16} color="#92400E" />
+                    <Ionicons
+                      name="time-outline"
+                      size={16}
+                      color="#92400E"
+                    />
                     <Text style={em.countdownTxt}>
                       {emailCooldownCountdown || "Calculating…"}
                     </Text>
@@ -2874,7 +2779,10 @@ export default function ProfileScreen({ navigation }) {
               {emailStep === "done" && (
                 <View style={em.lockedWrap}>
                   <View
-                    style={[em.lockedIcon, { backgroundColor: C.greenLight }]}
+                    style={[
+                      em.lockedIcon,
+                      { backgroundColor: C.greenLight },
+                    ]}
                   >
                     <Ionicons
                       name="checkmark-circle"
@@ -2902,7 +2810,6 @@ export default function ProfileScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
               )}
-
               {emailStep === "password" && (
                 <View>
                   <View style={em.stepIconRow}>
@@ -2922,9 +2829,11 @@ export default function ProfileScreen({ navigation }) {
                   </Text>
                   <View style={em.fieldCard}>
                     <Text style={em.fieldLabel}>CURRENT PASSWORD</Text>
-                    {/* FIX: eye toggle — eye-off when hidden, eye when visible */}
                     <View
-                      style={[em.inputRow, emailPasswordErr && em.inputRowErr]}
+                      style={[
+                        em.inputRow,
+                        emailPasswordErr && em.inputRowErr,
+                      ]}
                     >
                       <Ionicons
                         name="lock-closed-outline"
@@ -2948,7 +2857,12 @@ export default function ProfileScreen({ navigation }) {
                       />
                       <TouchableOpacity
                         onPress={() => setEmailPasswordShow((v) => !v)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        hitSlop={{
+                          top: 10,
+                          bottom: 10,
+                          left: 10,
+                          right: 10,
+                        }}
                       >
                         <Ionicons
                           name={
@@ -2972,7 +2886,6 @@ export default function ProfileScreen({ navigation }) {
                       </View>
                     ) : null}
                   </View>
-                  {/* FIX: removed arrow icon from button */}
                   <View style={em.btnRow}>
                     <TouchableOpacity
                       style={em.cancelBtn}
@@ -2988,7 +2901,9 @@ export default function ProfileScreen({ navigation }) {
                           em.primaryBtnOff,
                       ]}
                       onPress={handleEmailVerifyPassword}
-                      disabled={!emailPassword.trim() || emailPasswordLoading}
+                      disabled={
+                        !emailPassword.trim() || emailPasswordLoading
+                      }
                     >
                       {emailPasswordLoading ? (
                         <ActivityIndicator size="small" color={C.white} />
@@ -3000,7 +2915,6 @@ export default function ProfileScreen({ navigation }) {
                   </View>
                 </View>
               )}
-
               {emailStep === "old-send" && (
                 <View style={em.lockedWrap}>
                   <View style={em.lockedIconOuter}>
@@ -3010,7 +2924,8 @@ export default function ProfileScreen({ navigation }) {
                   </View>
                   <Text style={em.lockedTitle}>Verify Current Email</Text>
                   <Text style={em.lockedMsg}>
-                    We'll send a code to your current email to confirm it's you.
+                    We'll send a code to your current email to confirm it's
+                    you.
                   </Text>
                   <TouchableOpacity
                     style={[
@@ -3032,7 +2947,6 @@ export default function ProfileScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
               )}
-
               {emailStep === "old-otp" &&
                 renderOtpStep({
                   otpValues: oldOtpValues,
@@ -3047,7 +2961,6 @@ export default function ProfileScreen({ navigation }) {
                   onResend: handleResendOldOtp,
                   stepTitle: "Verify Code",
                 })}
-
               {emailStep === "new-email" && (
                 <View>
                   <View style={em.stepIconRow}>
@@ -3063,7 +2976,9 @@ export default function ProfileScreen({ navigation }) {
                   </Text>
                   <View style={em.fieldCard}>
                     <Text style={em.fieldLabel}>NEW EMAIL ADDRESS</Text>
-                    <View style={[em.inputRow, emailNewErr && em.inputRowErr]}>
+                    <View
+                      style={[em.inputRow, emailNewErr && em.inputRowErr]}
+                    >
                       <Ionicons
                         name="mail-outline"
                         size={16}
@@ -3118,12 +3033,15 @@ export default function ProfileScreen({ navigation }) {
                     style={em.backBtn}
                     onPress={() => setEmailStep("old-send")}
                   >
-                    <Ionicons name="chevron-back" size={13} color={C.textSub} />
+                    <Ionicons
+                      name="chevron-back"
+                      size={13}
+                      color={C.textSub}
+                    />
                     <Text style={em.backBtnTxt}>Back</Text>
                   </TouchableOpacity>
                 </View>
               )}
-
               {emailStep === "new-otp" &&
                 renderOtpStep({
                   otpValues: newOtpValues,
@@ -3143,10 +3061,9 @@ export default function ProfileScreen({ navigation }) {
         </SafeAreaView>
       </Modal>
 
-      {/* ════════════════════ EDIT PROFILE MODAL ════════════════════ */}
+      {/* EDIT PROFILE MODAL — unchanged */}
       <Modal visible={isEditing} animationType="slide" transparent={false}>
         <SafeAreaView style={ef.safe}>
-          {/* Header - FIX: removed Save button from top header, Save is only at the bottom */}
           <View style={ef.header}>
             <TouchableOpacity
               onPress={cancelEdit}
@@ -3159,11 +3076,12 @@ export default function ProfileScreen({ navigation }) {
             </TouchableOpacity>
             <View style={{ flex: 1, alignItems: "center" }}>
               <Text style={ef.headerTitle}>Edit Profile</Text>
-              <Text style={ef.headerSub}>Update your personal information</Text>
+              <Text style={ef.headerSub}>
+                Update your personal information
+              </Text>
             </View>
             <View style={{ width: 44 }} />
           </View>
-
           <ScrollView
             style={ef.scroll}
             keyboardShouldPersistTaps="handled"
@@ -3171,8 +3089,6 @@ export default function ProfileScreen({ navigation }) {
             showsVerticalScrollIndicator={false}
           >
             <View style={{ height: 16 }} />
-
-            {/* ── Personal ── */}
             <SectionLabel icon="person-outline" color={C.navy}>
               Personal Information
             </SectionLabel>
@@ -3225,7 +3141,8 @@ export default function ProfileScreen({ navigation }) {
                         errors[f.name] && ef.fieldInputErr,
                       ]}
                       placeholder={
-                        f.placeholder || `Enter ${f.label.toLowerCase()}`
+                        f.placeholder ||
+                        `Enter ${f.label.toLowerCase()}`
                       }
                       placeholderTextColor={C.textLight}
                       value={formData[f.name]}
@@ -3240,11 +3157,11 @@ export default function ProfileScreen({ navigation }) {
                 </View>
               ))}
             </View>
-
             <View style={ef.card}>
-              {/* DOB */}
               <View style={[ef.fieldRow, ef.fieldRowBorder]}>
-                <View style={[ef.fieldIcon, { backgroundColor: "#F1F5F9" }]}>
+                <View
+                  style={[ef.fieldIcon, { backgroundColor: "#F1F5F9" }]}
+                >
                   <Ionicons
                     name="calendar-outline"
                     size={15}
@@ -3253,34 +3170,27 @@ export default function ProfileScreen({ navigation }) {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={ef.fieldLabel}>Date of Birth</Text>
-                  <View
+                  <Text
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 10,
-                      marginTop: 2,
+                      fontSize: 14,
+                      color: C.textSub,
+                      fontWeight: "500",
+                      flex: 1,
                     }}
                   >
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        color: C.textSub,
-                        fontWeight: "500",
-                        flex: 1,
-                      }}
-                    >
-                      {formData.date_of_birth
-                        ? new Date(formData.date_of_birth).toLocaleDateString(
-                            "en-PH",
-                            { year: "numeric", month: "long", day: "numeric" },
-                          )
-                        : "Not set"}
-                    </Text>
-                  </View>
+                    {formData.date_of_birth
+                      ? new Date(
+                          formData.date_of_birth
+                        ).toLocaleDateString("en-PH", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })
+                      : "Not set"}
+                  </Text>
                   <Text style={ef.fieldHint}>Contact admin to update</Text>
                 </View>
               </View>
-              {/* Gender */}
               <View style={ef.fieldRow}>
                 <View style={ef.fieldIcon}>
                   <Ionicons
@@ -3304,7 +3214,9 @@ export default function ProfileScreen({ navigation }) {
                         <Ionicons
                           name={g === "Male" ? "male" : "female"}
                           size={14}
-                          color={formData.gender === g ? C.white : C.textMuted}
+                          color={
+                            formData.gender === g ? C.white : C.textMuted
+                          }
                         />
                         <Text
                           style={[
@@ -3320,18 +3232,19 @@ export default function ProfileScreen({ navigation }) {
                 </View>
               </View>
             </View>
-
-            {/* ── Contact ── */}
             <SectionLabel icon="call-outline" color={C.navy}>
               Contact Information
             </SectionLabel>
             <View style={ef.card}>
-              {/* Phone */}
               <View style={[ef.fieldRow, ef.fieldRowBorder]}>
                 <View
                   style={[
                     ef.fieldIcon,
-                    { backgroundColor: phoneChanged ? "#FEF3C7" : C.navyLight },
+                    {
+                      backgroundColor: phoneChanged
+                        ? "#FEF3C7"
+                        : C.navyLight,
+                    },
                   ]}
                 >
                   <Ionicons
@@ -3342,7 +3255,6 @@ export default function ProfileScreen({ navigation }) {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={ef.fieldLabel}>Phone Number</Text>
-                  {/* FIX: amber/yellow highlight same as web when typing */}
                   <View
                     style={[
                       ef.phoneRow,
@@ -3366,14 +3278,16 @@ export default function ProfileScreen({ navigation }) {
                       editable={!isSaving}
                     />
                   </View>
-                  {/* FIX: hide hint when error is shown to avoid duplication/confusion */}
                   {errors.phone ? (
                     <Text style={ef.fieldErrTxt}>{errors.phone}</Text>
                   ) : (
                     <Text
                       style={[
                         ef.fieldHint,
-                        phoneChanged && { color: "#B45309", fontWeight: "600" },
+                        phoneChanged && {
+                          color: "#B45309",
+                          fontWeight: "600",
+                        },
                       ]}
                     >
                       {phoneChanged
@@ -3383,7 +3297,6 @@ export default function ProfileScreen({ navigation }) {
                   )}
                 </View>
               </View>
-              {/* Alt phone */}
               <View style={[ef.fieldRow, ef.fieldRowBorder]}>
                 <View
                   style={[
@@ -3426,16 +3339,22 @@ export default function ProfileScreen({ navigation }) {
                       editable={!isSaving}
                     />
                   </View>
-                  {/* FIX: only show error OR hint, not both */}
                   {errors.alternate_phone && (
-                    <Text style={ef.fieldErrTxt}>{errors.alternate_phone}</Text>
+                    <Text style={ef.fieldErrTxt}>
+                      {errors.alternate_phone}
+                    </Text>
                   )}
                 </View>
               </View>
-              {/* Email — FIX: removed "Use Update Email" badge, hint text is enough */}
               <View style={ef.fieldRow}>
-                <View style={[ef.fieldIcon, { backgroundColor: "#F1F5F9" }]}>
-                  <Ionicons name="mail-outline" size={15} color={C.textMuted} />
+                <View
+                  style={[ef.fieldIcon, { backgroundColor: "#F1F5F9" }]}
+                >
+                  <Ionicons
+                    name="mail-outline"
+                    size={15}
+                    color={C.textMuted}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={ef.fieldLabel}>Email Address</Text>
@@ -3450,12 +3369,12 @@ export default function ProfileScreen({ navigation }) {
                   >
                     {V.maskEmail(originalFormData.email) || "—"}
                   </Text>
-                  <Text style={ef.fieldHint}>Use "Update Email" to change</Text>
+                  <Text style={ef.fieldHint}>
+                    Use "Update Email" to change
+                  </Text>
                 </View>
               </View>
             </View>
-
-            {/* ── Address ── */}
             <SectionLabel icon="location-outline" color={C.navy}>
               Address Information
             </SectionLabel>
@@ -3508,11 +3427,12 @@ export default function ProfileScreen({ navigation }) {
                   { borderTopWidth: 1, borderTopColor: C.border },
                 ]}
               >
-                <View style={[ef.fieldIcon, { backgroundColor: C.navyLight }]}>
+                <View
+                  style={[ef.fieldIcon, { backgroundColor: C.navyLight }]}
+                >
                   <Ionicons name="pin-outline" size={15} color={C.navy} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  {/* FIX: removed "(Optional)" from Address Line label */}
                   <Text style={ef.fieldLabel}>Address Line</Text>
                   <TextInput
                     style={[
@@ -3542,8 +3462,6 @@ export default function ProfileScreen({ navigation }) {
                 </View>
               </View>
             </View>
-
-            {/* Bottom buttons */}
             <View style={ef.bottomRow}>
               <TouchableOpacity
                 style={[ef.saveBtn, isSaving && { opacity: 0.55 }]}
@@ -3553,7 +3471,11 @@ export default function ProfileScreen({ navigation }) {
                 {isSaving ? (
                   <ActivityIndicator size="small" color={C.red} />
                 ) : (
-                  <Ionicons name="checkmark-circle" size={18} color={C.white} />
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={18}
+                    color={C.white}
+                  />
                 )}
                 <Text style={ef.saveBtnTxt}>Save Changes</Text>
               </TouchableOpacity>
@@ -3571,7 +3493,7 @@ export default function ProfileScreen({ navigation }) {
         </SafeAreaView>
       </Modal>
 
-      {/* Photo picker sheet */}
+      {/* Photo picker sheet — unchanged */}
       <Modal visible={showPhotoModal} animationType="slide" transparent>
         <View style={st.photoOverlay}>
           <View style={st.photoSheet}>
@@ -3617,6 +3539,7 @@ export default function ProfileScreen({ navigation }) {
         confirmColor={confirm.confirmColor}
       />
     </SafeAreaView>
+  
   );
 }
 
@@ -3628,7 +3551,7 @@ const em = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: C.navyDark,
+   backgroundColor: "#0D1F3C",
     paddingHorizontal: 16,
     paddingVertical: 14,
     shadowColor: C.navyDark,
@@ -4136,7 +4059,7 @@ const ef = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: C.navy,
+backgroundColor: "#0D1F3C",
     paddingHorizontal: 16,
     paddingVertical: 14,
     shadowColor: C.navyDark,
@@ -4389,241 +4312,302 @@ const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.navyDark },
   scroll: { flex: 1 },
   center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 16,
-    padding: 24,
+    flex: 1, justifyContent: "center", alignItems: "center",
+    gap: 16, padding: 24,
   },
   centerLbl: { fontSize: 14, color: C.textMuted, fontWeight: "500" },
   emptyTitle: { fontSize: 18, fontWeight: "700", color: C.text },
 
-  // ── HEADER — FIX: darker background, no decorative circles ──
   header: {
-    backgroundColor: C.navyDark,
-    paddingTop: 40,
-    paddingBottom: 36,
+    background: "linear-gradient(135deg, #071D47 0%, #0B2D6B 60%, #1A3D7C 100%)",
+    backgroundColor: "#0c2856",
+    paddingTop: 36,
+    paddingBottom: 32,
     paddingHorizontal: 20,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
     alignItems: "center",
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.45,
     shadowRadius: 24,
     elevation: 18,
   },
-
-  avatarWrap: { position: "relative", marginBottom: 16 },
-  avatar: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    borderWidth: 4,
+headerTopRow: {
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 10,
+  },
+ avatarWrap: {
+    position: "relative",
+    marginBottom: 4,
+  },
+avatar: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 3,
     borderColor: C.red,
   },
-  avatarPlaceholder: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+avatarPlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     backgroundColor: "rgba(255,255,255,0.12)",
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: C.red,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarInitials: {
-    fontSize: 36,
+avatarInitials: {
+    fontSize: 30,
     fontWeight: "800",
     color: C.white,
     letterSpacing: 1,
   },
-  cameraOverlay: {
+cameraOverlay: {
     position: "absolute",
     bottom: 2,
     right: 2,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: C.red,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2.5,
-    borderColor: C.navy,
-  },
-  avatarUploadingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 52,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  headerName: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: C.white,
-    letterSpacing: -0.4,
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  usernamePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 20,
-    paddingHorizontal: 13,
-    paddingVertical: 6,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-  },
-  usernameText: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.82)",
-    fontWeight: "600",
-    letterSpacing: 0.3,
-  },
-
-  pillsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 16,
-  },
-  rolePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
-  },
-  rolePillTxt: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.95)",
-    fontWeight: "700",
-  },
-  rankPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(215,119,6,0.3)",
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: "rgba(215,119,6,0.4)",
-  },
-  rankPillTxt: {
-    fontSize: 12,
-    color: C.gold,
-    fontWeight: "800",
-    letterSpacing: 0.3,
-  },
-  deptPill: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-  },
-  deptPillTxt: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.75)",
-    fontWeight: "500",
-  },
-
-  statsStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: 14,
-    paddingVertical: 9,
-    paddingHorizontal: 18,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    marginTop: 4,
-  },
-  statItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  statItemTxt: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.7)",
-    fontWeight: "600",
-  },
-  statSep: { width: 1, height: 18, backgroundColor: "rgba(255,255,255,0.2)" },
-
-  syncRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 12,
-  },
-  syncTxt: { fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: "500" },
-
-  // ── ACTION CARDS ──
-  actionSection: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 4,
-  },
-  actionRow: {
-    flexDirection: "column",
-  },
-
-  // ── LOGOUT — FIX: removed subtitle ──
-  logoutSection: {
-    marginHorizontal: 16,
-    marginTop: 16,
-  },
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: C.white,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: C.border,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    gap: 12,
-  },
-  logoutIconWrap: {
-    width: 44,
-    height: 44,
+    width: 24,
+    height: 24,
     borderRadius: 12,
     backgroundColor: C.red,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: C.red,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 2,
+    borderColor: C.navyDark,
   },
-  logoutBtnTxt: {
-    fontSize: 14,
+  avatarUploadingOverlay: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    borderRadius: 36,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+headerInfo: {
+    alignItems: "center",
+    gap: 6,
+  },
+headerName: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: C.white,
+    letterSpacing: -0.3,
+    textAlign: "center",
+  },
+  usernamePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    alignSelf: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+  },
+  usernameText: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.82)",
+    fontWeight: "600",
+    letterSpacing: 0.3,
+  },
+ rolePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    alignSelf: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  rolePillTxt: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.95)",
     fontWeight: "700",
-    color: C.red,
-    flex: 1,
+  },
+  settingsBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+  },
+  syncIndicator: {
+    position: "absolute",
+    top: 14,
+    right: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  // ── TOASTS ──
+  actionGroupCard: {
+    backgroundColor: C.white,
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: C.border,
+    overflow: "hidden",
+  },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 14,
+  },
+  actionDivider: {
+    height: 1,
+    backgroundColor: C.border,
+    marginHorizontal: 16,
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionText: { flex: 1 },
+  actionLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: C.text,
+  },
+  actionSub: {
+    fontSize: 11,
+    color: C.textMuted,
+    marginTop: 1,
+    fontWeight: "500",
+  },
+
+  tabsWrapper: {
+    marginTop: 18,
+    paddingHorizontal: 16,
+  },
+  tabsRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+ tabBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: C.white,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabBtnActive: {
+    backgroundColor: C.navy,
+    borderColor: C.navy,
+  },
+  tabTxt: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: C.textMuted,
+  },
+  tabTxtActive: {
+    color: C.white,
+    fontWeight: "700",
+  },
+
+  tabContent: {
+    backgroundColor: C.white,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: C.border,
+    overflow: "hidden",
+  },
+  tabSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    backgroundColor: C.navySubtle,
+  },
+  tabSectionIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: C.navyLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabSectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: C.navy,
+  },
+
+  logoutSection: {
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: C.red,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    gap: 10,
+    shadowColor: C.red,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+logoutIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoutBtnTxt: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: C.white,
+  },
+ logoutSubTxt: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.75)",
+    fontWeight: "500",
+  },
+
   toastWrap: { position: "absolute", bottom: 28, left: 16, right: 16 },
   toastOk: {
     flexDirection: "row",
@@ -4663,7 +4647,6 @@ const st = StyleSheet.create({
   },
   toastTxt: { color: C.white, fontSize: 13, fontWeight: "600", flex: 1 },
 
-  // ── SHARED BUTTONS ──
   solidBtn: {
     flexDirection: "row",
     backgroundColor: C.navy,
@@ -4672,11 +4655,6 @@ const st = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 5,
   },
   solidBtnTxt: {
     color: C.white,
@@ -4685,7 +4663,6 @@ const st = StyleSheet.create({
     letterSpacing: -0.2,
   },
 
-  // ── PHOTO PICKER ──
   photoOverlay: {
     flex: 1,
     backgroundColor: "rgba(7,29,71,0.55)",
@@ -4713,7 +4690,6 @@ const st = StyleSheet.create({
     color: C.text,
     textAlign: "center",
     marginBottom: 20,
-    letterSpacing: -0.2,
   },
   photoOpt: {
     flexDirection: "row",
@@ -4747,18 +4723,4 @@ const st = StyleSheet.create({
     alignItems: "center",
   },
   photoCancelTxt: { fontSize: 15, fontWeight: "700", color: C.red },
-
-  syncIndicator: {
-    position: "absolute",
-    top: 14,
-    right: 16,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
 });
