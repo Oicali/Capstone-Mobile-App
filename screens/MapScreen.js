@@ -391,25 +391,19 @@ if (!isRegistered) {
   }, [appliedDateFrom, appliedDateTo]);
 
   const fetchOfficers = useCallback(async () => {
-    try {
-      const token = await getToken();
-      const myUserId = await AsyncStorage.getItem("user_id"); // ← get your own ID
-
-      const res = await fetch(`${API}/gps/officers`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (isMounted.current && data.success) {
-        setOfficers(
-          data.data.filter(
-            (o) => String(o.user_id) !== String(myUserId), // ← filter yourself out
-          ),
-        );
-      }
-    } catch (err) {
-      console.warn("[Map] fetchOfficers error:", err.message);
+  try {
+    const token = await getToken();
+    const res = await fetch(`${API}/gps/officers?platform=mobile`, {  // ← add this
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (isMounted.current && data.success) {
+      setOfficers(data.data); // self-exclusion now handled server-side, remove old filter
     }
-  }, []);
+  } catch (err) {
+    console.warn("[Map] fetchOfficers error:", err.message);
+  }
+}, []);
 
   // ── Lifecycle ────────────────────────────────────────────
   useEffect(() => {
