@@ -204,3 +204,61 @@ export const getCrimeDashboard = async (filters) => {
     throw error;
   }
 };
+
+// ─── FORGOT PASSWORD ──────────────────────────────────────────────────────────
+
+export const sendOTP = async (email) => {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/otp/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('sendOTP Error:', error);
+    return { success: false, message: 'Failed to connect to server. Please try again.' };
+  }
+};
+
+export const verifyOTP = async (email, code) => {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/otp/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('verifyOTP Error:', error);
+    return { success: false, message: 'Failed to verify code. Please try again.' };
+  }
+};
+
+export const resendOTP = async (email) => {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/otp/resend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('resendOTP Error:', error);
+    return { success: false, message: 'Failed to resend code. Please try again.' };
+  }
+};
+
+export const resetPassword = async (email, newPassword) => {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/password/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, newPassword }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('resetPassword Error:', error);
+    return { success: false, message: 'An unexpected error occurred.' };
+  }
+};

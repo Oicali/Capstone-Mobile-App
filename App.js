@@ -1,4 +1,5 @@
 import "./tasks/locationTask";
+// App.js — updated to include patrol scheduling screens
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -18,6 +19,12 @@ import ProfileScreen from "./screens/ProfileScreen";
 import NotificationsScreen from "./screens/NotificationsScreen";
 import PatrolLogScreen from "./screens/PatrolLogScreen";
 import ChangePasswordScreen from "./screens/ChangePasswordScreen";
+
+// ── NEW patrol screens ──────────────────────────────────────────
+import PatrolSchedulingScreen from "./screens/PatrolSchedulingScreen";
+import PatrolDetailScreen from "./screens/PatrolDetailScreen";
+import RoleBasedPatrolScreen from "./screens/RoleBasedPatrolScreen";
+import AfterPatrolScreen from "./screens/AfterPatrolScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -55,7 +62,7 @@ function TabIcon({ focused, iconName, label }) {
 }
 
 function MainTabs() {
-  const insets = useSafeAreaInsets();  // ← ADD THIS
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -63,8 +70,8 @@ function MainTabs() {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          height: 55 + insets.bottom,        // ← was: height: 80
-          paddingBottom: insets.bottom,  // ← was: paddingBottom: 8
+          height: 55 + insets.bottom,
+          paddingBottom: insets.bottom,
           paddingTop: 8,
           backgroundColor: "#FFFFFF",
           borderTopWidth: 1,
@@ -96,15 +103,25 @@ function MainTabs() {
           ),
         }}
       />
+      {/*
+        ── Assignments tab now shows PatrolSchedulingScreen ────────
+        The old AssignmentsScreen (dummy data) is replaced.
+        PatrolDetailScreen is pushed onto the root Stack so it
+        renders full-screen above the tab bar.
+      */}
       <Tab.Screen
-        name="Assignments"
-        component={AssignmentsScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? "clipboard" : "clipboard-outline"} label="Patrol" />
-          ),
-        }}
+  name="Assignments"
+  component={RoleBasedPatrolScreen}
+  options={{
+    tabBarIcon: ({ focused }) => (
+      <TabIcon
+        focused={focused}
+        iconName={focused ? "shield" : "shield-outline"}
+        label="Patrol"
       />
+    ),
+  }}
+/>
       <Tab.Screen
         name="Map"
         component={MapScreen}
@@ -163,6 +180,22 @@ export default function App() {
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
           <Stack.Screen name="PatrolLog" component={PatrolLogScreen} />
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+
+          {/*
+            PatrolDetailScreen lives on the root stack (not inside tabs)
+            so it slides in full-screen over the tab bar — matching the
+            BeatCard modal feel from the web app.
+          */}
+          <Stack.Screen
+            name="PatrolDetail"
+            component={PatrolDetailScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+  name="AfterPatrolReport"
+  component={AfterPatrolScreen}
+  options={{ animation: "slide_from_right" }}
+/>
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
