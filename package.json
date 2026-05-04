@@ -23,6 +23,7 @@
     "expo-linear-gradient": "~15.0.8",
     "expo-location": "~19.0.8",
     "expo-status-bar": "~3.0.9",
+    "expo-task-manager": "~14.0.9",
     "mapbox-gl": "^2.15.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
