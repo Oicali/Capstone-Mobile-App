@@ -172,6 +172,23 @@ export default function MapScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState("legend");
   const [myLocation, setMyLocation] = useState(null);
   const [showMorePopup, setShowMorePopup] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+
+  // Get user role on mount
+useEffect(() => {
+  const getUserRole = async () => {
+    try {
+      const userStr = await AsyncStorage.getItem("user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        setUserRole(user?.role || user?.role_name);
+      }
+    } catch (err) {
+      console.warn("[Map] Failed to get user role:", err.message);
+    }
+  };
+  getUserRole();
+}, []);
 
   // ── GeoJSON ──────────────────────────────────────────────
   useEffect(() => {
