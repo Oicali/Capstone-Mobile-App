@@ -83,6 +83,8 @@ const INFO_OB    = ['Personal', 'Telephone', 'Walk-in', 'Online', 'Email', 'Thir
 const STAGES     = ['CONSUMMATED', 'ATTEMPTED', 'FRUSTRATED'];
 const PRIV       = ['Yes', 'No', 'Unknown'];
 const QUALIFIERS = ['Jr.', 'Sr.', 'II', 'III', 'IV', 'V'];
+const ROLES = ['Victim', 'Complainant', 'Witness', 'Respondent'];
+const RELATIONSHIPS = ['Self', 'Parent', 'Spouse', 'Guardian', 'Sibling', 'Child', 'Relative', 'Other'];
 const EDU_ATT    = ['No Formal Education', 'Elementary Undergraduate', 'Elementary Graduate', 'High School Undergraduate', 'High School Graduate', 'Vocational', 'College Undergraduate', 'College Graduate', 'Post Graduate'];
 const TOP_PLACE  = [
   'Abandoned Structure (house, bldg, apartment/condo)', 'Along the street',
@@ -182,6 +184,9 @@ const mkC = () => ({
   gender: 'Male', nationality: 'FILIPINO', contact_number: '',
   region_code: '', province_code: '', municipality_code: '', barangay_code: '',
   house_street: '', info_obtained: 'Personal', occupation: '',
+  role: 'Victim',
+  relationship_to_victim: '',
+  witness_statement: '',
 });
 const mkS = () => ({
   first_name: '', middle_name: '', last_name: '', qualifier: '', alias: '',
@@ -703,9 +708,30 @@ const Step1 = memo(function Step1({ comp, setComp, formErr, activePick, setActiv
         <View key={i} style={sx.card}>
           <View style={sx.cardHdr}>
             <View style={[sx.badge, { backgroundColor: C.navyMid }]}><Text style={sx.badgeTxt}>{i + 1}</Text></View>
-            <Text style={sx.cardTitle}>Victim #{i + 1}</Text>
+            <Text style={sx.cardTitle}>{c.role || 'Victim'} #{i + 1}</Text>
             {comp.length > 1 && <TouchableOpacity onPress={() => setComp(p => p.filter((_, x) => x !== i))} style={sx.rmBtn}><Ionicons name="trash-outline" size={12} color={C.red} /><Text style={sx.rmTxt}>Remove</Text></TouchableOpacity>}
           </View>
+          {/* Role Selector */}
+<View style={{ marginBottom: 14 }}>
+  <Text style={ff.l}>Role</Text>
+  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+    <View style={{ flexDirection: 'row', gap: 8 }}>
+      {ROLES.map(r => (
+        <TouchableOpacity
+          key={r}
+          style={[
+            sx.chip,
+            (c.role || 'Victim') === r && sx.chipOn,
+            { paddingHorizontal: 16, paddingVertical: 9 }
+          ]}
+          onPress={() => uC(i, 'role', r)}
+        >
+          <Text style={[(c.role || 'Victim') === r ? sx.chipTxtOn : sx.chipTxt, { fontSize: 13 }]}>{r}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  </ScrollView>
+</View>
           <View style={sx.row2}>
             <View style={{ flex: 1 }}>
               <FField label="First Name" required error={formErr[`c${i}fn`]}>
@@ -765,11 +791,87 @@ const Step1 = memo(function Step1({ comp, setComp, formErr, activePick, setActiv
             <SelBtn label="Select" value={c.info_obtained} onPress={() => setActivePick(`ci${i}`)} error={formErr[`c${i}inf`]} />
           </FField>
           <PickerModal noSearch visible={activePick === `ci${i}`} title="Info Obtained" options={INFO_OB} selected={c.info_obtained} onSelect={v => { uC(i, 'info_obtained', v); setActivePick(null); }} onClose={() => setActivePick(null)} />
+        {/* Relationship to Victim — Complainant only */}
+{c.role === 'Complainant' && (
+  <FField label="Relationship to Victim">
+    <SelBtn
+      label="Select Relationship"
+      value={c.relationship_to_victim}
+      onPress={() => setActivePick(`crel${i}`)}
+    />
+    <PickerModal
+      noSearch
+      visible={activePick === `crel${i}`}
+      title="Relationship to Victim"
+      options={RELATIONSHIPS}
+      selected={c.relationship_to_victim}
+      onSelect={v => { uC(i, 'relationship_to_victim', v); setActivePick(null); }}
+      onClose={() => setActivePick(null)}
+    />
+  </FField>
+)}
+
+{/* Witness Statement — Witness only */}
+{c.role === 'Witness' && (
+  <FField label="Witness Statement" hint="Brief description of what was witnessed (optional)">
+    <TInput
+      value={c.witness_statement}
+      onChange={v => uC(i, 'witness_statement', v)}
+      placeholder="Brief statement of what was witnessed..."
+      multiline
+      lines={3}
+      maxLen={500}
+    />
+    <Text style={{ fontSize: 11, color: C.muted, marginTop: 4, textAlign: 'right' }}>
+      {(c.witness_statement || '').length}/500
+    </Text>
+  </FField>
+)}
         </View>
       ))}
-      <TouchableOpacity style={sx.addBtn} onPress={() => setComp(p => [...p, mkC()])}>
-        <Ionicons name="add-circle" size={18} color={C.navyMid} /><Text style={sx.addTxt}>Add Another Victim</Text>
-      </TouchableOpacity>
+      <View style={{ gap: 8, marginBottom: 12 }}>
+  <Text style={[ff.l, { textAlign: 'center', marginBottom: 4 }]}>ADD PERSON</Text>
+  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 2 }}>
+      {ROLES.map(r => (
+        <TouchableOpacity
+          key={r}
+          style={[sx.addBtn, { 
+            paddingHorizontal: 16, 
+            paddingVertical: 12, 
+            minWidth: 120,
+            marginBottom: 0,
+            borderColor: r === 'Victim' ? C.navyMid : 
+                         r === 'Complainant' ? '#7c3aed' :
+                         r === 'Witness' ? C.green :
+                         C.amber,
+            backgroundColor: r === 'Victim' ? C.navy50 :
+                              r === 'Complainant' ? '#F5F3FF' :
+                              r === 'Witness' ? C.greenBg :
+                              C.amberBg,
+          }]}
+          onPress={() => setComp(p => [...p, { ...mkC(), role: r }])}
+        >
+          <Ionicons 
+            name="add-circle" 
+            size={16} 
+            color={r === 'Victim' ? C.navyMid : 
+                   r === 'Complainant' ? '#7c3aed' :
+                   r === 'Witness' ? C.green :
+                   C.amber} 
+          />
+          <Text style={[sx.addTxt, { 
+            fontSize: 12,
+            color: r === 'Victim' ? C.navyMid : 
+                   r === 'Complainant' ? '#7c3aed' :
+                   r === 'Witness' ? C.green :
+                   C.amber
+          }]}>+ {r}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  </ScrollView>
+</View>
       <View style={{ height: 80 }} />
     </ScrollView>
   );
@@ -1315,7 +1417,7 @@ onClose={() => setActivePick(null)}/>
 const StepBar = memo(function StepBar({ step }) {
   return (
     <View style={sx.stepBar}>
-      {['Victim', 'Suspect', 'Case & Offense'].map((lbl, idx) => {
+      {['Persons Involved', 'Suspect', 'Case & Offense'].map((lbl, idx) => {
         const n = idx + 1, active = step === n, done = step > n;
         return (
           <React.Fragment key={n}>
@@ -1457,10 +1559,10 @@ const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, off
         </View>
  
         {/* Victim */}
-        <Sec title="VICTIM INFORMATION" icon="person-outline" color={C.navyMid}>
+       <Sec title="PERSONS INVOLVED" icon="people-outline" color={C.navyMid}>
           {(d.complainants || []).map((c, i) => (
             <View key={i} style={vw.card}>
-              <Text style={vw.cardTitle}>Victim #{i + 1}</Text>
+              <Text style={vw.cardTitle}>{c.role || 'Victim'} #{i + 1}</Text>
               {VI('Name', [c.first_name, c.middle_name, c.last_name, c.qualifier].filter(Boolean).join(' '))}
               {VI('Gender', c.gender)}
               {VI('Nationality', c.nationality)}
@@ -1475,6 +1577,8 @@ const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, off
   c.region
 ].filter(v => v && v !== 'null' && String(v).trim()).join(', ') || 'N/A')}
               {VI('Info Obtained', c.info_obtained)}
+              {c.role === 'Complainant' && c.relationship_to_victim ? VI('Relationship to Victim', c.relationship_to_victim) : null}
+{c.role === 'Witness' && c.witness_statement ? VI('Witness Statement', c.witness_statement) : null}
             </View>
           ))}
         </Sec>
@@ -2122,6 +2226,13 @@ if (c.middle_name && c.middle_name.trim().length > 0) {
         if (c.contact_number.length !== 11) e[`c${i}cn`] = 'Must be 11 digits';
         else if (!c.contact_number.startsWith('09')) e[`c${i}cn`] = 'Must start with 09';
       }
+      // Add after contact number validation
+if (c.witness_statement && c.witness_statement.length > 500) {
+  e[`c${i}ws`] = 'Max 500 characters';
+}
+if (c.relationship_to_victim && c.relationship_to_victim.length > 100) {
+  e[`c${i}rel2`] = 'Max 100 characters';
+}
     });
 
     if (step === 2 && hasSuspect) susp.forEach((s, i) => {
