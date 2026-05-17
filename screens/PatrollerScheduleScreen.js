@@ -194,7 +194,7 @@ const OngoingMap = ({ geoJSONData, barangays }) => {
             style={{
               textField: ["get", "name_db"],
               textSize: 9,
-              textColor: "#0a1628",
+              textColor: "#1e3a5f",
               textHaloColor: "rgba(255,255,255,0.85)",
               textHaloWidth: 1.5,
               textAllowOverlap: false,
@@ -461,7 +461,7 @@ export default function PatrollerScheduleScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a1628" />
+      <StatusBar barStyle="light-content" backgroundColor="#1e3a5f" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#0a1628",
+    backgroundColor: "#1e3a5f",
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
   },
   sectionAccent: { width: 3, height: 16, borderRadius: 2, backgroundColor: "#c1272d" },
   sectionLabel: {
-    fontSize: 12, fontWeight: "800", color: "#0a1628",
+    fontSize: 12, fontWeight: "800", color: "#1e3a5f",
     letterSpacing: 1.2, textTransform: "uppercase", flex: 1,
   },
   sectionBadge: {
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(30,58,95,0.03)",
   },
   ongoingName: {
-    fontSize: 17, fontWeight: "800", color: "#0a1628",
+    fontSize: 17, fontWeight: "800", color: "#1e3a5f",
     letterSpacing: -0.3, marginBottom: 6, flex: 1,
   },
   ongoingMeta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 },
@@ -764,7 +764,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", justifyContent: "space-between",
     alignItems: "flex-start", marginBottom: 9, gap: 8,
   },
-  patrolCardTitle: { flex: 1, fontSize: 15, fontWeight: "700", color: "#0a1628" },
+  patrolCardTitle: { flex: 1, fontSize: 15, fontWeight: "700", color: "#1e3a5f" },
   patrolCardRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 5 },
   patrolCardUnit: { fontSize: 13, fontWeight: "600", color: "#1e3a5f", flex: 1 },
   patrolCardDuration: { fontSize: 12, color: "#6c757d", fontWeight: "500" },

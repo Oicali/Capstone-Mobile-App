@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#0a1628',
+    color: '#0d1f3c',
     marginBottom: 16,
   },
   assignmentCard: {
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   assignmentId: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0a1628',
+    color: '#0d1f3c',
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   assignmentArea: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#0a1628',
+    color: '#0d1f3c',
   },
   assignmentTime: {
     fontSize: 14,

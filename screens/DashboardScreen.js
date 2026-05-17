@@ -22,6 +22,7 @@ import {
   getCrimeDashboard,
   getPresetRange,
   getGranularity,
+  getNotifications,
 } from "./services/api";
 
 const { width: SW } = Dimensions.get("window");
@@ -2070,19 +2071,30 @@ export default function DashboardScreen({ navigation }) {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const fetchId = useRef(0);
+const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     loadUser();
     doFetch(BLANK());
+
+    // Fetch unread count
+    const fetchUnread = async () => {
+      try {
+        const data = await getNotifications();
+        if (data.success) setUnreadCount(data.unread || 0);
+      } catch (_) {}
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadUser = async () => {
     try {
-      const u = await AsyncStorage.getItem("auth_user"); // ← was 'user'
+      const u = await AsyncStorage.getItem("auth_user");
       if (u) setUser(JSON.parse(u));
     } catch (_) {}
   };
-
   // ── FETCH: separates loading vs refreshing state properly ──
   const doFetch = useCallback(async (filters, isRefresh = false) => {
     const id = ++fetchId.current;
@@ -2168,7 +2180,27 @@ export default function DashboardScreen({ navigation }) {
             </Text>
           </View>
         </View>
-        <View style={{ gap: 8, marginLeft: 10 }}>
+        <View style={{ flexDirection: "row", gap: 8, marginLeft: 10, alignItems: "center" }}>
+           {/* BELL — add this first */}
+  <TouchableOpacity
+    style={[s.hBtn, unreadCount > 0 && { backgroundColor: "rgba(239,68,68,0.2)" }]}
+    onPress={() => navigation.navigate("Notifications")}
+  >
+    <Ionicons name="notifications-outline" size={18} color={WHITE} />
+    {unreadCount > 0 && (
+      <View style={{
+        position: "absolute", top: -4, right: -4,
+        backgroundColor: RED, borderRadius: 999,
+        minWidth: 16, height: 16,
+        alignItems: "center", justifyContent: "center",
+        paddingHorizontal: 3,
+      }}>
+        <Text style={{ fontSize: 9, color: WHITE, fontWeight: "700" }}>
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </Text>
+      </View>
+    )}
+  </TouchableOpacity>
           <TouchableOpacity
             style={[
               s.hBtn,

@@ -815,7 +815,7 @@ export default function AfterPatrolScreen({ route, navigation }) {
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a1628" />
+      <StatusBar barStyle="light-content" backgroundColor="#0d1e3a5f1f3c" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -1221,7 +1221,7 @@ const styles = StyleSheet.create({
   // Header
   header: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: "#0a1628",
+    backgroundColor: "#1e3a5f",
     paddingHorizontal: 16, paddingVertical: 12, gap: 12,
   },
   backBtn: {
@@ -1275,7 +1275,7 @@ const styles = StyleSheet.create({
   },
   sectionAccent: { width: 3, height: 18, borderRadius: 2, backgroundColor: "#c1272d" },
   sectionTitleText: {
-    fontSize: 12, fontWeight: "800", color: "#0a1628",
+    fontSize: 12, fontWeight: "800", color: "#1e3a5f",
     textTransform: "uppercase", letterSpacing: 0.8,
   },
   sectionHint: { fontSize: 12, color: "#adb5bd", fontStyle: "italic", marginBottom: 4 },
@@ -1345,7 +1345,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 16,
     borderBottomWidth: 1, borderBottomColor: "#f1f3f5",
   },
-  tpTitle:    { fontSize: 16, fontWeight: "700", color: "#0a1628" },
+  tpTitle:    { fontSize: 16, fontWeight: "700", color: "#1e3a5f" },
   tpBody:     { flexDirection: "row", alignItems: "flex-start", paddingHorizontal: 20, paddingTop: 12 },
   tpCol:      { flex: 1, alignItems: "center" },
   tpColLabel: { fontSize: 10, fontWeight: "700", color: "#adb5bd", letterSpacing: 0.8, marginBottom: 6 },
