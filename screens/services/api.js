@@ -262,3 +262,45 @@ export const resetPassword = async (email, newPassword) => {
     return { success: false, message: 'An unexpected error occurred.' };
   }
 };
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+
+export const getNotifications = async () => {
+  try {
+    const session = await getSession();
+    if (!session?.token) return { success: false, data: [], unread: 0 };
+    const res = await fetch(`${BASE_URL}/notifications`, {
+      headers: { Authorization: `Bearer ${session.token}` },
+    });
+    return await res.json();
+  } catch (err) {
+    console.error("getNotifications error:", err);
+    return { success: false, data: [], unread: 0 };
+  }
+};
+
+export const markNotificationRead = async (id) => {
+  try {
+    const session = await getSession();
+    if (!session?.token) return;
+    await fetch(`${BASE_URL}/notifications/${id}/read`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${session.token}` },
+    });
+  } catch (err) {
+    console.error("markNotificationRead error:", err);
+  }
+};
+
+export const markAllNotificationsRead = async () => {
+  try {
+    const session = await getSession();
+    if (!session?.token) return;
+    await fetch(`${BASE_URL}/notifications/read-all`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${session.token}` },
+    });
+  } catch (err) {
+    console.error("markAllNotificationsRead error:", err);
+  }
+};

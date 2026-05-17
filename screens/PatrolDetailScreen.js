@@ -379,7 +379,7 @@ const currentPatrollers = activeShift === "AM" ? amPatrollers : pmPatrollers;
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a1628" />
+      <StatusBar barStyle="light-content" backgroundColor="#0d1f3c" />
 
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0a1628",
+    backgroundColor: "#0d1f3c",
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 12,

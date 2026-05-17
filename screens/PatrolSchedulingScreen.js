@@ -241,7 +241,7 @@ export default function PatrolSchedulingScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a1628" />
+      <StatusBar barStyle="light-content" backgroundColor="#1e3a5f" />
 
       {/* ── Header ── */}
       <View style={styles.header}>
