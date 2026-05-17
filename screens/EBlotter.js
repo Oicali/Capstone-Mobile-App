@@ -14,6 +14,8 @@ import Mapbox, {
   MarkerView,
 } from '@rnmapbox/maps';
 import { Asset } from 'expo-asset';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // ============ FIX 1: MAPBOX BLACK SCREEN FIX ============
@@ -1018,6 +1020,8 @@ const Step2 = memo(function Step2({ susp, setSusp, formErr, activePick, setActiv
 const Step3 = memo(function Step3({
   caseD, uCase, formErr, activePick, setActivePick,
   offs, uO, topPl, setTopPl, modus, selM, setSelM, loadModus, geoJSON, scrollRef,
+  modalAttachments, setModalAttachments, pendingFiles, setPendingFiles,
+  lightboxImage, setLightboxImage, onPickImage, onTakePhoto, onDeleteSaved,
 }) {
   const cameraRef = useRef(null);
   const pinColor = INCIDENT_COLORS[caseD.incident_type] || '#c1272d';
@@ -1340,7 +1344,20 @@ onClose={() => setActivePick(null)}/>
     </View>
   )}
 </View>
-
+{/* Attachments */}
+<AttachmentPanel
+  blotterId={null}
+  modalAttachments={modalAttachments}
+  setModalAttachments={setModalAttachments}
+  pendingFiles={pendingFiles}
+  setPendingFiles={setPendingFiles}
+  lightboxImage={lightboxImage}
+  setLightboxImage={setLightboxImage}
+  onPickImage={onPickImage}
+onTakePhoto={onTakePhoto}
+  onDeleteSaved={onDeleteSaved}
+  readOnly={false}
+/>
         <FField label="Narrative" required error={formErr.narr}>
           <TInput value={caseD.narrative} onChange={v => uCase('narrative', v)} placeholder="Detailed description (min. 20 chars)" multiline lines={6} error={formErr.narr} maxLen={5000} fieldKey="narr" />
           <Text style={{ fontSize: 11, color: C.muted, marginTop: 4, textAlign: 'right' }}>{(caseD.narrative || '').length}/5000</Text>
@@ -1491,7 +1508,7 @@ const bcc = StyleSheet.create({
 /* ═══════════════════════════════════════════════════════════════════════════
    FIX 9: VIEW CONTENT — with map showing crime location pin
 ═══════════════════════════════════════════════════════════════════════════ */
-const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, offenseSelModus }) {
+const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, offenseSelModus, modalAttachments, setLightboxImage }) {
   if (!viewData) return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       <ActivityIndicator size="large" color={C.navyMid} />
@@ -1742,6 +1759,22 @@ const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, off
         )}
       </View>
     )}
+    {/* Attachments section in view mode */}
+{modalAttachments?.length > 0 && (
+  <Sec title="EVIDENCE & CCTV" icon="camera-outline" color="#d97706">
+    <View style={{ padding: 14 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {modalAttachments.map((a) => (
+          <TouchableOpacity key={a.attachment_id}
+            onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption })}
+            style={{ width: 100, height: 100, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.border }}>
+            <Image source={{ uri: a.file_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  </Sec>
+)}
   </View>
 </Sec>
  
@@ -1764,7 +1797,87 @@ const vw = StyleSheet.create({
   label:     { fontSize: 10, fontWeight: '700', color: C.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 3 },
   value:     { fontSize: 14, color: C.text, fontWeight: '500', lineHeight: 20 },
 });
+const AttachmentPanel = memo(function AttachmentPanel({
+  blotterId, modalAttachments, setModalAttachments,
+  pendingFiles, setPendingFiles,
+  lightboxImage, setLightboxImage,
+  onPickImage, onTakePhoto, onDeleteSaved,
+  readOnly = false,
+}) {
+  const total = modalAttachments.length + pendingFiles.length;
 
+  return (
+    <View style={{ marginTop: 8, marginBottom: 16 }}>
+      {/* Header */}
+      <View style={{ backgroundColor: C.navyMid, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="camera" size={14} color={C.white} />
+          <Text style={{ color: C.white, fontWeight: '700', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Evidence & CCTV</Text>
+        </View>
+        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>{total}/5 photos</Text>
+      </View>
+
+      {/* Saved attachments */}
+      {modalAttachments.length > 0 && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+          {modalAttachments.map((a) => (
+            <TouchableOpacity key={a.attachment_id} onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption })}
+              style={{ width: 100, height: 100, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.border, position: 'relative' }}>
+              <Image source={{ uri: a.file_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              {!readOnly && (
+                <TouchableOpacity onPress={() => onDeleteSaved(a.attachment_id)}
+                  style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="close" size={12} color={C.white} />
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {/* Pending files */}
+      {pendingFiles.length > 0 && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+          {pendingFiles.map((file, index) => (
+            <TouchableOpacity key={index} onPress={() => setLightboxImage({ url: file.uri, caption: 'New photo' })}
+              style={{ width: 100, height: 100, borderRadius: 10, overflow: 'hidden', borderWidth: 2, borderColor: '#f59e0b', borderStyle: 'dashed', position: 'relative' }}>
+              <Image source={{ uri: file.uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              <View style={{ position: 'absolute', top: 4, left: 4, backgroundColor: '#f59e0b', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 2 }}>
+                <Text style={{ fontSize: 8, fontWeight: '700', color: C.white }}>NEW</Text>
+              </View>
+              <TouchableOpacity onPress={() => setPendingFiles(prev => prev.filter((_, i) => i !== index))}
+                style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="close" size={12} color={C.white} />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {/* Upload buttons */}
+      {!readOnly && total < 5 && (
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity onPress={onTakePhoto}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.navy50, borderRadius: 10, paddingVertical: 12, borderWidth: 1.5, borderColor: C.navyMid }}>
+            <Ionicons name="camera-outline" size={16} color={C.navyMid} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: C.navyMid }}>Camera</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onPickImage}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.navy50, borderRadius: 10, paddingVertical: 12, borderWidth: 1.5, borderColor: C.navyMid }}>
+            <Ionicons name="images-outline" size={16} color={C.navyMid} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: C.navyMid }}>Gallery</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {total >= 5 && !readOnly && (
+        <View style={{ backgroundColor: C.greenBg, borderRadius: 8, padding: 10, alignItems: 'center' }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: C.green }}>✓ Maximum 5 photos added</Text>
+        </View>
+      )}
+    </View>
+  );
+});
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN SCREEN
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -1809,6 +1922,11 @@ export default function EBlotterScreen() {
   const [activePick, setActivePick] = useState(null);
   const [referredCount, setReferredCount] = useState(0);
 const hasNewReferral = referredCount > 0;
+const [modalAttachments, setModalAttachments] = useState([]);
+const [pendingFiles, setPendingFiles] = useState([]);
+const [lightboxImage, setLightboxImage] = useState(null);
+const [attachLoading, setAttachLoading] = useState(false);
+const [pendingDeletes, setPendingDeletes] = useState([]);
   const [successModal, setSuccessModal] = useState({
   show: false,
   reportId: "",
@@ -1911,7 +2029,8 @@ useEffect(() => {
  const fmt = useCallback((d) => {
   if (!d) return 'N/A';
   const cleaned = String(d).replace('Z', '').replace(/\+\d{2}:\d{2}$/, '');
-  const dt = new Date(cleaned);
+  // Treat as PHT (UTC+8) by appending +08:00
+  const dt = new Date(cleaned + '+08:00');
   if (isNaN(dt)) return String(d);
   const pad = n => String(n).padStart(2, '0');
   let h = dt.getHours(), ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
@@ -1929,6 +2048,10 @@ useEffect(() => {
     setCPr({}); setCCi({}); setCBr({}); setCLP({}); setCLC({}); setCLB({});
     setSPr({}); setSCi({}); setSBr({}); setSLP({}); setSLC({}); setSLB({});
     setActivePick(null);
+   setModalAttachments([]);
+setPendingFiles([]);
+setLightboxImage(null);
+setPendingDeletes([]);
   };
   const closeModal = () => { setModal(false); reset(); };
   const closeSuccessModal = () => {
@@ -1958,6 +2081,7 @@ useEffect(() => {
   // Show data immediately, skip modus loading for view mode
   setViewData(data.data);
   setMLoad(false);
+  fetchAttachments(id);
 }, [api]);
 
   /* ── Edit ─────────────────────────────────────────────────────────────── */
@@ -2009,6 +2133,7 @@ const handleEdit = useCallback(async (id) => {
   setEditMode(true); 
   setEditId(id); 
   setMLoad(false); // Show form NOW
+  fetchAttachments(id);
   
   // Load address data in background (won't block UI)
   if (!hasNoPsgc) {
@@ -2143,6 +2268,7 @@ setCPr(nCP); setCCi(nCC); setCBr(nCB);
 }));
     setModus(nM); setSelM(nSel);
     setEditId(id); setMLoad(false);
+    fetchAttachments(id);
   }, [api, getProvinces, getCities, getBarangays]);
 
   /* ── Delete ───────────────────────────────────────────────────────────── */
@@ -2436,6 +2562,16 @@ if (c.relationship_to_victim && c.relationship_to_victim.length > 100) {
       if (upd?.success) {
         const acc = await api(`/blotters/${editId}/accept`, 'PATCH');
         if (acc?.success) {
+  if (pendingDeletes.length > 0 && editId) {
+    for (const attachmentId of pendingDeletes) {
+      await deleteAttachment(editId, attachmentId);
+    }
+  }
+  if (pendingFiles.length > 0 && editId) {
+    for (const file of pendingFiles) {
+      await uploadAttachment(editId, file);
+    }
+  }
   setSaving(false);
   closeModal();
   load(filters, activeReportTab);
@@ -2455,19 +2591,34 @@ if (c.relationship_to_victim && c.relationship_to_victim.length > 100) {
         editMode ? 'PUT' : 'POST',
         payload,
       );
-      if (data?.success) {
+     if (data?.success) {
   setSaving(false);
   if (editMode) {
-    // Edit mode: just close and reload
+    if (pendingDeletes.length > 0 && editId) {
+      for (const attachmentId of pendingDeletes) {
+        await deleteAttachment(editId, attachmentId);
+      }
+    }
+    if (pendingFiles.length > 0 && editId) {
+      for (const file of pendingFiles) {
+        await uploadAttachment(editId, file);
+      }
+    }
     closeModal();
     load(filters, activeReportTab);
-  } else {
+  }else {
     // New submission: show success modal
-    setSuccessModal({
-      show: true,
-      reportId: data.data.blotter_entry_number,
-      message: "Report Entry Created Successfully!",
-    });
+    const newId = data.data?.blotter_id || data.data?.id;
+if (newId && pendingFiles.length > 0) {
+  for (const file of pendingFiles) {
+    await uploadAttachment(newId, file);
+  }
+}
+setSuccessModal({
+  show: true,
+  reportId: data.data.blotter_entry_number,
+  message: "Report Entry Created Successfully!",
+});
   }
 } else {
         setSaving(false);
@@ -2479,7 +2630,73 @@ if (c.relationship_to_victim && c.relationship_to_victim.length > 100) {
     showConfirm('Error', 'Submission failed. Please try again.', 'OK', C.navyMid, hideConfirm);
   }
 };
+const fetchAttachments = useCallback(async (id) => {
+  const data = await api(`/blotters/${id}/attachments`);
+  if (data?.success) setModalAttachments(data.data || []);
+  else setModalAttachments([]);
+}, [api]);
 
+const uploadAttachment = useCallback(async (id, file) => {
+  try {
+    const token = await AsyncStorage.getItem('auth_token');
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri,
+      type: file.mimeType || 'image/jpeg',
+      name: file.fileName || `photo_${Date.now()}.jpg`,
+    });
+    const res = await fetch(`${API}/blotters/${id}/attachments`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    return await res.json();
+  } catch (e) {
+    console.error('uploadAttachment error:', e);
+    return null;
+  }
+}, []);
+
+const deleteAttachment = useCallback(async (blotterId, attachmentId) => {
+  const data = await api(`/blotters/${blotterId}/attachments/${attachmentId}`, 'DELETE');
+  return data?.success;
+}, [api]);
+
+const pickImage = useCallback(async () => {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== 'granted') {
+    showConfirm('Permission Denied', 'Camera roll permission is required.', 'OK', C.navyMid, hideConfirm);
+    return;
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: false,
+    quality: 0.8,
+  });
+  if (!result.canceled && result.assets?.[0]) {
+    const asset = result.assets[0];
+    if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+      showConfirm('File Too Large', 'Max 5MB per photo.', 'OK', C.navyMid, hideConfirm);
+      return;
+    }
+    setPendingFiles(prev => [...prev, asset]);
+  }
+}, []);
+
+const takePhoto = useCallback(async () => {
+  const { status } = await ImagePicker.requestCameraPermissionsAsync();
+  if (status !== 'granted') {
+    showConfirm('Permission Denied', 'Camera permission is required.', 'OK', C.navyMid, hideConfirm);
+    return;
+  }
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: false,
+    quality: 0.8,
+  });
+  if (!result.canceled && result.assets?.[0]) {
+    setPendingFiles(prev => [...prev, result.assets[0]]);
+  }
+}, []);
   /* ── Updaters ─────────────────────────────────────────────────────────── */
   const uC    = useCallback((i, f, v) => setComp(prev => { const a = [...prev]; a[i] = { ...a[i], [f]: v }; return a; }), []);
   const uS    = useCallback((i, f, v) => setSusp(prev => { const a = [...prev]; a[i] = { ...a[i], [f]: v }; return a; }), []);
@@ -2736,7 +2953,8 @@ if (c.relationship_to_victim && c.relationship_to_victim.length > 100) {
           ) : viewMode ? (
             // FIX 9: View mode with map
             <View style={{ flex: 1, backgroundColor: C.bg }}>
-              <ViewContent viewData={viewData} fmt={fmt} offenseModus={modus} offenseSelModus={selM} />
+              <ViewContent viewData={viewData} fmt={fmt} offenseModus={modus} offenseSelModus={selM}
+  modalAttachments={modalAttachments} setLightboxImage={setLightboxImage} />
               <View style={ml.modalFooter}>
                 <TouchableOpacity style={[ml.nextBtn, { flex: 1 }]} onPress={closeModal}>
                   <Text style={ml.nextBtnTxt}>Close</Text>
@@ -2749,7 +2967,16 @@ if (c.relationship_to_victim && c.relationship_to_victim.length > 100) {
               {/* FIX 3: scrollRef attached to the active step's ScrollView via prop */}
               {step === 1 && <Step1 comp={comp} setComp={setComp} formErr={formErr} activePick={activePick} setActivePick={setActivePick} regions={regions} loadingR={loadingR} cPr={cPr} cCi={cCi} cBr={cBr} cLP={cLP} cLC={cLC} cLB={cLB} cReg={cReg} cPrv={cPrv} cCit={cCit} uC={uC} isImportedRecord={isImportedRecord} scrollRef={scrollRef} />}
               {step === 2 && <Step2 susp={susp} setSusp={setSusp} formErr={formErr} activePick={activePick} setActivePick={setActivePick} regions={regions} loadingR={loadingR} sPr={sPr} sCi={sCi} sBr={sBr} sLP={sLP} sLC={sLC} sLB={sLB} sReg={sReg} sPrv={sPrv} sCit={sCit} uS={uS} hasSuspect={hasSuspect} setHasSuspect={setHasSuspect}scrollRef={scrollRef} />}
-              {step === 3 && <Step3 caseD={caseD} uCase={uCase} formErr={formErr} activePick={activePick} setActivePick={setActivePick} offs={offs} uO={uO} topPl={topPl} setTopPl={setTopPl} modus={modus} selM={selM} setSelM={setSelM} loadModus={loadModus} geoJSON={geoJSON} scrollRef={scrollRef}/>}
+             {step === 3 && <Step3 caseD={caseD} uCase={uCase} formErr={formErr} activePick={activePick} setActivePick={setActivePick} offs={offs} uO={uO} topPl={topPl} setTopPl={setTopPl} modus={modus} selM={selM} setSelM={setSelM} loadModus={loadModus} geoJSON={geoJSON} scrollRef={scrollRef}
+  modalAttachments={modalAttachments} setModalAttachments={setModalAttachments}
+  pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
+  lightboxImage={lightboxImage} setLightboxImage={setLightboxImage}
+  onPickImage={pickImage} onTakePhoto={takePhoto}
+  onDeleteSaved={(attachmentId) => {
+    setModalAttachments(prev => prev.filter(a => a.attachment_id !== attachmentId));
+    setPendingDeletes(prev => [...prev, attachmentId]);
+  }}
+/>}
               <View style={ml.modalFooter}>
                 {step > 1 && <TouchableOpacity style={ml.prevBtn} onPress={() => goStep(-1)}><Ionicons name="arrow-back" size={15} color={C.navyMid} /><Text style={ml.prevBtnTxt}>Back</Text></TouchableOpacity>}
                 {step < STEPS ? (
@@ -2951,6 +3178,22 @@ if (c.relationship_to_victim && c.relationship_to_victim.length > 100) {
           </View>
         </Modal>
       )}
+      {/* LIGHTBOX */}
+{lightboxImage && (
+  <Modal visible transparent animationType="fade" onRequestClose={() => setLightboxImage(null)}>
+    <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      activeOpacity={1} onPress={() => setLightboxImage(null)}>
+      <Image source={{ uri: lightboxImage.url }} style={{ width: '100%', height: 300, borderRadius: 10 }} resizeMode="contain" />
+      {lightboxImage.caption ? (
+        <Text style={{ color: C.white, marginTop: 10, fontSize: 14, fontWeight: '600', textAlign: 'center' }}>{lightboxImage.caption}</Text>
+      ) : null}
+      <TouchableOpacity onPress={() => setLightboxImage(null)}
+        style={{ position: 'absolute', top: 50, right: 20, backgroundColor: C.red, borderRadius: 16, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="close" size={18} color={C.white} />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  </Modal>
+)}
     </SafeAreaView>
   );
 }
