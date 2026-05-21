@@ -40,6 +40,9 @@ module.exports = {
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+"android.permission.VIBRATE",
+"android.permission.POST_NOTIFICATIONS",
       ],
     },
     web: {
@@ -70,6 +73,14 @@ module.exports = {
           RNMapboxMapsDownloadToken: process.env.RNMAPBOX_MAPS_DOWNLOAD_TOKEN,
         },
       ],
+      [
+    "expo-notifications",
+    {
+      icon: "./assets/icon.png",
+      color: "#0a1628",
+      defaultChannel: "default",
+    },
+  ],
     ],
     extra: {
       eas: {

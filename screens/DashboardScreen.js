@@ -2078,16 +2078,35 @@ const [unreadCount, setUnreadCount] = useState(0);
     doFetch(BLANK());
 
     // Fetch unread count
-    const fetchUnread = async () => {
-      try {
-        const data = await getNotifications();
-        if (data.success) setUnreadCount(data.unread || 0);
-      } catch (_) {}
-    };
-    fetchUnread();
-    const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    let prevUnread = 0;
+  const fetchUnread = async () => {
+    try {
+      const data = await getNotifications();
+      if (data.success) {
+        const newUnread = data.unread || 0;
+        if (newUnread > prevUnread) {
+          // Vibrate as notification alert
+          const { Vibration } = require("react-native");
+          Vibration.vibrate([0, 100, 50, 100]);
+          // Play sound via expo-av if available
+          try {
+            const { Audio } = require("expo-av");
+            const { sound } = await Audio.Sound.createAsync(
+              { uri: "https://www.soundjay.com/buttons/sounds/button-09.mp3" },
+              { shouldPlay: true, volume: 1.0 }
+            );
+            setTimeout(() => sound.unloadAsync(), 3000);
+          } catch (_) {}
+        }
+        prevUnread = newUnread;
+        setUnreadCount(newUnread);
+      }
+    } catch (_) {}
+  };
+  fetchUnread();
+  const interval = setInterval(fetchUnread, 30000);
+  return () => clearInterval(interval);
+}, []);
 
   const loadUser = async () => {
     try {

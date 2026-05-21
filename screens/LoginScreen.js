@@ -182,14 +182,20 @@ export default function LoginScreen({ navigation }) {
       const data = await login(username, password);
 
       if (data.success) {
-        setUsername('');
-        setPassword('');
-        setErrorMsg('');
-        nav.reset({
-          index: 0,
-          routes: [{ name: 'Main', params: { screen: 'Dashboard' } }],
-        });
-      } else {
+  setUsername('');
+  setPassword('');
+  setErrorMsg('');
+  // Register push token after login
+  try {
+    const { registerForPushNotifications, savePushToken } = require('./services/pushNotifications');
+    const pushToken = await registerForPushNotifications();
+    if (pushToken) await savePushToken(pushToken);
+  } catch (_) {}
+  nav.reset({
+    index: 0,
+    routes: [{ name: 'Main', params: { screen: 'Dashboard' } }],
+  });
+}else {
         setErrorMsg(data.message || 'Invalid credentials');
       }
     } catch (err) {
