@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { getNotifications, markNotificationRead, markAllNotificationsRead } from "./services/api";
-
+import { useFocusEffect } from '@react-navigation/native';
 const NAVY   = "#0a1628";
 const NAVY_M = "#1e3a5f";
 const WHITE  = "#ffffff";
@@ -237,18 +237,22 @@ export default function NotificationsScreen({ navigation }) {
   }, []);
 
   useEffect(() => { fetchNotifs(); }, []);
-
-  const handleMarkOne = async (notif) => {
+useFocusEffect(
+  useCallback(() => {
+    fetchNotifs();
+  }, [])
+);
+const handleMarkOne = (notif) => {
     if (notif.is_read) return;
-    await markNotificationRead(notif.id);
-    setNotifs((prev) => prev.map((n) => n.id === notif.id ? { ...n, is_read: true } : n));
+    setNotifs((prev) => prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n)));
     setUnread((prev) => Math.max(0, prev - 1));
+    markNotificationRead(notif.id).catch(console.error);
   };
 
-  const handleMarkAll = async () => {
-    await markAllNotificationsRead();
+  const handleMarkAll = () => {
     setNotifs((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnread(0);
+    markAllNotificationsRead().catch(console.error);
   };
 
   const sections = groupNotifications(notifs);

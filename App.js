@@ -20,6 +20,7 @@ import NotificationsScreen from "./screens/NotificationsScreen";
 import PatrolLogScreen from "./screens/PatrolLogScreen";
 import ChangePasswordScreen from "./screens/ChangePasswordScreen";
 import { setupNotificationHandlers } from './screens/services/pushNotifications';
+import { navigationRef } from './screens/services/pushNotifications';
 // ── NEW patrol screens ──────────────────────────────────────────
 import PatrolSchedulingScreen from "./screens/PatrolSchedulingScreen";
 import PatrolDetailScreen from "./screens/PatrolDetailScreen";
@@ -171,7 +172,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <Stack.Navigator
           initialRouteName="Splash"
           screenOptions={{ headerShown: false, animation: "slide_from_right" }}

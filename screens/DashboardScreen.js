@@ -2104,7 +2104,7 @@ const [unreadCount, setUnreadCount] = useState(0);
     } catch (_) {}
   };
   fetchUnread();
-  const interval = setInterval(fetchUnread, 30000);
+  const interval = setInterval(fetchUnread, 10000);
   return () => clearInterval(interval);
 }, []);
 

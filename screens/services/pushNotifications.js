@@ -2,7 +2,8 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 import { BASE_URL, getSession } from "./api";
-
+import { createNavigationContainerRef } from '@react-navigation/native';
+export const navigationRef = createNavigationContainerRef();
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -57,12 +58,32 @@ export const savePushToken = async (token) => {
   }
 };
 
+const getNavigationTarget = (linkTo, userRole) => {
+  if (!linkTo) return null;
+  
+  if (linkTo === '/e-blotter' || linkTo === '/brgy-report') {
+    if (userRole === 'Barangay') return { tab: 'Reporting' };
+    return { tab: 'Reporting' };
+  }
+  if (linkTo === '/case-management') return { tab: 'Dashboard' };
+  if (linkTo === '/patrol-scheduling') return { tab: 'Assignments' };
+  return null;
+};
+
 export const setupNotificationHandlers = () => {
-  // This fires when user TAPS a notification (app was closed/background)
-  const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+  const subscription = Notifications.addNotificationResponseReceivedListener(async response => {
     const linkTo = response.notification.request.content.data?.linkTo;
-    // You can handle navigation here if needed
-    console.log("Notification tapped:", linkTo);
+    
+    // Get user role from storage
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    const userRaw = await AsyncStorage.getItem('auth_user');
+    const user = userRaw ? JSON.parse(userRaw) : null;
+    const role = user?.role || '';
+
+    const target = getNavigationTarget(linkTo, role);
+    if (target && navigationRef.isReady()) {
+      navigationRef.navigate('Main', { screen: target.tab });
+    }
   });
   return () => subscription.remove();
 };
