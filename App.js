@@ -19,7 +19,7 @@ import ProfileScreen from "./screens/ProfileScreen";
 import NotificationsScreen from "./screens/NotificationsScreen";
 import PatrolLogScreen from "./screens/PatrolLogScreen";
 import ChangePasswordScreen from "./screens/ChangePasswordScreen";
-
+import { setupNotificationHandlers } from './screens/services/pushNotifications';
 // ── NEW patrol screens ──────────────────────────────────────────
 import PatrolSchedulingScreen from "./screens/PatrolSchedulingScreen";
 import PatrolDetailScreen from "./screens/PatrolDetailScreen";
@@ -148,7 +148,9 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(null);
 
   useEffect(() => {
+    const cleanup = setupNotificationHandlers();
     checkLogin();
+  return cleanup;
   }, []);
 
   const checkLogin = async () => {
