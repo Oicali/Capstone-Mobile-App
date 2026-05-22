@@ -2090,14 +2090,17 @@ const [unreadCount, setUnreadCount] = useState(0);
   Vibration.vibrate([0, 100, 50, 100]);
   // Show in-app notification via expo-notifications
   try {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "New Notification",
-        body: "You have a new update",
-        sound: "default",
-      },
-      trigger: null,
-    });
+    const latest = data.data?.[0];
+if (latest) {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: latest.title,
+      body: latest.message,
+      sound: "default",
+    },
+    trigger: null,
+  });
+}
   } catch (_) {}
 }
         prevUnread = newUnread;

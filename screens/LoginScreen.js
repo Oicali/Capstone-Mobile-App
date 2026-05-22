@@ -190,10 +190,8 @@ export default function LoginScreen({ navigation }) {
   const { registerForPushNotifications, savePushToken } = require('./services/pushNotifications');
   const pushToken = await registerForPushNotifications();
   console.log("PUSH TOKEN RESULT:", pushToken);
-  alert("Push token: " + pushToken); // temporary - remove after testing
   if (pushToken) await savePushToken(pushToken);
 } catch (err) {
-  alert("Push error: " + err.message); // temporary
 }
   nav.reset({
     index: 0,
