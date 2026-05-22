@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Notifications from "expo-notifications";
 import {
   getCrimeDashboard,
   getPresetRange,
@@ -2085,19 +2086,20 @@ const [unreadCount, setUnreadCount] = useState(0);
       if (data.success) {
         const newUnread = data.unread || 0;
         if (newUnread > prevUnread) {
-          // Vibrate as notification alert
-          const { Vibration } = require("react-native");
-          Vibration.vibrate([0, 100, 50, 100]);
-          // Play sound via expo-av if available
-          try {
-            const { Audio } = require("expo-av");
-            const { sound } = await Audio.Sound.createAsync(
-              { uri: "https://www.soundjay.com/buttons/sounds/button-09.mp3" },
-              { shouldPlay: true, volume: 1.0 }
-            );
-            setTimeout(() => sound.unloadAsync(), 3000);
-          } catch (_) {}
-        }
+  const { Vibration } = require("react-native");
+  Vibration.vibrate([0, 100, 50, 100]);
+  // Show in-app notification via expo-notifications
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "New Notification",
+        body: "You have a new update",
+        sound: "default",
+      },
+      trigger: null,
+    });
+  } catch (_) {}
+}
         prevUnread = newUnread;
         setUnreadCount(newUnread);
       }

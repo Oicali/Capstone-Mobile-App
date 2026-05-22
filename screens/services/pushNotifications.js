@@ -27,12 +27,12 @@ export const registerForPushNotifications = async () => {
 
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("default", {
-      name: "BANTAY Notifications",
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#c1272d",
-      sound: true,
-    });
+  name: "BANTAY Notifications",
+  importance: Notifications.AndroidImportance.MAX,
+  vibrationPattern: [0, 250, 250, 250],
+  lightColor: "#c1272d",
+  sound: "default",
+});
   }
 
   const token = (await Notifications.getExpoPushTokenAsync({
