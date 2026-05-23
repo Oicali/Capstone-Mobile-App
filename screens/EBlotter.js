@@ -17,7 +17,7 @@ import { Asset } from 'expo-asset';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
-
+import * as Location from 'expo-location';
 // ============ FIX 1: MAPBOX BLACK SCREEN FIX ============
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN);
 // =========================================================
@@ -1021,8 +1021,8 @@ const Step3 = memo(function Step3({
   caseD, uCase, formErr, activePick, setActivePick,
   offs, uO, topPl, setTopPl, modus, selM, setSelM, loadModus, geoJSON, scrollRef,
   modalAttachments, setModalAttachments, pendingFiles, setPendingFiles,
-  lightboxImage, setLightboxImage, onPickImage, onTakePhoto, onDeleteSaved,
-}) {
+  lightboxImage, setLightboxImage, onPickImage, onTakePhoto, onDeleteSaved, onUseMyLocation, gpsLoading,
+}) { 
   const cameraRef = useRef(null);
   const pinColor = INCIDENT_COLORS[caseD.incident_type] || '#c1272d';
   const [mapFocused, setMapFocused] = useState(false);
@@ -1208,20 +1208,18 @@ onClose={() => setActivePick(null)}/>
 
   {/* Status bar */}
   <View style={{ backgroundColor: C.navyMid, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-    <Text style={{ color: C.white, fontSize: 12, fontWeight: '700' }}>Crime Location Pin</Text>
-   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-  {caseD.lat && caseD.lng ? (
-    <>
-      <Ionicons name="checkmark-circle" size={11} color="rgba(255,255,255,0.9)" />
-      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>Pinned</Text>
-    </>
-  ) : (
-    <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>
-      {caseD.place_barangay ? 'Tap inside highlighted area' : 'Select barangay first'}
-    </Text>
-  )}
+  <Text style={{ color: C.white, fontSize: 12, fontWeight: '700' }}>Crime Location Pin</Text>
+  <TouchableOpacity
+    onPress={onUseMyLocation}
+    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}
+  >
+    {gpsLoading
+      ? <ActivityIndicator size="small" color={C.white} />
+      : <Ionicons name="locate-outline" size={13} color={C.white} />
+    }
+    <Text style={{ color: C.white, fontSize: 11, fontWeight: '700' }}>Pin My Location</Text>
+  </TouchableOpacity>
 </View>
-  </View>
 
   {/* Coords + clear */}
   <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
@@ -1925,6 +1923,8 @@ const hasNewReferral = referredCount > 0;
 const [modalAttachments, setModalAttachments] = useState([]);
 const [pendingFiles, setPendingFiles] = useState([]);
 const [lightboxImage, setLightboxImage] = useState(null);
+const [gpsLoading, setGpsLoading] = useState(false);
+const [showGpsForPin, setShowGpsForPin] = useState(false);
 const [attachLoading, setAttachLoading] = useState(false);
 const [pendingDeletes, setPendingDeletes] = useState([]);
   const [successModal, setSuccessModal] = useState({
@@ -2661,7 +2661,26 @@ const deleteAttachment = useCallback(async (blotterId, attachmentId) => {
   const data = await api(`/blotters/${blotterId}/attachments/${attachmentId}`, 'DELETE');
   return data?.success;
 }, [api]);
-
+const useMyLocationAsPin = useCallback(async () => {
+  setGpsLoading(true);
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      showConfirm('Permission Denied', 'Location permission is required to use this feature.', 'OK', C.navyMid, hideConfirm);
+      return;
+    }
+    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+    const { latitude, longitude } = loc.coords;
+    uCase('lat', latitude.toFixed(6));
+    uCase('lng', longitude.toFixed(6));
+    if (_formErrRef.setter) _formErrRef.setter(prev => { const n = {...prev}; delete n.pin; return n; });
+  } catch (err) {
+    showConfirm('GPS Error', 'Could not get your location. Make sure GPS is enabled.', 'OK', C.navyMid, hideConfirm);
+  } finally {
+    setGpsLoading(false);
+    setShowGpsForPin(false);
+  }
+}, [uCase]);
 const pickImage = useCallback(async () => {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (status !== 'granted') {
@@ -2972,6 +2991,8 @@ const takePhoto = useCallback(async () => {
   pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
   lightboxImage={lightboxImage} setLightboxImage={setLightboxImage}
   onPickImage={pickImage} onTakePhoto={takePhoto}
+  onUseMyLocation={() => setShowGpsForPin(true)}
+gpsLoading={gpsLoading}
   onDeleteSaved={(attachmentId) => {
     setModalAttachments(prev => prev.filter(a => a.attachment_id !== attachmentId));
     setPendingDeletes(prev => [...prev, attachmentId]);
@@ -3178,6 +3199,28 @@ const takePhoto = useCallback(async () => {
           </View>
         </Modal>
       )}
+<Modal visible={showGpsForPin} transparent animationType="fade" onRequestClose={() => setShowGpsForPin(false)}>
+  <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ backgroundColor: C.white, borderRadius: 16, padding: 24, width: '80%', alignItems: 'center', gap: 10 }}>
+      <Ionicons name="location" size={36} color={C.navyMid} />
+      <Text style={{ fontSize: 16, fontWeight: '800', color: C.navy, textAlign: 'center' }}>Set Pin to My Location</Text>
+      <Text style={{ fontSize: 13, color: C.sub, textAlign: 'center', lineHeight: 20 }}>
+        This will use your current GPS coordinates as the crime incident pin location.
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginTop: 8 }}>
+        <TouchableOpacity style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: C.border, alignItems: 'center' }} onPress={() => setShowGpsForPin(false)}>
+          <Text style={{ fontWeight: '600', color: C.sub }}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: C.navyMid, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }} onPress={useMyLocationAsPin}>
+          {gpsLoading
+            ? <ActivityIndicator size="small" color={C.white} />
+            : <><Ionicons name="locate" size={15} color={C.white} /><Text style={{ fontWeight: '700', color: C.white }}>Use My Location</Text></>
+          }
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
       {/* LIGHTBOX */}
 {lightboxImage && (
   <Modal visible transparent animationType="fade" onRequestClose={() => setLightboxImage(null)}>
