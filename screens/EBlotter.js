@@ -1207,18 +1207,26 @@ onClose={() => setActivePick(null)}/>
   <Text style={ff.l}>Crime Location Pin<Text style={ff.r}> *</Text></Text>
 
   {/* Status bar */}
-  <View style={{ backgroundColor: C.navyMid, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-  <Text style={{ color: C.white, fontSize: 12, fontWeight: '700' }}>Crime Location Pin</Text>
+ <View style={{ marginBottom: 8, gap: 6 }}>
   <TouchableOpacity
     onPress={onUseMyLocation}
-    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}
+    style={{ backgroundColor: '#f59e0b', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+    activeOpacity={0.8}
   >
     {gpsLoading
       ? <ActivityIndicator size="small" color={C.white} />
-      : <Ionicons name="locate-outline" size={13} color={C.white} />
+      : <Ionicons name="locate" size={16} color={C.white} />
     }
-    <Text style={{ color: C.white, fontSize: 11, fontWeight: '700' }}>Pin My Location</Text>
+    <Text style={{ color: C.white, fontSize: 13, fontWeight: '800', letterSpacing: 0.3 }}>
+      {gpsLoading ? 'Getting Location…' : 'Use My Current Location'}
+    </Text>
   </TouchableOpacity>
+  <View style={{ backgroundColor: C.navyMid, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Text style={{ color: C.white, fontSize: 12, fontWeight: '700' }}>Crime Location Pin</Text>
+    <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>
+      {caseD.lat && caseD.lng ? '✓ Pinned' : caseD.place_barangay ? 'Tap map to drop pin' : 'Select barangay first'}
+    </Text>
+  </View>
 </View>
 
   {/* Coords + clear */}
@@ -1263,17 +1271,17 @@ onClose={() => setActivePick(null)}/>
         rotateEnabled={false}
       >
         {/* Auto-center on selected barangay or pin */}
-      <Camera
-  key={cameraKey} // Forces re-render when key changes
+  <Camera
+  key={`${cameraKey}-${caseD.lat}-${caseD.lng}`}
   ref={cameraRef}
   defaultSettings={{
     centerCoordinate: caseD.lat && caseD.lng
       ? [parseFloat(caseD.lng), parseFloat(caseD.lat)]
       : getBrgyCenter(selectedFeature),
-    zoomLevel: caseD.lat && caseD.lng ? 15 : 12,
+    zoomLevel: caseD.lat && caseD.lng ? 16 : 13,
   }}
   animationMode="flyTo"
-  animationDuration={500}
+  animationDuration={800}
 />
 
         {/* Barangay boundary */}
@@ -2661,6 +2669,7 @@ const deleteAttachment = useCallback(async (blotterId, attachmentId) => {
   const data = await api(`/blotters/${blotterId}/attachments/${attachmentId}`, 'DELETE');
   return data?.success;
 }, [api]);
+
 const useMyLocationAsPin = useCallback(async () => {
   setGpsLoading(true);
   try {
@@ -2671,8 +2680,41 @@ const useMyLocationAsPin = useCallback(async () => {
     }
     const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
     const { latitude, longitude } = loc.coords;
+
+    // Boundary check
+    if (caseD.place_barangay && geoJSON?.features) {
+      const feature = geoJSON.features.find(f => f?.properties?.name_db === caseD.place_barangay);
+      if (feature) {
+        const rings = feature.geometry.type === 'Polygon'
+          ? feature.geometry.coordinates
+          : feature.geometry.coordinates.flat(1);
+        let inside = false;
+        for (const ring of rings) {
+          const n = ring.length; let j = n - 1;
+          for (let i = 0; i < n; i++) {
+            const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+            const intersect = yi > latitude !== yj > latitude && longitude < ((xj - xi) * (latitude - yi)) / (yj - yi) + xi;
+            if (intersect) inside = !inside; j = i;
+          }
+        }
+        if (!inside) {
+          showConfirm(
+            'Outside Barangay',
+            `Your current location is outside ${caseD.place_barangay}. Please drop the pin manually on the map instead.`,
+            'OK', C.navyMid, hideConfirm
+          );
+          return;
+        }
+      }
+    }
+
     uCase('lat', latitude.toFixed(6));
     uCase('lng', longitude.toFixed(6));
+    setTimeout(() => {
+  // The Step3 cameraRef is not accessible here, so we store coords
+  // and trigger via cameraKey — bump it by updating caseD which re-renders Step3
+}, 100);
+if (_formErrRef.setter) _formErrRef.setter(prev => { const n = {...prev}; delete n.pin; return n; });
     if (_formErrRef.setter) _formErrRef.setter(prev => { const n = {...prev}; delete n.pin; return n; });
   } catch (err) {
     showConfirm('GPS Error', 'Could not get your location. Make sure GPS is enabled.', 'OK', C.navyMid, hideConfirm);
@@ -2680,7 +2722,8 @@ const useMyLocationAsPin = useCallback(async () => {
     setGpsLoading(false);
     setShowGpsForPin(false);
   }
-}, [uCase]);
+}, [uCase, caseD.place_barangay, geoJSON]);
+
 const pickImage = useCallback(async () => {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (status !== 'granted') {
@@ -3202,7 +3245,6 @@ gpsLoading={gpsLoading}
 <Modal visible={showGpsForPin} transparent animationType="fade" onRequestClose={() => setShowGpsForPin(false)}>
   <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
     <View style={{ backgroundColor: C.white, borderRadius: 16, padding: 24, width: '80%', alignItems: 'center', gap: 10 }}>
-      <Ionicons name="location" size={36} color={C.navyMid} />
       <Text style={{ fontSize: 16, fontWeight: '800', color: C.navy, textAlign: 'center' }}>Set Pin to My Location</Text>
       <Text style={{ fontSize: 13, color: C.sub, textAlign: 'center', lineHeight: 20 }}>
         This will use your current GPS coordinates as the crime incident pin location.
