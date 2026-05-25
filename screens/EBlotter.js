@@ -1080,6 +1080,19 @@ const Step3 = memo(function Step3({
     }
   }, [caseD.place_barangay, geoJSON]); 
 
+  useEffect(() => {
+    if (caseD.lat && caseD.lng && cameraRef.current) {
+      setTimeout(() => {
+        cameraRef.current?.setCamera({
+          centerCoordinate: [parseFloat(caseD.lng), parseFloat(caseD.lat)],
+          zoomLevel: 16,
+          animationMode: 'flyTo',
+          animationDuration: 900,
+        });
+      }, 150);
+    }
+  }, [caseD.lat, caseD.lng]);
+
   const handleMapPress = (e) => {
     if (!caseD.place_barangay) return;
     const { coordinates } = e.geometry;
@@ -1210,7 +1223,7 @@ onClose={() => setActivePick(null)}/>
  <View style={{ marginBottom: 8, gap: 6 }}>
   <TouchableOpacity
     onPress={onUseMyLocation}
-    style={{ backgroundColor: '#f59e0b', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+    style={{ backgroundColor: C.red, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
     activeOpacity={0.8}
   >
     {gpsLoading
@@ -1272,13 +1285,11 @@ onClose={() => setActivePick(null)}/>
       >
         {/* Auto-center on selected barangay or pin */}
   <Camera
-  key={`${cameraKey}-${caseD.lat}-${caseD.lng}`}
+  key={cameraKey}
   ref={cameraRef}
   defaultSettings={{
-    centerCoordinate: caseD.lat && caseD.lng
-      ? [parseFloat(caseD.lng), parseFloat(caseD.lat)]
-      : getBrgyCenter(selectedFeature),
-    zoomLevel: caseD.lat && caseD.lng ? 16 : 13,
+    centerCoordinate: getBrgyCenter(selectedFeature),
+    zoomLevel: 13,
   }}
   animationMode="flyTo"
   animationDuration={800}
@@ -2710,11 +2721,7 @@ const useMyLocationAsPin = useCallback(async () => {
 
     uCase('lat', latitude.toFixed(6));
     uCase('lng', longitude.toFixed(6));
-    setTimeout(() => {
-  // The Step3 cameraRef is not accessible here, so we store coords
-  // and trigger via cameraKey — bump it by updating caseD which re-renders Step3
-}, 100);
-if (_formErrRef.setter) _formErrRef.setter(prev => { const n = {...prev}; delete n.pin; return n; });
+    
     if (_formErrRef.setter) _formErrRef.setter(prev => { const n = {...prev}; delete n.pin; return n; });
   } catch (err) {
     showConfirm('GPS Error', 'Could not get your location. Make sure GPS is enabled.', 'OK', C.navyMid, hideConfirm);
@@ -3254,11 +3261,11 @@ gpsLoading={gpsLoading}
           <Text style={{ fontWeight: '600', color: C.sub }}>Cancel</Text>
         </TouchableOpacity>
         <TouchableOpacity style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: C.navyMid, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }} onPress={useMyLocationAsPin}>
-          {gpsLoading
-            ? <ActivityIndicator size="small" color={C.white} />
-            : <><Ionicons name="locate" size={15} color={C.white} /><Text style={{ fontWeight: '700', color: C.white }}>Use My Location</Text></>
-          }
-        </TouchableOpacity>
+  {gpsLoading
+    ? <ActivityIndicator size="small" color={C.white} />
+    : <Text style={{ fontWeight: '600', color: C.white }}>Use My Location</Text>
+  }
+</TouchableOpacity>
       </View>
     </View>
   </View>
