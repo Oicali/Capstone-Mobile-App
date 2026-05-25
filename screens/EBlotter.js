@@ -1221,19 +1221,22 @@ onClose={() => setActivePick(null)}/>
 
   {/* Status bar */}
  <View style={{ marginBottom: 8, gap: 6 }}>
-  <TouchableOpacity
-    onPress={onUseMyLocation}
-    style={{ backgroundColor: C.red, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-    activeOpacity={0.8}
-  >
-    {gpsLoading
-      ? <ActivityIndicator size="small" color={C.white} />
-      : <Ionicons name="locate" size={16} color={C.white} />
-    }
-    <Text style={{ color: C.white, fontSize: 13, fontWeight: '800', letterSpacing: 0.3 }}>
-      {gpsLoading ? 'Getting Location…' : 'Use My Current Location'}
-    </Text>
-  </TouchableOpacity>
+  {onUseMyLocation && (
+    <TouchableOpacity
+      onPress={onUseMyLocation}
+      disabled={!caseD.place_barangay}
+      style={{ backgroundColor: caseD.place_barangay ? C.red : C.muted, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: caseD.place_barangay ? 1 : 0.5 }}
+      activeOpacity={0.8}
+    >
+      {gpsLoading
+        ? <ActivityIndicator size="small" color={C.white} />
+        : <Ionicons name="locate" size={16} color={C.white} />
+      }
+      <Text style={{ color: C.white, fontSize: 13, fontWeight: '800', letterSpacing: 0.3 }}>
+        {gpsLoading ? 'Getting Location…' : 'Use My Current Location'}
+      </Text>
+    </TouchableOpacity>
+  )}
   <View style={{ backgroundColor: C.navyMid, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
     <Text style={{ color: C.white, fontSize: 12, fontWeight: '700' }}>Crime Location Pin</Text>
     <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>
@@ -3041,7 +3044,7 @@ const takePhoto = useCallback(async () => {
   pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
   lightboxImage={lightboxImage} setLightboxImage={setLightboxImage}
   onPickImage={pickImage} onTakePhoto={takePhoto}
-  onUseMyLocation={() => setShowGpsForPin(true)}
+  onUseMyLocation={!editMode ? () => setShowGpsForPin(true) : null}
 gpsLoading={gpsLoading}
   onDeleteSaved={(attachmentId) => {
     setModalAttachments(prev => prev.filter(a => a.attachment_id !== attachmentId));
