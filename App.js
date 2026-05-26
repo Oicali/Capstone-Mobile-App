@@ -1,5 +1,6 @@
 import "./tasks/locationTask";
-// App.js — updated to include patrol scheduling screens
+import * as Notifications from "expo-notifications"; // ← add this
+
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -8,24 +9,29 @@ import React, { useState, useEffect } from "react";
 import { Text, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { getSession, validateToken, clearSession } from "./screens/services/api";
+import { registerForPushNotifications, savePushToken, setupNotificationHandlers, navigationRef } from './screens/services/pushNotifications';
 
 import SplashScreen from "./screens/SplashScreen";
 import LoginScreen from "./screens/LoginScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import EBlotterScreen from "./screens/EBlotter";
-import AssignmentsScreen from "./screens/AssignmentsScreen";
 import MapScreen from "./screens/MapScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import NotificationsScreen from "./screens/NotificationsScreen";
 import PatrolLogScreen from "./screens/PatrolLogScreen";
 import ChangePasswordScreen from "./screens/ChangePasswordScreen";
-import { setupNotificationHandlers } from './screens/services/pushNotifications';
-import { navigationRef } from './screens/services/pushNotifications';
-// ── NEW patrol screens ──────────────────────────────────────────
-import PatrolSchedulingScreen from "./screens/PatrolSchedulingScreen";
 import PatrolDetailScreen from "./screens/PatrolDetailScreen";
 import RoleBasedPatrolScreen from "./screens/RoleBasedPatrolScreen";
 import AfterPatrolScreen from "./screens/AfterPatrolScreen";
+
+// Module-level — runs once before anything mounts
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -145,14 +151,29 @@ function MainTabs() {
   );
 }
 
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(null);
-
+  
   useEffect(() => {
-    const cleanup = setupNotificationHandlers();
-    checkLogin();
-  return cleanup;
-  }, []);
+  const cleanup = setupNotificationHandlers(); // ← called once on mount
+  checkLogin();
+  return cleanup; // ← resets handlersInitialized on unmount
+}, []); // ← empty deps, good
+
+  // ✅ Only register token once we know user is logged in
+  useEffect(() => {
+  if (isLoggedIn === true) {
+    registerForPushNotifications().then((token) => {
+      if (token) {
+        console.log('✅ Got token, saving:', token);
+        savePushToken(token);
+      } else {
+        console.log('❌ No token returned');
+      }
+    });
+  }
+}, [isLoggedIn]);
 
   const checkLogin = async () => {
     try {

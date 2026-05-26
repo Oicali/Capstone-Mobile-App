@@ -1,51 +1,52 @@
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
-import { Platform } from "react-native";
+import { Platform, DeviceEventEmitter } from "react-native";
+import messaging from '@react-native-firebase/messaging';
 import { BASE_URL, getSession } from "./api";
 import { createNavigationContainerRef } from '@react-navigation/native';
+
+// Required by Firebase — must be at module level
+messaging().setBackgroundMessageHandler(async () => {});
+
 export const navigationRef = createNavigationContainerRef();
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
 
 export const registerForPushNotifications = async () => {
   if (!Device.isDevice) return null;
 
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let finalStatus = existing;
-
-  if (existing !== "granted") {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'BANTAY Notifications',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#c1272d',
+      sound: 'default',
+    });
   }
 
-  if (finalStatus !== "granted") return null;
+  const authStatus = await messaging().requestPermission();
+  const enabled =
+    authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+    authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("default", {
-  name: "BANTAY Notifications",
-  importance: Notifications.AndroidImportance.MAX,
-  vibrationPattern: [0, 250, 250, 250],
-  lightColor: "#c1272d",
-  sound: "default",
-});
+  if (!enabled) {
+    console.log('❌ Push notification permission denied');
+    return null;
   }
 
-  const token = (await Notifications.getExpoPushTokenAsync({
-  projectId: "530d6325-6acc-4b87-b517-85fa25600c86",
-})).data;
+  const token = await messaging().getToken();
+  console.log('FCM Token:', token);
   return token;
 };
 
 export const savePushToken = async (token) => {
   try {
+    console.log('Saving push token to backend:', token?.substring(0, 20) + '...');
     const session = await getSession();
-    if (!session?.token) return;
-    await fetch(`${BASE_URL}/notifications/push-token`, {
+    if (!session?.token) {
+      console.log('❌ No session token found');
+      return;
+    }
+    const res = await fetch(`${BASE_URL}/notifications/push-token`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${session.token}`,
@@ -53,37 +54,77 @@ export const savePushToken = async (token) => {
       },
       body: JSON.stringify({ push_token: token }),
     });
+    const data = await res.json();
+    console.log('✅ Token save response:', JSON.stringify(data));
   } catch (err) {
-    console.error("savePushToken error:", err);
+    console.error("❌ savePushToken error:", err);
   }
 };
 
-const getNavigationTarget = (linkTo, userRole) => {
+const getNavigationTarget = (linkTo) => {
   if (!linkTo) return null;
-  
-  if (linkTo === '/e-blotter' || linkTo === '/brgy-report') {
-    if (userRole === 'Barangay') return { tab: 'Reporting' };
-    return { tab: 'Reporting' };
-  }
+  if (linkTo === '/e-blotter' || linkTo === '/brgy-report') return { tab: 'Reporting' };
   if (linkTo === '/case-management') return { tab: 'Dashboard' };
   if (linkTo === '/patrol-scheduling') return { tab: 'Assignments' };
   return null;
 };
 
-export const setupNotificationHandlers = () => {
-  const subscription = Notifications.addNotificationResponseReceivedListener(async response => {
-    const linkTo = response.notification.request.content.data?.linkTo;
-    
-    // Get user role from storage
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-    const userRaw = await AsyncStorage.getItem('auth_user');
-    const user = userRaw ? JSON.parse(userRaw) : null;
-    const role = user?.role || '';
-
-    const target = getNavigationTarget(linkTo, role);
-    if (target && navigationRef.isReady()) {
+const navigateTo = (linkTo) => {
+  const target = getNavigationTarget(linkTo);
+  if (!target) return;
+  const waitForNav = () => {
+    if (navigationRef.isReady()) {
       navigationRef.navigate('Main', { screen: target.tab });
+    } else {
+      setTimeout(waitForNav, 100);
     }
+  };
+  waitForNav();
+};
+
+const handleNotificationResponse = async (response) => {
+  const linkTo = response?.notification?.request?.content?.data?.linkTo;
+  navigateTo(linkTo);
+};
+
+let handlersInitialized = false;
+
+export const setupNotificationHandlers = () => {
+  if (handlersInitialized) return () => {};
+  handlersInitialized = true;
+
+  const subscription = Notifications.addNotificationResponseReceivedListener(
+    async (response) => {
+      await handleNotificationResponse(response);
+    }
+  );
+
+  const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
+    DeviceEventEmitter.emit('onNewNotification');
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: remoteMessage.data?.title,
+        body: remoteMessage.data?.body,
+        data: remoteMessage.data ?? {},
+        sound: 'default',
+      },
+      trigger: null,
+    });
   });
-  return () => subscription.remove();
+
+  const unsubscribeOpenedApp = messaging().onNotificationOpenedApp(remoteMessage => {
+    navigateTo(remoteMessage?.data?.linkTo);
+  });
+
+  // ← add this back
+  messaging().getInitialNotification().then(remoteMessage => {
+    if (remoteMessage) navigateTo(remoteMessage?.data?.linkTo);
+  });
+
+  return () => {
+    subscription.remove();
+    unsubscribeForeground();
+    unsubscribeOpenedApp();
+    handlersInitialized = false;
+  };
 };

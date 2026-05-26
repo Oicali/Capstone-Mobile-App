@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { DeviceEventEmitter } from "react-native";
 import {
   View,
   Text,
@@ -2074,43 +2075,38 @@ export default function DashboardScreen({ navigation }) {
   const fetchId = useRef(0);
 const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    loadUser();
-    doFetch(BLANK());
 
-    // Fetch unread count
-    let prevUnread = 0;
+
+  useEffect(() => {
+  loadUser();
+  doFetch(BLANK());
+
+  let prevUnread = 0;
   const fetchUnread = async () => {
     try {
       const data = await getNotifications();
       if (data.success) {
         const newUnread = data.unread || 0;
         if (newUnread > prevUnread) {
-  const { Vibration } = require("react-native");
-  Vibration.vibrate([0, 100, 50, 100]);
-  // Show in-app notification via expo-notifications
-  try {
-    const latest = data.data?.[0];
-if (latest) {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: latest.title,
-      body: latest.message,
-      sound: "default",
-    },
-    trigger: null,
-  });
-}
-  } catch (_) {}
-}
+          const { Vibration } = require("react-native");
+          Vibration.vibrate([0, 100, 50, 100]);
+        }
         prevUnread = newUnread;
         setUnreadCount(newUnread);
       }
     } catch (_) {}
   };
+
   fetchUnread();
   const interval = setInterval(fetchUnread, 10000);
-  return () => clearInterval(interval);
+
+  // ← add this: fetch immediately when FCM arrives
+  const sub = DeviceEventEmitter.addListener('onNewNotification', fetchUnread);
+
+  return () => {
+    clearInterval(interval);
+    sub.remove();
+  };
 }, []);
 
   const loadUser = async () => {
