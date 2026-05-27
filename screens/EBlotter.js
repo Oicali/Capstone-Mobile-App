@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking,
   // SafeAreaView, 
   TextInput, Modal, ActivityIndicator, Alert,
   Platform, Dimensions, FlatList, KeyboardAvoidingView,
@@ -1897,24 +1897,35 @@ const ViewContent = memo(function ViewContent({ viewData, fmt, offenseModus, off
         )}
       </View>
     )}
+    </View>
+</Sec>
     {/* Attachments section in view mode */}
 {modalAttachments?.length > 0 && (
   <Sec title="EVIDENCE & CCTV" icon="camera-outline" color="#d97706">
-    <View style={{ padding: 14 }}>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {modalAttachments.map((a) => (
-          <TouchableOpacity key={a.attachment_id}
-            onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption })}
-            style={{ width: 100, height: 100, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.border }}>
+    <View style={{ padding: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      {modalAttachments.map((a) => (
+        <TouchableOpacity
+          key={a.attachment_id}
+          style={{ width: 100, height: 100, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.border }}
+          onPress={() => a.file_type?.startsWith('video')
+            ? Linking.openURL(a.file_url)
+            : setLightboxImage({ url: a.file_url, caption: a.caption })
+          }
+        >
+          {a.file_type?.startsWith('video') ? (
+            <View style={{ flex: 1, backgroundColor: '#1e3a5f', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="play-circle" size={36} color={C.white} />
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 4 }}>Tap to Play</Text>
+            </View>
+          ) : (
             <Image source={{ uri: a.file_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-          </TouchableOpacity>
-        ))}
-      </View>
+          )}
+        </TouchableOpacity>
+      ))}
     </View>
   </Sec>
 )}
-  </View>
-</Sec>
+  
  
         <View style={{ height: 60 }} />
       </ScrollView>
@@ -1989,10 +2000,10 @@ const AttachmentPanel = memo(function AttachmentPanel({
           {displayedSaved.map((a) => (
             <View key={a.attachment_id} style={{ width: 100, height: 100, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.border, position: 'relative' }}>
               {a.file_type?.startsWith('video') ? (
-                <View style={{ flex: 1, backgroundColor: '#1e3a5f', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="videocam" size={28} color={C.white} />
-                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 4 }} numberOfLines={1}>{a.file_name}</Text>
-                </View>
+                <TouchableOpacity onPress={() => Linking.openURL(a.file_url)} style={{ flex: 1, backgroundColor: '#1e3a5f', alignItems: 'center', justifyContent: 'center' }}>
+  <Ionicons name="play-circle" size={36} color={C.white} />
+  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 4 }} numberOfLines={1}>Tap to Play</Text>
+</TouchableOpacity>
               ) : (
                 <TouchableOpacity onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption })}>
                   <Image source={{ uri: a.file_url }} style={{ width: 100, height: 100 }} resizeMode="cover" />
@@ -2017,13 +2028,10 @@ const AttachmentPanel = memo(function AttachmentPanel({
             return (
               <View key={index} style={{ width: 100, height: 100, borderRadius: 10, overflow: 'hidden', borderWidth: 2, borderColor: '#f59e0b', position: 'relative' }}>
                 {file.isVideo ? (
-                  <Video
-                    source={{ uri: file.uri }}
-                    style={{ width: 100, height: 100 }}
-                    resizeMode={ResizeMode.COVER}
-                    shouldPlay={false}
-                    isMuted
-                  />
+                  <TouchableOpacity onPress={() => Linking.openURL(file.uri)} style={{ width: 100, height: 100, backgroundColor: '#1e3a5f', alignItems: 'center', justifyContent: 'center' }}>
+  <Ionicons name="play-circle" size={36} color={C.white} />
+  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 4 }}>Tap to Play</Text>
+</TouchableOpacity>
                 ) : (
                   <TouchableOpacity onPress={() => setLightboxImage({ url: file.uri, caption: 'New photo' })}>
                     <Image source={{ uri: file.uri }} style={{ width: 100, height: 100 }} resizeMode="cover" />
