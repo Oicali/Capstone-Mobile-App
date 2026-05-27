@@ -20,6 +20,7 @@
     "@rnmapbox/maps": "^10.2.10",
     "expo": "~54.0.33",
     "expo-asset": "~12.0.12",
+    "expo-av": "~16.0.8",
     "expo-dev-client": "~6.0.20",
     "expo-device": "~8.0.10",
     "expo-image-picker": "~17.0.11",

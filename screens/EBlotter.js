@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, memo, useMemo } from '
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   // SafeAreaView, 
-  TextInput, Modal, ActivityIndicator,
+  TextInput, Modal, ActivityIndicator, Alert,
   Platform, Dimensions, FlatList, KeyboardAvoidingView,
   RefreshControl, StatusBar, PanResponder
 } from 'react-native';
@@ -16,6 +16,12 @@ import Mapbox, {
 import { Asset } from 'expo-asset';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
+const Video = ({ style }) => (
+  <View style={[style, { backgroundColor: '#1e3a5f', alignItems: 'center', justifyContent: 'center' }]}>
+    <Ionicons name="videocam" size={28} color="white" />
+  </View>
+);
+const ResizeMode = { COVER: 'cover' };
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from 'expo-location';
 // ============ FIX 1: MAPBOX BLACK SCREEN FIX ============
@@ -716,23 +722,20 @@ const Step1 = memo(function Step1({ comp, setComp, formErr, activePick, setActiv
           {/* Role Selector */}
 <View style={{ marginBottom: 14 }}>
   <Text style={ff.l}>Role</Text>
-  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
-    <View style={{ flexDirection: 'row', gap: 8 }}>
-      {ROLES.map(r => (
-        <TouchableOpacity
-          key={r}
-          style={[
-            sx.chip,
-            (c.role || 'Victim') === r && sx.chipOn,
-            { paddingHorizontal: 16, paddingVertical: 9 }
-          ]}
-          onPress={() => uC(i, 'role', r)}
-        >
-          <Text style={[(c.role || 'Victim') === r ? sx.chipTxtOn : sx.chipTxt, { fontSize: 13 }]}>{r}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  </ScrollView>
+  <SelBtn
+    label="Select Role"
+    value={c.role || 'Victim'}
+    onPress={() => setActivePick(`crole${i}`)}
+  />
+  <PickerModal
+    noSearch
+    visible={activePick === `crole${i}`}
+    title="Select Role"
+    options={ROLES}
+    selected={c.role || 'Victim'}
+    onSelect={v => { uC(i, 'role', v); setActivePick(null); }}
+    onClose={() => setActivePick(null)}
+  />
 </View>
           <View style={sx.row2}>
             <View style={{ flex: 1 }}>
@@ -831,48 +834,20 @@ const Step1 = memo(function Step1({ comp, setComp, formErr, activePick, setActiv
 )}
         </View>
       ))}
-      <View style={{ gap: 8, marginBottom: 12 }}>
-  <Text style={[ff.l, { textAlign: 'center', marginBottom: 4 }]}>ADD PERSON</Text>
-  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-    <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 2 }}>
-      {ROLES.map(r => (
-        <TouchableOpacity
-          key={r}
-          style={[sx.addBtn, { 
-            paddingHorizontal: 16, 
-            paddingVertical: 12, 
-            minWidth: 120,
-            marginBottom: 0,
-            borderColor: r === 'Victim' ? C.navyMid : 
-                         r === 'Complainant' ? '#7c3aed' :
-                         r === 'Witness' ? C.green :
-                         C.amber,
-            backgroundColor: r === 'Victim' ? C.navy50 :
-                              r === 'Complainant' ? '#F5F3FF' :
-                              r === 'Witness' ? C.greenBg :
-                              C.amberBg,
-          }]}
-          onPress={() => setComp(p => [...p, { ...mkC(), role: r }])}
-        >
-          <Ionicons 
-            name="add-circle" 
-            size={16} 
-            color={r === 'Victim' ? C.navyMid : 
-                   r === 'Complainant' ? '#7c3aed' :
-                   r === 'Witness' ? C.green :
-                   C.amber} 
-          />
-          <Text style={[sx.addTxt, { 
-            fontSize: 12,
-            color: r === 'Victim' ? C.navyMid : 
-                   r === 'Complainant' ? '#7c3aed' :
-                   r === 'Witness' ? C.green :
-                   C.amber
-          }]}>+ {r}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  </ScrollView>
+     <View style={{ marginBottom: 12 }}>
+  <Text style={[ff.l, { textAlign: 'center', marginBottom: 8 }]}>ADD PERSON</Text>
+  <View style={{ flexDirection: 'row', gap: 8 }}>
+    {ROLES.map(r => (
+      <TouchableOpacity
+        key={r}
+        style={{ flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.navyMid, borderRadius: 12, backgroundColor: C.navy50 }}
+        onPress={() => setComp(p => [...p, { ...mkC(), role: r }])}
+      >
+        <Ionicons name="add-circle" size={18} color={C.navyMid} />
+        <Text style={{ fontSize: 10, fontWeight: '700', color: C.navyMid, textAlign: 'center' }}>{r}</Text>
+      </TouchableOpacity>
+    ))}
+  </View>
 </View>
       <View style={{ height: 80 }} />
     </ScrollView>
@@ -1021,7 +996,8 @@ const Step3 = memo(function Step3({
   caseD, uCase, formErr, activePick, setActivePick,
   offs, uO, topPl, setTopPl, modus, selM, setSelM, loadModus, geoJSON, scrollRef,
   modalAttachments, setModalAttachments, pendingFiles, setPendingFiles,
-  lightboxImage, setLightboxImage, onPickImage, onTakePhoto, onDeleteSaved, onUseMyLocation, gpsLoading,
+  lightboxImage, setLightboxImage, onPickImage, onTakePhoto, onPickVideo, onTakeVideo, onDeleteSaved, onUseMyLocation, gpsLoading,
+  streetSuggestions, showStreetModal, setShowStreetModal, streetQuery, setStreetQuery, onStreetSearch,
 }) { 
   const cameraRef = useRef(null);
   const pinColor = INCIDENT_COLORS[caseD.incident_type] || '#c1272d';
@@ -1029,6 +1005,8 @@ const Step3 = memo(function Step3({
   const [cameraKey, setCameraKey] = useState(0);
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const [outsideBrgy, setOutsideBrgy] = useState(false);
+  const [streetOutsideWarning, setStreetOutsideWarning] = useState('');
+  
   
   // Helper function - MUST be defined BEFORE it's used
   const isInsideBoundary = (lng, lat, feature) => {
@@ -1208,8 +1186,124 @@ onClose={() => setActivePick(null)}/>
           onClose={() => setActivePick(null)} />
 
         <FField label="Street" required error={formErr.str}>
-          <TInput value={caseD.place_street} onChange={v => uCase('place_street', v)} placeholder="Street Name" error={formErr.str} maxLen={200} fieldKey="str" />
-        </FField>
+  <TouchableOpacity
+  style={[inp.base, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, formErr.str && inp.err, !caseD.place_barangay && inp.dis]}
+  onPress={() => {
+    if (!caseD.place_barangay) return;
+    setStreetQuery(caseD.place_street || '');
+    setShowStreetModal(true);
+  }}
+  disabled={!caseD.place_barangay}
+>
+  <Text style={{ fontSize: 14, color: caseD.place_street ? C.text : C.faint, flex: 1 }} numberOfLines={1}>
+    {caseD.place_street || (caseD.place_barangay ? 'Type to search street...' : 'Select barangay first')}
+  </Text>
+  {caseD.place_street && (
+    <TouchableOpacity onPress={() => { uCase('place_street', ''); uCase('lat', ''); uCase('lng', ''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+      <Ionicons name="close-circle" size={18} color={C.muted} style={{ marginRight: 6 }} />
+    </TouchableOpacity>
+  )}
+  <Ionicons name="search-outline" size={16} color={C.muted} />
+</TouchableOpacity>
+</FField>
+
+{/* Street Search Modal */}
+<Modal visible={showStreetModal} animationType="slide" transparent onRequestClose={() => setShowStreetModal(false)}>
+  <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+    <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowStreetModal(false)} />
+    <View style={{ backgroundColor: C.white, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 34, height: SH * 0.65 }}>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border }}>
+        <Text style={{ flex: 1, fontSize: 16, fontWeight: '800', color: C.navy }}>Search Street</Text>
+        <TouchableOpacity onPress={() => setShowStreetModal(false)}>
+          <Ionicons name="close" size={20} color={C.sub} />
+        </TouchableOpacity>
+      </View>
+      {/* Search Input */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', margin: 14, backgroundColor: C.bg, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: C.border, gap: 8 }}>
+        <Ionicons name="search-outline" size={15} color={C.muted} />
+        <TextInput
+          style={{ flex: 1, fontSize: 14, color: C.text }}
+          placeholder="Type street name..."
+          placeholderTextColor={C.faint}
+          value={streetQuery}
+          autoFocus
+          onChangeText={v => {
+            setStreetQuery(v);
+            onStreetSearch(v);
+          }}
+        />
+       {streetQuery.length > 0 && (
+          <TouchableOpacity onPress={() => { setStreetQuery(''); onStreetSearch(''); }}>
+            <Ionicons name="close-circle" size={16} color={C.muted} />
+          </TouchableOpacity>
+        )}
+      </View>
+      {/* Results */}
+      <FlatList
+        data={streetSuggestions}
+        keyExtractor={item => item.id}
+        keyboardShouldPersistTaps="handled"
+        renderItem={({ item }) => {
+          const streetName = item.place_text || item.place_name.split(',')[0];
+          const rest = item.place_name.split(',').slice(1).join(',').trim();
+          const [lng, lat] = item.center;
+          return (
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 14, borderBottomWidth: 0.5, borderBottomColor: C.border }}
+              onPress={() => {
+                // Boundary check
+                const feature = geoJSON?.features?.find(f => f?.properties?.name_db === caseD.place_barangay);
+                let inside = true;
+                if (feature) {
+                  const rings = feature.geometry.type === 'Polygon'
+                    ? feature.geometry.coordinates
+                    : feature.geometry.coordinates.flat(1);
+                  inside = false;
+                  for (const ring of rings) {
+                    const n = ring.length; let j = n - 1;
+                    for (let i = 0; i < n; i++) {
+                      const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+                      const intersect = yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
+                      if (intersect) inside = !inside; j = i;
+                    }
+                  }
+                }
+              if (inside) {
+  uCase('place_street', streetName);
+                  uCase('lat', lat.toFixed(6));
+                  uCase('lng', lng.toFixed(6));
+                  if (_formErrRef.setter) _formErrRef.setter(prev => { const n = {...prev}; delete n.pin; delete n.str; return n; });
+                  setShowStreetModal(false);
+                } else {
+                  if (_formErrRef.setter) _formErrRef.setter(prev => { const n = {...prev}; delete n.str; return n; });
+                  setShowStreetModal(false);
+                  // Show warning — street found but outside barangay boundary
+                 setTimeout(() => {
+                    setStreetOutsideWarning(streetName);
+                  }, 300);
+                }
+              }}
+            >
+              <Ionicons name="location" size={16} color={C.red} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: C.navy }}>{streetName}</Text>
+                <Text style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{rest}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+        ListEmptyComponent={
+          streetQuery.length >= 2 ? (
+            <Text style={{ textAlign: 'center', color: C.muted, padding: 24 }}>No results found</Text>
+          ) : (
+            <Text style={{ textAlign: 'center', color: C.muted, padding: 24 }}>Type at least 2 characters</Text>
+          )
+        }
+      />
+    </View>
+  </View>
+</Modal>
         <FField label="Private Place?">
           <SelBtn label="Select…" value={caseD.is_private_place} onPress={() => setActivePick('priv')} />
         </FField>
@@ -1374,7 +1468,9 @@ onClose={() => setActivePick(null)}/>
   lightboxImage={lightboxImage}
   setLightboxImage={setLightboxImage}
   onPickImage={onPickImage}
-onTakePhoto={onTakePhoto}
+  onTakePhoto={onTakePhoto}
+  onPickVideo={onPickVideo}
+  onTakeVideo={onTakeVideo}
   onDeleteSaved={onDeleteSaved}
   readOnly={false}
 />
@@ -1444,6 +1540,28 @@ onTakePhoto={onTakePhoto}
       </View>
     )}
   </SafeAreaView>
+</Modal>
+{/* Outside boundary street warning modal */}
+<Modal visible={!!streetOutsideWarning} transparent animationType="fade" onRequestClose={() => setStreetOutsideWarning('')}>
+  <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ backgroundColor: C.white, borderRadius: 16, padding: 24, width: '82%', gap: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.amberBg, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="warning" size={20} color={C.amber} />
+        </View>
+        <Text style={{ fontSize: 16, fontWeight: '800', color: C.navy, flex: 1 }}>Outside Barangay Boundary</Text>
+      </View>
+      <Text style={{ fontSize: 13, color: C.sub, lineHeight: 20 }}>
+  <Text style={{ fontWeight: '700' }}>"{streetOutsideWarning}"</Text> is outside <Text style={{ fontWeight: '700' }}>{caseD.place_barangay}</Text>. Please select a street within the barangay boundary.
+</Text>
+      <TouchableOpacity
+        style={{ backgroundColor: C.amber, borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginTop: 4 }}
+        onPress={() => setStreetOutsideWarning('')}
+      >
+        <Text style={{ color: C.white, fontWeight: '700', fontSize: 14 }}>Got it</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
 </Modal>
       <View style={{ height: 80 }} />
     </ScrollView>
@@ -1821,10 +1939,21 @@ const AttachmentPanel = memo(function AttachmentPanel({
   blotterId, modalAttachments, setModalAttachments,
   pendingFiles, setPendingFiles,
   lightboxImage, setLightboxImage,
-  onPickImage, onTakePhoto, onDeleteSaved,
+  onPickImage, onTakePhoto, onPickVideo, onTakeVideo, onDeleteSaved,
   readOnly = false,
 }) {
-  const total = modalAttachments.length + pendingFiles.length;
+  const [mediaTab, setMediaTab] = useState('image');
+
+  const savedImages = modalAttachments.filter(a => !a.file_type?.startsWith('video'));
+  const savedVideos = modalAttachments.filter(a => a.file_type?.startsWith('video'));
+  const pendingImages = pendingFiles.filter(f => !f.isVideo);
+  const pendingVideos = pendingFiles.filter(f => f.isVideo);
+
+  const imagesFull = (savedImages.length + pendingImages.length) >= 5;
+  const videosFull = (savedVideos.length + pendingVideos.length) >= 3;
+
+  const displayedSaved = mediaTab === 'image' ? savedImages : savedVideos;
+  const displayedPending = mediaTab === 'image' ? pendingImages : pendingVideos;
 
   return (
     <View style={{ marginTop: 8, marginBottom: 16 }}>
@@ -1834,66 +1963,127 @@ const AttachmentPanel = memo(function AttachmentPanel({
           <Ionicons name="camera" size={14} color={C.white} />
           <Text style={{ color: C.white, fontWeight: '700', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Evidence & CCTV</Text>
         </View>
-        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>{total}/5 photos</Text>
+        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>
+          Photos: {savedImages.length + pendingImages.length}/5 · Videos: {savedVideos.length + pendingVideos.length}/3
+        </Text>
+      </View>
+
+      {/* Tabs */}
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+        {[
+          { key: 'image', label: `Photos (${savedImages.length + pendingImages.length})`, icon: 'camera-outline' },
+          { key: 'video', label: `Videos (${savedVideos.length + pendingVideos.length})`, icon: 'videocam-outline' },
+        ].map(tab => (
+          <TouchableOpacity key={tab.key}
+            style={[sx.chip, mediaTab === tab.key && sx.chipOn, { flex: 1, justifyContent: 'center', paddingVertical: 10 }]}
+            onPress={() => setMediaTab(tab.key)}>
+            <Ionicons name={tab.icon} size={14} color={mediaTab === tab.key ? C.white : C.sub} />
+            <Text style={[sx.chipTxt, mediaTab === tab.key && sx.chipTxtOn, { marginLeft: 4 }]}>{tab.label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Saved attachments */}
-      {modalAttachments.length > 0 && (
+      {displayedSaved.length > 0 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-          {modalAttachments.map((a) => (
-            <TouchableOpacity key={a.attachment_id} onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption })}
-              style={{ width: 100, height: 100, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.border, position: 'relative' }}>
-              <Image source={{ uri: a.file_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          {displayedSaved.map((a) => (
+            <View key={a.attachment_id} style={{ width: 100, height: 100, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.border, position: 'relative' }}>
+              {a.file_type?.startsWith('video') ? (
+                <View style={{ flex: 1, backgroundColor: '#1e3a5f', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="videocam" size={28} color={C.white} />
+                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 4 }} numberOfLines={1}>{a.file_name}</Text>
+                </View>
+              ) : (
+                <TouchableOpacity onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption })}>
+                  <Image source={{ uri: a.file_url }} style={{ width: 100, height: 100 }} resizeMode="cover" />
+                </TouchableOpacity>
+              )}
               {!readOnly && (
                 <TouchableOpacity onPress={() => onDeleteSaved(a.attachment_id)}
                   style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
                   <Ionicons name="close" size={12} color={C.white} />
                 </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </View>
           ))}
         </View>
       )}
 
       {/* Pending files */}
-      {pendingFiles.length > 0 && (
+      {displayedPending.length > 0 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-          {pendingFiles.map((file, index) => (
-            <TouchableOpacity key={index} onPress={() => setLightboxImage({ url: file.uri, caption: 'New photo' })}
-              style={{ width: 100, height: 100, borderRadius: 10, overflow: 'hidden', borderWidth: 2, borderColor: '#f59e0b', borderStyle: 'dashed', position: 'relative' }}>
-              <Image source={{ uri: file.uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-              <View style={{ position: 'absolute', top: 4, left: 4, backgroundColor: '#f59e0b', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 2 }}>
-                <Text style={{ fontSize: 8, fontWeight: '700', color: C.white }}>NEW</Text>
+          {displayedPending.map((file, index) => {
+            const globalIndex = pendingFiles.indexOf(file);
+            return (
+              <View key={index} style={{ width: 100, height: 100, borderRadius: 10, overflow: 'hidden', borderWidth: 2, borderColor: '#f59e0b', position: 'relative' }}>
+                {file.isVideo ? (
+                  <Video
+                    source={{ uri: file.uri }}
+                    style={{ width: 100, height: 100 }}
+                    resizeMode={ResizeMode.COVER}
+                    shouldPlay={false}
+                    isMuted
+                  />
+                ) : (
+                  <TouchableOpacity onPress={() => setLightboxImage({ url: file.uri, caption: 'New photo' })}>
+                    <Image source={{ uri: file.uri }} style={{ width: 100, height: 100 }} resizeMode="cover" />
+                  </TouchableOpacity>
+                )}
+                <View style={{ position: 'absolute', top: 4, left: 4, backgroundColor: '#f59e0b', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 2 }}>
+                  <Text style={{ fontSize: 8, fontWeight: '700', color: C.white }}>NEW</Text>
+                </View>
+                <TouchableOpacity onPress={() => setPendingFiles(prev => prev.filter((_, i) => i !== globalIndex))}
+                  style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="close" size={12} color={C.white} />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => setPendingFiles(prev => prev.filter((_, i) => i !== index))}
-                style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="close" size={12} color={C.white} />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
       )}
 
       {/* Upload buttons */}
-      {!readOnly && total < 5 && (
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <TouchableOpacity onPress={onTakePhoto}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.navy50, borderRadius: 10, paddingVertical: 12, borderWidth: 1.5, borderColor: C.navyMid }}>
-            <Ionicons name="camera-outline" size={16} color={C.navyMid} />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: C.navyMid }}>Camera</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onPickImage}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.navy50, borderRadius: 10, paddingVertical: 12, borderWidth: 1.5, borderColor: C.navyMid }}>
-            <Ionicons name="images-outline" size={16} color={C.navyMid} />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: C.navyMid }}>Gallery</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {total >= 5 && !readOnly && (
-        <View style={{ backgroundColor: C.greenBg, borderRadius: 8, padding: 10, alignItems: 'center' }}>
-          <Text style={{ fontSize: 12, fontWeight: '600', color: C.green }}>✓ Maximum 5 photos added</Text>
-        </View>
+      {!readOnly && (
+        <>
+          {mediaTab === 'image' && !imagesFull && (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity onPress={onTakePhoto}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.navy50, borderRadius: 10, paddingVertical: 12, borderWidth: 1.5, borderColor: C.navyMid }}>
+                <Ionicons name="camera-outline" size={16} color={C.navyMid} />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: C.navyMid }}>Camera</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onPickImage}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.navy50, borderRadius: 10, paddingVertical: 12, borderWidth: 1.5, borderColor: C.navyMid }}>
+                <Ionicons name="images-outline" size={16} color={C.navyMid} />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: C.navyMid }}>Gallery</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {mediaTab === 'video' && !videosFull && (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity onPress={onTakeVideo}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.navy50, borderRadius: 10, paddingVertical: 12, borderWidth: 1.5, borderColor: C.navyMid }}>
+                <Ionicons name="videocam-outline" size={16} color={C.navyMid} />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: C.navyMid }}>Record</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onPickVideo}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.navy50, borderRadius: 10, paddingVertical: 12, borderWidth: 1.5, borderColor: C.navyMid }}>
+                <Ionicons name="folder-open-outline" size={16} color={C.navyMid} />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: C.navyMid }}>Gallery</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {mediaTab === 'image' && imagesFull && (
+            <View style={{ backgroundColor: C.greenBg, borderRadius: 8, padding: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: C.green }}>✓ Maximum 5 photos added</Text>
+            </View>
+          )}
+          {mediaTab === 'video' && videosFull && (
+            <View style={{ backgroundColor: C.greenBg, borderRadius: 8, padding: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: C.green }}>✓ Maximum 3 videos added</Text>
+            </View>
+          )}
+        </>
       )}
     </View>
   );
@@ -1946,6 +2136,9 @@ const [modalAttachments, setModalAttachments] = useState([]);
 const [pendingFiles, setPendingFiles] = useState([]);
 const [lightboxImage, setLightboxImage] = useState(null);
 const [gpsLoading, setGpsLoading] = useState(false);
+const [streetSuggestions, setStreetSuggestions] = useState([]);
+const [showStreetModal, setShowStreetModal] = useState(false);
+const [streetQuery, setStreetQuery] = useState('');
 const [showGpsForPin, setShowGpsForPin] = useState(false);
 const [attachLoading, setAttachLoading] = useState(false);
 const [pendingDeletes, setPendingDeletes] = useState([]);
@@ -2613,8 +2806,7 @@ if (c.relationship_to_victim && c.relationship_to_victim.length > 100) {
         editMode ? 'PUT' : 'POST',
         payload,
       );
-     if (data?.success) {
-  setSaving(false);
+    if (data?.success) {
   if (editMode) {
     if (pendingDeletes.length > 0 && editId) {
       for (const attachmentId of pendingDeletes) {
@@ -2626,23 +2818,24 @@ if (c.relationship_to_victim && c.relationship_to_victim.length > 100) {
         await uploadAttachment(editId, file);
       }
     }
+    setSaving(false);
     closeModal();
     load(filters, activeReportTab);
-  }else {
-    // New submission: show success modal
+  } else {
     const newId = data.data?.blotter_id || data.data?.id;
-if (newId && pendingFiles.length > 0) {
-  for (const file of pendingFiles) {
-    await uploadAttachment(newId, file);
+    if (newId && pendingFiles.length > 0) {
+      for (const file of pendingFiles) {
+        await uploadAttachment(newId, file);
+      }
+    }
+    setSaving(false);
+    setSuccessModal({
+      show: true,
+      reportId: data.data.blotter_entry_number,
+      message: "Report Entry Created Successfully!",
+    });
   }
-}
-setSuccessModal({
-  show: true,
-  reportId: data.data.blotter_entry_number,
-  message: "Report Entry Created Successfully!",
-});
-  }
-} else {
+}else {
         setSaving(false);
         showConfirm('Error', data?.errors?.join('\n') || data?.error || 'Submission failed.', 'OK', C.navyMid, hideConfirm);
       }
@@ -2662,11 +2855,12 @@ const uploadAttachment = useCallback(async (id, file) => {
   try {
     const token = await AsyncStorage.getItem('auth_token');
     const formData = new FormData();
-    formData.append('file', {
-      uri: file.uri,
-      type: file.mimeType || 'image/jpeg',
-      name: file.fileName || `photo_${Date.now()}.jpg`,
-    });
+    const isVideo = file.isVideo || file.mimeType?.startsWith('video/');
+formData.append('file', {
+  uri: file.uri,
+  type: file.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
+  name: file.fileName || (isVideo ? `video_${Date.now()}.mp4` : `photo_${Date.now()}.jpg`),
+});
     const res = await fetch(`${API}/blotters/${id}/attachments`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
@@ -2683,6 +2877,36 @@ const deleteAttachment = useCallback(async (blotterId, attachmentId) => {
   const data = await api(`/blotters/${blotterId}/attachments/${attachmentId}`, 'DELETE');
   return data?.success;
 }, [api]);
+
+const fetchStreetSuggestions = useCallback(async (query, barangay, geoJSON) => {
+  if (!query || query.trim().length < 2) {
+    setStreetSuggestions([]);
+    return;
+  }
+  try {
+    const feature = geoJSON?.features?.find(f => f?.properties?.name_db === barangay);
+    const centroid_lat = feature?.properties?.centroid_lat ?? 14.4341;
+    const centroid_lng = feature?.properties?.centroid_lng ?? 120.9647;
+
+    let bbox = '120.9200,14.3900,121.0100,14.5000';
+    if (feature) {
+      const coords = feature.geometry.type === 'Polygon'
+        ? feature.geometry.coordinates[0]
+        : feature.geometry.coordinates.flat(2);
+      const lngs = coords.map(c => c[0]);
+      const lats = coords.map(c => c[1]);
+      bbox = `${Math.min(...lngs) - 0.003},${Math.min(...lats) - 0.003},${Math.max(...lngs) + 0.003},${Math.max(...lats) + 0.003}`;
+    }
+
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${process.env.EXPO_PUBLIC_MAPBOX_TOKEN}&country=PH&proximity=${centroid_lng},${centroid_lat}&bbox=${bbox}&types=address,poi&limit=5&language=en`;
+    const res = await fetch(url);
+    const data = await res.json();
+    setStreetSuggestions(data.features || []);
+  } catch (e) {
+    setStreetSuggestions([]);
+  }
+}, []);
+
 
 const useMyLocationAsPin = useCallback(async () => {
   setGpsLoading(true);
@@ -2733,6 +2957,49 @@ const useMyLocationAsPin = useCallback(async () => {
     setShowGpsForPin(false);
   }
 }, [uCase, caseD.place_barangay, geoJSON]);
+
+const pickVideo = useCallback(async () => {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== 'granted') {
+    showConfirm('Permission Denied', 'Media library permission is required.', 'OK', C.navyMid, hideConfirm);
+    return;
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+    allowsEditing: false,
+    quality: 1,
+  });
+  if (!result.canceled && result.assets?.[0]) {
+    const asset = result.assets[0];
+    if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
+      showConfirm('File Too Large', 'Max 50MB per video.', 'OK', C.navyMid, hideConfirm);
+      return;
+    }
+    setPendingFiles(prev => [...prev, { ...asset, isVideo: true }]);
+  }
+}, []);
+
+const takeVideo = useCallback(async () => {
+  const { status } = await ImagePicker.requestCameraPermissionsAsync();
+  if (status !== 'granted') {
+    showConfirm('Permission Denied', 'Camera permission is required.', 'OK', C.navyMid, hideConfirm);
+    return;
+  }
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+    allowsEditing: false,
+    quality: 1,
+    videoMaxDuration: 60,
+  });
+  if (!result.canceled && result.assets?.[0]) {
+    const asset = result.assets[0];
+    if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
+      showConfirm('File Too Large', 'Max 50MB per video.', 'OK', C.navyMid, hideConfirm);
+      return;
+    }
+    setPendingFiles(prev => [...prev, { ...asset, isVideo: true }]);
+  }
+}, []);
 
 const pickImage = useCallback(async () => {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -3017,7 +3284,7 @@ const takePhoto = useCallback(async () => {
             <View style={{ width: 36 }} />
           </View>
 
-          {mLoad ? (
+         {mLoad ? (
             <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', gap: 14 }}>
               <ActivityIndicator size="large" color={C.navyMid} />
               <Text style={{ fontSize: 14, color: C.sub }}>Loading record…</Text>
@@ -3044,8 +3311,15 @@ const takePhoto = useCallback(async () => {
   pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
   lightboxImage={lightboxImage} setLightboxImage={setLightboxImage}
   onPickImage={pickImage} onTakePhoto={takePhoto}
+  onPickVideo={pickVideo} onTakeVideo={takeVideo}
   onUseMyLocation={!editMode ? () => setShowGpsForPin(true) : null}
-gpsLoading={gpsLoading}
+  gpsLoading={gpsLoading}
+  streetSuggestions={streetSuggestions}
+  showStreetModal={showStreetModal}
+  setShowStreetModal={setShowStreetModal}
+  streetQuery={streetQuery}
+  setStreetQuery={setStreetQuery}
+  onStreetSearch={(q) => fetchStreetSuggestions(q, caseD.place_barangay, geoJSON)}
   onDeleteSaved={(attachmentId) => {
     setModalAttachments(prev => prev.filter(a => a.attachment_id !== attachmentId));
     setPendingDeletes(prev => [...prev, attachmentId]);
@@ -3252,6 +3526,28 @@ gpsLoading={gpsLoading}
           </View>
         </Modal>
       )}
+      {/* ═══ SAVING OVERLAY ═══ */}
+<Modal visible={saving} transparent animationType="fade">
+  <View style={{ flex: 1, backgroundColor: 'rgba(11,36,71,0.7)', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
+    <View style={{ backgroundColor: C.white, borderRadius: 20, padding: 32, alignItems: 'center', gap: 16, width: '75%' }}>
+      <ActivityIndicator size="large" color={C.navyMid} />
+      <Text style={{ fontSize: 15, fontWeight: '800', color: C.navy, textAlign: 'center' }}>
+        {acceptMode ? 'Accepting Referral…' : editMode ? 'Updating Report…' : 'Creating Report…'}
+      </Text>
+      {pendingFiles.length > 0 && (
+        <>
+          <Text style={{ fontSize: 13, color: C.sub, textAlign: 'center' }}>
+            Uploading {pendingFiles.length} file{pendingFiles.length > 1 ? 's' : ''}…
+          </Text>
+          <Text style={{ fontSize: 11, color: C.muted, textAlign: 'center', paddingHorizontal: 10 }}>
+            Large videos may take a moment. Please keep the app open.
+          </Text>
+        </>
+      )}
+    </View>
+  </View>
+</Modal>
+
 <Modal visible={showGpsForPin} transparent animationType="fade" onRequestClose={() => setShowGpsForPin(false)}>
   <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
     <View style={{ backgroundColor: C.white, borderRadius: 16, padding: 24, width: '80%', alignItems: 'center', gap: 10 }}>
