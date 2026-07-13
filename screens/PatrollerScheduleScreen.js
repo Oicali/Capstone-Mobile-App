@@ -247,10 +247,10 @@ const OngoingShiftCard = ({ patrol, geoJSONData, myShifts }) => {
             {myShifts.map((s) => <ShiftPill key={s} shift={s} />)}
           </View>
         </View>
-        <View style={styles.livePill}>
+        {/* <View style={styles.livePill}>
           <View style={styles.liveDot} />
           <Text style={styles.liveText}>LIVE</Text>
-        </View>
+        </View> */}
       </View>
 
       <View style={styles.ongoingMap}>

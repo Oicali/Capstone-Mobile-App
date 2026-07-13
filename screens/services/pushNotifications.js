@@ -128,3 +128,20 @@ export const setupNotificationHandlers = () => {
     handlersInitialized = false;
   };
 };
+
+export const clearPushToken = async () => {
+  try {
+    await messaging().deleteToken(); // forces FCM to mint a fresh token next login
+    const session = await getSession();
+    if (session?.token) {
+      await fetch(`${BASE_URL}/notifications/push-token`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+        },
+      });
+    }
+  } catch (err) {
+    console.log("clearPushToken failed:", err.message);
+  }
+};

@@ -32,6 +32,7 @@ import {
 } from "react-native";
 import { BASE_URL } from "../screens/services/api";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { clearPushToken } from "../screens/services/pushNotifications"; // ← adjust path to match your actual file location
 
 const PSGC_API = "https://psgc.gitlab.io/api";
 const POLL_INTERVAL = 15000;
@@ -1382,6 +1383,7 @@ export default function ProfileScreen({ navigation }) {
       async () => {
         hideConfirm();
         stopPolling();
+        await clearPushToken(); // ← clear FCM token BEFORE wiping session
         await AsyncStorage.clear();
         navigation.reset({ index: 0, routes: [{ name: "Login" }] });
       },
@@ -2207,7 +2209,7 @@ export default function ProfileScreen({ navigation }) {
 
   const displayName = getDisplayName();
 
- return (
+  return (
     <SafeAreaView style={st.safe}>
       <ScrollView
         style={[st.scroll, { backgroundColor: C.bg }]}
@@ -2267,18 +2269,14 @@ export default function ProfileScreen({ navigation }) {
                   <Text style={st.usernameText}>
                     {showUsername
                       ? profileData.username
-                      : "•".repeat(
-                          Math.min(profileData.username.length, 12)
-                        )}
+                      : "•".repeat(Math.min(profileData.username.length, 12))}
                   </Text>
                   <TouchableOpacity
                     onPress={() => setShowUsername((v) => !v)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <Ionicons
-                      name={
-                        showUsername ? "eye-outline" : "eye-off-outline"
-                      }
+                      name={showUsername ? "eye-outline" : "eye-off-outline"}
                       size={12}
                       color="rgba(255,255,255,0.4)"
                     />
@@ -2298,15 +2296,11 @@ export default function ProfileScreen({ navigation }) {
                 </View>
               )}
             </View>
-
           </View>
 
           {refreshing && (
             <View style={st.syncIndicator}>
-              <ActivityIndicator
-                size="small"
-                color="rgba(255,255,255,0.8)"
-              />
+              <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />
             </View>
           )}
         </View>
@@ -2364,27 +2358,22 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* ════════════ TABS ════════════ */}
-   <View style={st.tabsWrapper}>
-  <View style={st.tabsRow}>
-    {["Personal", "Contact", "Address", "Official"].map((tab) => (
+        <View style={st.tabsWrapper}>
+          <View style={st.tabsRow}>
+            {["Personal", "Contact", "Address", "Official"].map((tab) => (
               <TouchableOpacity
                 key={tab}
                 style={[st.tabBtn, activeTab === tab && st.tabBtnActive]}
                 onPress={() => setActiveTab(tab)}
                 activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    st.tabTxt,
-                    activeTab === tab && st.tabTxtActive,
-                  ]}
-                >
+                <Text style={[st.tabTxt, activeTab === tab && st.tabTxtActive]}>
                   {tab}
                 </Text>
               </TouchableOpacity>
             ))}
-      </View>
-</View>
+          </View>
+        </View>
 
         {/* ════════════ TAB CONTENT ════════════ */}
         <View style={st.tabContent}>
@@ -2417,13 +2406,14 @@ export default function ProfileScreen({ navigation }) {
                 iconBg={C.navyLight}
                 value={
                   profileData.date_of_birth
-                    ? new Date(
-                        profileData.date_of_birth
-                      ).toLocaleDateString("en-PH", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })
+                    ? new Date(profileData.date_of_birth).toLocaleDateString(
+                        "en-PH",
+                        {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        },
+                      )
                     : null
                 }
               />
@@ -2474,9 +2464,7 @@ export default function ProfileScreen({ navigation }) {
                 iconColor={C.navy}
                 iconBg={C.navyLight}
                 value={
-                  profileData.email
-                    ? V.maskEmail(profileData.email)
-                    : null
+                  profileData.email ? V.maskEmail(profileData.email) : null
                 }
                 last
               />
@@ -2487,11 +2475,7 @@ export default function ProfileScreen({ navigation }) {
             <View>
               <View style={st.tabSectionHeader}>
                 <View style={st.tabSectionIconWrap}>
-                  <Ionicons
-                    name="location-outline"
-                    size={16}
-                    color={C.navy}
-                  />
+                  <Ionicons name="location-outline" size={16} color={C.navy} />
                 </View>
                 <Text style={st.tabSectionTitle}>Address</Text>
               </View>
@@ -2542,11 +2526,7 @@ export default function ProfileScreen({ navigation }) {
             <View>
               <View style={st.tabSectionHeader}>
                 <View style={st.tabSectionIconWrap}>
-                  <Ionicons
-                    name="briefcase-outline"
-                    size={16}
-                    color={C.navy}
-                  />
+                  <Ionicons name="briefcase-outline" size={16} color={C.navy} />
                 </View>
                 <Text style={st.tabSectionTitle}>Official Information</Text>
               </View>
@@ -2575,22 +2555,24 @@ export default function ProfileScreen({ navigation }) {
                 iconBg={C.navyLight}
                 value={
                   profileData.date_joined
-                    ? new Date(
-                        profileData.date_joined
-                      ).toLocaleDateString("en-PH", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })
+                    ? new Date(profileData.date_joined).toLocaleDateString(
+                        "en-PH",
+                        {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        },
+                      )
                     : profileData.created_at
-                    ? new Date(
-                        profileData.created_at
-                      ).toLocaleDateString("en-PH", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })
-                    : "—"
+                      ? new Date(profileData.created_at).toLocaleDateString(
+                          "en-PH",
+                          {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          },
+                        )
+                      : "—"
                 }
                 last
               />
@@ -2609,7 +2591,6 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name="log-out-outline" size={20} color={C.white} />
             </View>
             <Text style={st.logoutBtnTxt}>Logout</Text>
-      
           </TouchableOpacity>
         </View>
 
@@ -2679,10 +2660,7 @@ export default function ProfileScreen({ navigation }) {
             "done",
           ].includes(emailStep) && (
             <View style={em.progressWrap}>
-              <ProgressDots
-                current={emailStepIdx}
-                total={EMAIL_STEPS.length}
-              />
+              <ProgressDots current={emailStepIdx} total={EMAIL_STEPS.length} />
             </View>
           )}
           <KeyboardAvoidingView
@@ -2729,11 +2707,7 @@ export default function ProfileScreen({ navigation }) {
                     You can update your email again in:
                   </Text>
                   <View style={em.countdownBadge}>
-                    <Ionicons
-                      name="time-outline"
-                      size={16}
-                      color="#92400E"
-                    />
+                    <Ionicons name="time-outline" size={16} color="#92400E" />
                     <Text style={em.countdownTxt}>
                       {emailCooldownCountdown || "Calculating…"}
                     </Text>
@@ -2779,10 +2753,7 @@ export default function ProfileScreen({ navigation }) {
               {emailStep === "done" && (
                 <View style={em.lockedWrap}>
                   <View
-                    style={[
-                      em.lockedIcon,
-                      { backgroundColor: C.greenLight },
-                    ]}
+                    style={[em.lockedIcon, { backgroundColor: C.greenLight }]}
                   >
                     <Ionicons
                       name="checkmark-circle"
@@ -2830,10 +2801,7 @@ export default function ProfileScreen({ navigation }) {
                   <View style={em.fieldCard}>
                     <Text style={em.fieldLabel}>CURRENT PASSWORD</Text>
                     <View
-                      style={[
-                        em.inputRow,
-                        emailPasswordErr && em.inputRowErr,
-                      ]}
+                      style={[em.inputRow, emailPasswordErr && em.inputRowErr]}
                     >
                       <Ionicons
                         name="lock-closed-outline"
@@ -2901,9 +2869,7 @@ export default function ProfileScreen({ navigation }) {
                           em.primaryBtnOff,
                       ]}
                       onPress={handleEmailVerifyPassword}
-                      disabled={
-                        !emailPassword.trim() || emailPasswordLoading
-                      }
+                      disabled={!emailPassword.trim() || emailPasswordLoading}
                     >
                       {emailPasswordLoading ? (
                         <ActivityIndicator size="small" color={C.white} />
@@ -2924,8 +2890,7 @@ export default function ProfileScreen({ navigation }) {
                   </View>
                   <Text style={em.lockedTitle}>Verify Current Email</Text>
                   <Text style={em.lockedMsg}>
-                    We'll send a code to your current email to confirm it's
-                    you.
+                    We'll send a code to your current email to confirm it's you.
                   </Text>
                   <TouchableOpacity
                     style={[
@@ -2976,9 +2941,7 @@ export default function ProfileScreen({ navigation }) {
                   </Text>
                   <View style={em.fieldCard}>
                     <Text style={em.fieldLabel}>NEW EMAIL ADDRESS</Text>
-                    <View
-                      style={[em.inputRow, emailNewErr && em.inputRowErr]}
-                    >
+                    <View style={[em.inputRow, emailNewErr && em.inputRowErr]}>
                       <Ionicons
                         name="mail-outline"
                         size={16}
@@ -3033,11 +2996,7 @@ export default function ProfileScreen({ navigation }) {
                     style={em.backBtn}
                     onPress={() => setEmailStep("old-send")}
                   >
-                    <Ionicons
-                      name="chevron-back"
-                      size={13}
-                      color={C.textSub}
-                    />
+                    <Ionicons name="chevron-back" size={13} color={C.textSub} />
                     <Text style={em.backBtnTxt}>Back</Text>
                   </TouchableOpacity>
                 </View>
@@ -3076,9 +3035,7 @@ export default function ProfileScreen({ navigation }) {
             </TouchableOpacity>
             <View style={{ flex: 1, alignItems: "center" }}>
               <Text style={ef.headerTitle}>Edit Profile</Text>
-              <Text style={ef.headerSub}>
-                Update your personal information
-              </Text>
+              <Text style={ef.headerSub}>Update your personal information</Text>
             </View>
             <View style={{ width: 44 }} />
           </View>
@@ -3141,8 +3098,7 @@ export default function ProfileScreen({ navigation }) {
                         errors[f.name] && ef.fieldInputErr,
                       ]}
                       placeholder={
-                        f.placeholder ||
-                        `Enter ${f.label.toLowerCase()}`
+                        f.placeholder || `Enter ${f.label.toLowerCase()}`
                       }
                       placeholderTextColor={C.textLight}
                       value={formData[f.name]}
@@ -3159,9 +3115,7 @@ export default function ProfileScreen({ navigation }) {
             </View>
             <View style={ef.card}>
               <View style={[ef.fieldRow, ef.fieldRowBorder]}>
-                <View
-                  style={[ef.fieldIcon, { backgroundColor: "#F1F5F9" }]}
-                >
+                <View style={[ef.fieldIcon, { backgroundColor: "#F1F5F9" }]}>
                   <Ionicons
                     name="calendar-outline"
                     size={15}
@@ -3179,13 +3133,14 @@ export default function ProfileScreen({ navigation }) {
                     }}
                   >
                     {formData.date_of_birth
-                      ? new Date(
-                          formData.date_of_birth
-                        ).toLocaleDateString("en-PH", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })
+                      ? new Date(formData.date_of_birth).toLocaleDateString(
+                          "en-PH",
+                          {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          },
+                        )
                       : "Not set"}
                   </Text>
                   <Text style={ef.fieldHint}>Contact admin to update</Text>
@@ -3214,9 +3169,7 @@ export default function ProfileScreen({ navigation }) {
                         <Ionicons
                           name={g === "Male" ? "male" : "female"}
                           size={14}
-                          color={
-                            formData.gender === g ? C.white : C.textMuted
-                          }
+                          color={formData.gender === g ? C.white : C.textMuted}
                         />
                         <Text
                           style={[
@@ -3241,9 +3194,7 @@ export default function ProfileScreen({ navigation }) {
                   style={[
                     ef.fieldIcon,
                     {
-                      backgroundColor: phoneChanged
-                        ? "#FEF3C7"
-                        : C.navyLight,
+                      backgroundColor: phoneChanged ? "#FEF3C7" : C.navyLight,
                     },
                   ]}
                 >
@@ -3340,21 +3291,13 @@ export default function ProfileScreen({ navigation }) {
                     />
                   </View>
                   {errors.alternate_phone && (
-                    <Text style={ef.fieldErrTxt}>
-                      {errors.alternate_phone}
-                    </Text>
+                    <Text style={ef.fieldErrTxt}>{errors.alternate_phone}</Text>
                   )}
                 </View>
               </View>
               <View style={ef.fieldRow}>
-                <View
-                  style={[ef.fieldIcon, { backgroundColor: "#F1F5F9" }]}
-                >
-                  <Ionicons
-                    name="mail-outline"
-                    size={15}
-                    color={C.textMuted}
-                  />
+                <View style={[ef.fieldIcon, { backgroundColor: "#F1F5F9" }]}>
+                  <Ionicons name="mail-outline" size={15} color={C.textMuted} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={ef.fieldLabel}>Email Address</Text>
@@ -3369,9 +3312,7 @@ export default function ProfileScreen({ navigation }) {
                   >
                     {V.maskEmail(originalFormData.email) || "—"}
                   </Text>
-                  <Text style={ef.fieldHint}>
-                    Use "Update Email" to change
-                  </Text>
+                  <Text style={ef.fieldHint}>Use "Update Email" to change</Text>
                 </View>
               </View>
             </View>
@@ -3427,9 +3368,7 @@ export default function ProfileScreen({ navigation }) {
                   { borderTopWidth: 1, borderTopColor: C.border },
                 ]}
               >
-                <View
-                  style={[ef.fieldIcon, { backgroundColor: C.navyLight }]}
-                >
+                <View style={[ef.fieldIcon, { backgroundColor: C.navyLight }]}>
                   <Ionicons name="pin-outline" size={15} color={C.navy} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -3471,11 +3410,7 @@ export default function ProfileScreen({ navigation }) {
                 {isSaving ? (
                   <ActivityIndicator size="small" color={C.red} />
                 ) : (
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={18}
-                    color={C.white}
-                  />
+                  <Ionicons name="checkmark-circle" size={18} color={C.white} />
                 )}
                 <Text style={ef.saveBtnTxt}>Save Changes</Text>
               </TouchableOpacity>
@@ -3539,7 +3474,6 @@ export default function ProfileScreen({ navigation }) {
         confirmColor={confirm.confirmColor}
       />
     </SafeAreaView>
-  
   );
 }
 
@@ -3551,7 +3485,7 @@ const em = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-   backgroundColor: "#0D1F3C",
+    backgroundColor: "#0D1F3C",
     paddingHorizontal: 16,
     paddingVertical: 14,
     shadowColor: C.navyDark,
@@ -4059,7 +3993,7 @@ const ef = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-backgroundColor: "#0D1F3C",
+    backgroundColor: "#0D1F3C",
     paddingHorizontal: 16,
     paddingVertical: 14,
     shadowColor: C.navyDark,
@@ -4312,14 +4246,18 @@ const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.navyDark },
   scroll: { flex: 1 },
   center: {
-    flex: 1, justifyContent: "center", alignItems: "center",
-    gap: 16, padding: 24,
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+    padding: 24,
   },
   centerLbl: { fontSize: 14, color: C.textMuted, fontWeight: "500" },
   emptyTitle: { fontSize: 18, fontWeight: "700", color: C.text },
 
   header: {
-    background: "linear-gradient(135deg, #071D47 0%, #0B2D6B 60%, #1A3D7C 100%)",
+    background:
+      "linear-gradient(135deg, #071D47 0%, #0B2D6B 60%, #1A3D7C 100%)",
     backgroundColor: "#0c2856",
     paddingTop: 36,
     paddingBottom: 32,
@@ -4333,23 +4271,23 @@ const st = StyleSheet.create({
     shadowRadius: 24,
     elevation: 18,
   },
-headerTopRow: {
+  headerTopRow: {
     flexDirection: "column",
     alignItems: "center",
     gap: 10,
   },
- avatarWrap: {
+  avatarWrap: {
     position: "relative",
     marginBottom: 4,
   },
-avatar: {
+  avatar: {
     width: 90,
     height: 90,
     borderRadius: 45,
     borderWidth: 3,
     borderColor: C.red,
   },
-avatarPlaceholder: {
+  avatarPlaceholder: {
     width: 90,
     height: 90,
     borderRadius: 45,
@@ -4359,13 +4297,13 @@ avatarPlaceholder: {
     alignItems: "center",
     justifyContent: "center",
   },
-avatarInitials: {
+  avatarInitials: {
     fontSize: 30,
     fontWeight: "800",
     color: C.white,
     letterSpacing: 1,
   },
-cameraOverlay: {
+  cameraOverlay: {
     position: "absolute",
     bottom: 2,
     right: 2,
@@ -4380,17 +4318,20 @@ cameraOverlay: {
   },
   avatarUploadingOverlay: {
     position: "absolute",
-    top: 0, left: 0, right: 0, bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     borderRadius: 36,
     backgroundColor: "rgba(0,0,0,0.5)",
     alignItems: "center",
     justifyContent: "center",
   },
-headerInfo: {
+  headerInfo: {
     alignItems: "center",
     gap: 6,
   },
-headerName: {
+  headerName: {
     fontSize: 20,
     fontWeight: "800",
     color: C.white,
@@ -4415,7 +4356,7 @@ headerName: {
     fontWeight: "600",
     letterSpacing: 0.3,
   },
- rolePill: {
+  rolePill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
@@ -4508,7 +4449,7 @@ headerName: {
     flexDirection: "row",
     gap: 6,
   },
- tabBtn: {
+  tabBtn: {
     flex: 1,
     paddingVertical: 9,
     borderRadius: 20,
@@ -4574,7 +4515,7 @@ headerName: {
     marginHorizontal: 16,
     marginTop: 16,
   },
-logoutBtn: {
+  logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -4589,7 +4530,7 @@ logoutBtn: {
     shadowRadius: 10,
     elevation: 5,
   },
-logoutIconWrap: {
+  logoutIconWrap: {
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -4602,7 +4543,7 @@ logoutIconWrap: {
     fontWeight: "800",
     color: C.white,
   },
- logoutSubTxt: {
+  logoutSubTxt: {
     fontSize: 12,
     color: "rgba(255,255,255,0.75)",
     fontWeight: "500",

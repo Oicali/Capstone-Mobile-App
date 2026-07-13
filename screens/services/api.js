@@ -41,7 +41,7 @@ export const login = async (username, password) => {
 
     return data;
   } catch (error) {
-    console.error('Login API Error:', error);
+    
     if (error.message === 'Failed to fetch' || error.message.includes('Network')) {
       return { success: false, message: 'Cannot connect to server.' };
     }

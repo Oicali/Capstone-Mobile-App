@@ -40,8 +40,8 @@ import Mapbox, {
   LineLayer,
   SymbolLayer,
   MarkerView,
-  UserLocation,
   HeatmapLayer,
+  Images,
 } from "@rnmapbox/maps";
 import { Ionicons } from "@expo/vector-icons";
 import { BASE_URL } from "./services/api";
@@ -61,8 +61,8 @@ const getPHTToday = () => {
 const getPHTOneYearAgo = () => {
   const phtMs = Date.now() + 8 * 60 * 60 * 1000;
   const d = new Date(phtMs);
-  d.setFullYear(d.getFullYear() - 1);
-  d.setDate(d.getDate() + 1);
+  d.setMonth(d.getMonth() - 12); // go back 12 months
+  d.setDate(1); // snap to the 1st of that month
   return d.toISOString().slice(0, 10);
 };
 
@@ -89,6 +89,52 @@ const INCIDENT_COLORS = {
   "SPECIAL COMPLEX CRIME": "#14b8a6",
 };
 
+const INDEX_CRIMES = [
+  "MURDER",
+  "HOMICIDE",
+  "PHYSICAL INJURY",
+  "RAPE",
+  "ROBBERY",
+  "THEFT",
+  "CARNAPPING - MC",
+  "CARNAPPING - MV",
+  "SPECIAL COMPLEX CRIME",
+];
+
+const CRIME_DISPLAY = {
+  MURDER: "Murder",
+  HOMICIDE: "Homicide",
+  "PHYSICAL INJURY": "Physical Injury",
+  RAPE: "Rape",
+  ROBBERY: "Robbery",
+  THEFT: "Theft",
+  "CARNAPPING - MC": "Carnapping - MC",
+  "CARNAPPING - MV": "Carnapping - MV",
+  "SPECIAL COMPLEX CRIME": "Special Complex Crime",
+};
+
+const WORLD_MASK_GEOJSON = {
+  type: "FeatureCollection",
+  features: [
+    {
+      type: "Feature",
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [-180, -90],
+            [180, -90],
+            [180, 90],
+            [-180, 90],
+            [-180, -90],
+          ],
+        ],
+      },
+      properties: {},
+    },
+  ],
+};
+
 const formatDate = (d) => {
   if (!d) return "N/A";
   return new Date(d).toLocaleDateString("en-PH", {
@@ -106,25 +152,97 @@ const formatTime = (d) => {
   });
 };
 
+const formatBarangayLabel = (name) => {
+  const ROMAN = new Set([
+    "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII",
+  ]);
+  return name.toLowerCase().replace(/\b\w+/g, (word) => {
+    const upper = word.toUpperCase();
+    if (ROMAN.has(upper)) return upper;
+    if (upper === "P" || upper === "F") return upper;
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  });
+};
+
 const isValidDate = (str) =>
   /^\d{4}-\d{2}-\d{2}$/.test(str) && !isNaN(new Date(str));
 
-// ── Teardrop Pin Component ───────────────────────────────────
-// Matches web .crmap-pin-body / .crmap-pin-tip shape
-function TearDropPin({ color, onPress }) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={styles.pinWrapper}
-      activeOpacity={0.8}
-    >
-      <View style={[styles.pinBody, { backgroundColor: color }]}>
-        <View style={styles.pinInner} />
-      </View>
-      <View style={[styles.pinTip, { borderTopColor: color }]} />
-    </TouchableOpacity>
-  );
-}
+
+const CRIME_ICONS = {
+  MURDER: ({ color, size = 14 }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M12 2 L15 8 L12 22 L9 8 Z" fill={color} fillOpacity="0.25" />
+      <Line x1="12" y1="2" x2="12" y2="18" />
+      <Line x1="7" y1="8" x2="17" y2="8" />
+      <Path d="M10 5 L12 2 L14 5" />
+    </Svg>
+  ),
+  HOMICIDE: ({ color, size = 14 }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M12 3a7 7 0 0 1 7 7c0 3.5-2 5.5-2.5 7H7.5C7 17.5 5 15.5 5 10a7 7 0 0 1 7-7z" />
+      <Line x1="9" y1="21" x2="9" y2="17" />
+      <Line x1="15" y1="21" x2="15" y2="17" />
+      <Line x1="9" y1="21" x2="15" y2="21" />
+      <Circle cx="9.5" cy="11" r="1" fill={color} />
+      <Circle cx="14.5" cy="11" r="1" fill={color} />
+    </Svg>
+  ),
+  "PHYSICAL INJURY": ({ color, size = 14 }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Rect x="3" y="3" width="18" height="18" rx="3" />
+      <Line x1="12" y1="8" x2="12" y2="16" />
+      <Line x1="8" y1="12" x2="16" y2="12" />
+    </Svg>
+  ),
+  "PHYSICAL INJURIES": (props) => CRIME_ICONS["PHYSICAL INJURY"](props),
+  RAPE: ({ color, size = 14 }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M12 3L4 6v6c0 5 4 8 8 9 4-1 8-4 8-9V6z" />
+      <Line x1="9" y1="9" x2="15" y2="15" />
+      <Line x1="15" y1="9" x2="9" y2="15" />
+    </Svg>
+  ),
+  ROBBERY: ({ color, size = 14 }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <Line x1="12" y1="2" x2="12" y2="22" />
+      <Path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </Svg>
+  ),
+  THEFT: ({ color, size = 14 }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M6 9V7a6 6 0 0 1 12 0v2" />
+      <Rect x="3" y="9" width="18" height="12" rx="3" />
+      <Circle cx="12" cy="15" r="2" />
+    </Svg>
+  ),
+  "CARNAPPING - MC": ({ color, size = 14 }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx="5.5" cy="17" r="2.5" />
+      <Circle cx="18.5" cy="17" r="2.5" />
+      <Path d="M8 17h7" />
+      <Path d="M5.5 14.5L8 10h5l3 4.5" />
+      <Path d="M13 10l1-3h3" />
+      <Path d="M9 10h4" />
+    </Svg>
+  ),
+  "CARNAPPING - MV": ({ color, size = 14 }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M3 11l2-5h14l2 5" />
+      <Rect x="2" y="11" width="20" height="5" rx="1" />
+      <Circle cx="6.5" cy="16" r="2" />
+      <Circle cx="17.5" cy="16" r="2" />
+      <Path d="M5.5 11l1.5-3h10l1.5 3" />
+      <Line x1="12" y1="8" x2="12" y2="11" />
+    </Svg>
+  ),
+  "SPECIAL COMPLEX CRIME": ({ color, size = 14 }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <Line x1="12" y1="9" x2="12" y2="13" />
+      <Line x1="12" y1="17" x2="12.01" y2="17" />
+    </Svg>
+  ),
+};
 
 export default function MapScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -142,18 +260,31 @@ export default function MapScreen({ navigation }) {
   const defaultDateFrom = getPHTOneYearAgo();
   const defaultDateTo = getPHTToday();
 
-  const [filterDateFrom, setFilterDateFrom] = useState(defaultDateFrom);
+const [filterDateFrom, setFilterDateFrom] = useState(defaultDateFrom);
   const [filterDateTo, setFilterDateTo] = useState(defaultDateTo);
   const [appliedDateFrom, setAppliedDateFrom] = useState(defaultDateFrom);
   const [appliedDateTo, setAppliedDateTo] = useState(defaultDateTo);
   const [showDateFilter, setShowDateFilter] = useState(false);
 
+// ── Crime type filter ─────────────────────────────────────
+  const [filterIncidentTypes, setFilterIncidentTypes] = useState([]);
+  const [appliedIncidentTypes, setAppliedIncidentTypes] = useState([]);
+  const [showCrimeTypeFilter, setShowCrimeTypeFilter] = useState(false);
+
+  // ── Barangay filter ────────────────────────────────────────
+  const [filterBarangays, setFilterBarangays] = useState([]);
+  const [appliedBarangays, setAppliedBarangays] = useState([]);
+  const [showBarangayFilter, setShowBarangayFilter] = useState(false);
+  const [barangaySearch, setBarangaySearch] = useState("");
+
   // ── Heatmap mode ────────────────────────────────────────
   const [heatmapMode, setHeatmapMode] = useState(false);
   const [heatGeoJSON, setHeatGeoJSON] = useState(null);
   const [clusterGeoJSON, setClusterGeoJSON] = useState(null);
-  const [heatLoading, setHeatLoading] = useState(false);
+const [heatLoading, setHeatLoading] = useState(false);
   const [selectedCluster, setSelectedCluster] = useState(null);
+  const [mapZoom, setMapZoom] = useState(12);
+  const [selectedOfficer, setSelectedOfficer] = useState(null);
 
   // ── GPS ─────────────────────────────────────────────────
   const [gpsEnabled, setGpsEnabled] = useState(false);
@@ -173,22 +304,83 @@ export default function MapScreen({ navigation }) {
   const [myLocation, setMyLocation] = useState(null);
   const [showMorePopup, setShowMorePopup] = useState(false);
   const [userRole, setUserRole] = useState(null);
+  const [hasPatrolAssignment, setHasPatrolAssignment] = useState(false);
+  const [patrolAssignedBarangays, setPatrolAssignedBarangays] = useState([]);
+  const [patrolAssignmentLoading, setPatrolAssignmentLoading] = useState(true);
 
-  // Get user role on mount
+const [styleReady, setStyleReady] = useState(false);
+
+// Get user role on mount
 useEffect(() => {
   const getUserRole = async () => {
     try {
-      const userStr = await AsyncStorage.getItem("user");
+      const userStr = await AsyncStorage.getItem("auth_user");
       if (userStr) {
         const user = JSON.parse(userStr);
         setUserRole(user?.role || user?.role_name);
+      } else {
+        setUserRole(""); // no user found — resolve so patrol check doesn't hang forever
       }
     } catch (err) {
       console.warn("[Map] Failed to get user role:", err.message);
+      setUserRole("");
     }
   };
   getUserRole();
 }, []);
+
+// Check today's patrol assignment — mirrors PatrollerScheduleScreen's logic.
+// If the patrol user has an ongoing schedule today, lock the barangay filter
+// to their assigned barangays. Admin/tech-admin/no-schedule → see everything.
+useEffect(() => {
+  if (userRole === null) return; // still resolving role, wait
+  if (userRole !== "Patrol") {
+    setPatrolAssignmentLoading(false);
+    return;
+  }
+
+  const checkPatrolAssignment = async () => {
+    try {
+      const token = await AsyncStorage.getItem("auth_token");
+      const res = await fetch(`${API}/patrol/my-patrols`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        const today = new Date().toISOString().split("T")[0];
+        const ongoingPatrol = data.data.find(
+          (p) => p.start_date <= today && p.end_date >= today,
+        );
+
+        if (ongoingPatrol) {
+          const assignedBarangays = [
+            ...new Set(
+              (ongoingPatrol.routes || [])
+                .filter((r) => (r.stop_order || 0) <= 0 && r.barangay)
+                .map((r) => r.barangay),
+            ),
+          ];
+          setHasPatrolAssignment(true);
+          setPatrolAssignedBarangays(assignedBarangays);
+          setFilterBarangays(assignedBarangays);
+          setAppliedBarangays(assignedBarangays);
+        } else {
+          setHasPatrolAssignment(false);
+          setPatrolAssignedBarangays([]);
+        }
+      }
+    } catch (err) {
+      console.warn("[Map] patrol assignment check failed:", err.message);
+      setHasPatrolAssignment(false);
+      setPatrolAssignedBarangays([]);
+    } finally {
+      setPatrolAssignmentLoading(false);
+    }
+  };
+
+  checkPatrolAssignment();
+}, [userRole]);
 
   // ── GeoJSON ──────────────────────────────────────────────
   useEffect(() => {
@@ -206,25 +398,36 @@ useEffect(() => {
     })();
   }, []);
 
-  useEffect(() => {
-    if (!rawGeoJSON || !boundaries.length) return;
-    const lookup = {};
-    boundaries.forEach((b) => {
-      lookup[b.name_kml] = heatmapMode ? "rgba(255,255,255,0.0)" : b.color;
-    });
-    setGeoJSON({
-      ...rawGeoJSON,
-      features: rawGeoJSON.features.map((f) => ({
+useEffect(() => {
+  if (!rawGeoJSON || !boundaries.length) return;
+  const lookup = {};
+  boundaries.forEach((b) => {
+    lookup[b.name_kml] = b.crime_count > 0 ? b.color : "#ffffff";
+  });
+  setGeoJSON({
+    ...rawGeoJSON,
+    features: rawGeoJSON.features.map((f) => {
+      const known = f.properties.name_kml in lookup;
+      const isSelected =
+        !appliedBarangays.length ||
+        appliedBarangays.includes(f.properties.name_db);
+      return {
         ...f,
         properties: {
           ...f.properties,
-          fillColor:
-            lookup[f.properties.name_kml] ||
-            (heatmapMode ? "rgba(255,255,255,0.0)" : "#adb5bd"),
+          fillColor: heatmapMode
+            ? "rgba(255,255,255,0.0)"
+            : !isSelected
+              ? "#e5e7eb" // faded grey for unselected barangays
+              : known
+                ? lookup[f.properties.name_kml]
+                : "#9ca3af",
+          isSelected,
         },
-      })),
-    });
-  }, [rawGeoJSON, boundaries, heatmapMode]);
+      };
+    }),
+  });
+}, [rawGeoJSON, boundaries, heatmapMode, appliedBarangays]);
 
   // ── GPS helpers ───────────────────────────────────────────
   const pushLocation = useCallback(async () => {
@@ -300,10 +503,11 @@ useEffect(() => {
     console.warn("[GPS] Background permission denied — foreground only");
   }
 
-  // Get initial position for camera
+  // Get initial position for camera — low accuracy for instant fix,
+  // watchPositionAsync below immediately refines it
   try {
     const fast = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
+      accuracy: Location.Accuracy.Lowest,
     });
     if (isMounted.current) {
       lastCoords.current = fast.coords;
@@ -359,12 +563,18 @@ if (!isRegistered) {
   // ── Data fetching ─────────────────────────────────────────
   const getToken = async () => await AsyncStorage.getItem("auth_token");
 
-  const fetchMapData = useCallback(async () => {
+const fetchMapData = useCallback(async () => {
     try {
       if (isMounted.current) setLoading(true);
       const token = await getToken();
       const headers = { Authorization: `Bearer ${token}` };
-      const q = `?date_from=${appliedDateFrom}&date_to=${appliedDateTo}`;
+      let q = `?date_from=${appliedDateFrom}&date_to=${appliedDateTo}`;
+      if (appliedIncidentTypes.length) {
+        q += `&incident_type=${appliedIncidentTypes.join(",")}`;
+      }
+      if (appliedBarangays.length) {
+        q += `&barangays=${appliedBarangays.map((b) => b.toUpperCase()).join(",")}`;
+      }
       const [bRes, pRes, sRes] = await Promise.all([
         fetch(`${API}/crime-map/boundaries${q}`, { headers }),
         fetch(`${API}/crime-map/pins${q}`, { headers }),
@@ -384,13 +594,19 @@ if (!isRegistered) {
     } finally {
       if (isMounted.current) setLoading(false);
     }
-  }, [appliedDateFrom, appliedDateTo]);
+}, [appliedDateFrom, appliedDateTo, appliedIncidentTypes, appliedBarangays]);
 
   const fetchHeatmap = useCallback(async () => {
     try {
       if (isMounted.current) setHeatLoading(true);
       const token = await getToken();
-      const q = `?date_from=${appliedDateFrom}&date_to=${appliedDateTo}`;
+      let q = `?date_from=${appliedDateFrom}&date_to=${appliedDateTo}`;
+      if (appliedIncidentTypes.length) {
+        q += `&incident_type=${appliedIncidentTypes.join(",")}`;
+      }
+      if (appliedBarangays.length) {
+        q += `&barangays=${appliedBarangays.map((b) => b.toUpperCase()).join(",")}`;
+      }
       const res = await fetch(`${API}/crime-map/heatmap${q}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -405,7 +621,7 @@ if (!isRegistered) {
     } finally {
       if (isMounted.current) setHeatLoading(false);
     }
-  }, [appliedDateFrom, appliedDateTo]);
+  }, [appliedDateFrom, appliedDateTo, appliedIncidentTypes, appliedBarangays]);
 
   const fetchOfficers = useCallback(async () => {
   try {
@@ -464,29 +680,34 @@ if (!isRegistered) {
     }
   }, [gpsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
+useEffect(() => {
     fetchMapData();
     if (heatmapMode) fetchHeatmap();
-  }, [appliedDateFrom, appliedDateTo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [appliedDateFrom, appliedDateTo, appliedIncidentTypes, appliedBarangays]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When heatmap mode toggles
+// When heatmap mode toggles
   useEffect(() => {
-    if (heatmapMode && !heatGeoJSON) {
-      fetchHeatmap();
+    if (heatmapMode) {
+      fetchHeatmap(); // always refetch — filters/dates may have changed while in choropleth mode
     }
     setSelectedPin(null);
     setSelectedCluster(null);
+    setStyleReady(false); // style is about to reload (styleURL changes) — wait for it again
   }, [heatmapMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Layer styles ─────────────────────────────────────────
+// ── Layer styles ─────────────────────────────────────────
   const fillLayerStyle = {
     fillColor: ["get", "fillColor"],
-    fillOpacity: heatmapMode ? 0 : 0.4,
+    fillOpacity: heatmapMode
+      ? 0
+      : ["case", ["==", ["get", "isSelected"], false], 0.15, 0.55],
   };
   const outlineLayerStyle = {
     lineColor: heatmapMode ? "#96c8ff" : "#1e3a5f",
-    lineWidth: 1.2,
-    lineOpacity: heatmapMode ? 0.6 : 0.5,
+    lineWidth: ["case", ["==", ["get", "isSelected"], false], 0.4, 1.4],
+    lineOpacity: heatmapMode
+      ? ["case", ["==", ["get", "isSelected"], false], 0.08, 0.75]
+      : ["case", ["==", ["get", "isSelected"], false], 0.15, 0.5],
   };
   const labelLayerStyle = {
     textField: ["get", "name_db"],
@@ -498,66 +719,103 @@ if (!isRegistered) {
     textAllowOverlap: false,
   };
 
-  // Heatmap layer style
+  // Heatmap layer style — matches web CrimeMapping.jsx HEATMAP_LAYER exactly
   const heatmapLayerStyle = {
-    heatmapWeight: ["interpolate", ["linear"], ["get", "weight"], 0, 0, 1, 1],
+    heatmapWeight: [
+      "interpolate",
+      ["linear"],
+      ["get", "weight"],
+      0, 0,
+      0.1, 0.2,
+      0.2, 0.35,
+      0.3, 0.45,
+      0.5, 0.6,
+      0.7, 0.8,
+      1.0, 1.0,
+    ],
     heatmapRadius: [
       "interpolate",
       ["linear"],
       ["zoom"],
-      10,
-      18,
-      13,
-      32,
-      15,
-      48,
+      10, 10,
+      12, 18,
+      14, 30,
+      16, 45,
     ],
     heatmapIntensity: [
       "interpolate",
       ["linear"],
       ["zoom"],
-      10,
-      0.6,
-      13,
-      1.2,
-      15,
-      2.0,
+      10, 1.0,
+      13, 1.3,
+      15, 1.8,
     ],
     heatmapColor: [
       "interpolate",
       ["linear"],
       ["heatmap-density"],
-      0,
-      "rgba(0,0,0,0)",
-      0.15,
-      "rgba(234,179,8,0.75)",
-      0.4,
-      "rgba(249,115,22,0.85)",
-      0.65,
-      "rgba(220,38,38,0.90)",
-      0.85,
-      "rgba(153,27,27,0.94)",
-      1.0,
-      "rgba(69,10,10,0.97)",
+      0, "rgba(0,0,0,0)",
+      0.05, "rgba(255,255,180,0.7)",
+      0.2, "rgba(255,210,80,0.80)",
+      0.4, "rgba(255,140,30,0.88)",
+      0.6, "rgba(220,50,20,0.92)",
+      0.8, "rgba(160,10,10,0.95)",
+      1.0, "rgba(80,0,0,0.97)",
     ],
     heatmapOpacity: [
       "interpolate",
       ["linear"],
       ["zoom"],
-      12,
-      0.92,
-      15,
-      0.55,
-      16,
-      0,
+      11, 0.9,
+      14, 0.85,
+      16, 0.8,
+      18, 0.75,
     ],
   };
 
-  const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
+const isPatrol = userRole === "Patrol";
+const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
   const dayCount =
     Math.round(
       (new Date(appliedDateTo) - new Date(appliedDateFrom)) / 86400000,
     ) + 1;
+
+  const normalizeIconKey = (type) => {
+    const t = type?.toUpperCase() || "THEFT";
+    if (t === "PHYSICAL INJURIES") return "PHYSICAL INJURY";
+    return t;
+  };
+
+  const pinsGeoJSON = React.useMemo(
+    () => ({
+      type: "FeatureCollection",
+      features: pins.map((pin) => ({
+        type: "Feature",
+        id: pin.blotter_id,
+        geometry: { type: "Point", coordinates: [pin.lng, pin.lat] },
+        properties: {
+          blotter_id: pin.blotter_id,
+          iconKey: normalizeIconKey(pin.incident_type),
+        },
+      })),
+    }),
+    [pins],
+  );
+
+  const allBarangays = React.useMemo(() => {
+    if (!rawGeoJSON?.features) return [];
+    const names = rawGeoJSON.features
+      .map((f) => f.properties.name_db)
+      .filter(Boolean);
+    return [...new Set(names)].sort();
+  }, [rawGeoJSON]);
+
+  const filteredBarangayOptions = React.useMemo(() => {
+    if (!barangaySearch) return allBarangays;
+    return allBarangays.filter((b) =>
+      b.toLowerCase().includes(barangaySearch.toLowerCase()),
+    );
+  }, [allBarangays, barangaySearch]);
 
   // ── Render ────────────────────────────────────────────────
   return (
@@ -590,9 +848,15 @@ if (!isRegistered) {
             onPress={() => setShowSidebar((v) => !v)}
             style={styles.iconBtn}
           >
-            <Ionicons name="layers-outline" size={20} color="#ffffff" />
+            <Ionicons name="options-outline" size={20} color="#ffffff" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={fetchMapData} style={styles.iconBtn}>
+          <TouchableOpacity
+            onPress={() => {
+              fetchMapData();
+              if (heatmapMode) fetchHeatmap();
+            }}
+            style={styles.iconBtn}
+          >
             <Ionicons name="refresh-outline" size={20} color="#ffffff" />
           </TouchableOpacity>
         </View>
@@ -601,18 +865,24 @@ if (!isRegistered) {
       {/* MAP — marginBottom pushes map above the absolute-positioned tab bar */}
       <View style={styles.mapContainer}>
         <MapView
-          style={[styles.map, { marginBottom: TAB_BAR_HEIGHT }]}
-          styleURL={
-            heatmapMode
-              ? "mapbox://styles/mapbox/dark-v11"
-              : "mapbox://styles/mapbox/light-v11"
-          }
-          onPress={() => {
-            setSelectedPin(null);
-            setSelectedCluster(null);
-          }}
-          minZoomLevel={11.5}
-        >
+  style={[styles.map, { marginBottom: TAB_BAR_HEIGHT }]}
+  styleURL={
+    heatmapMode
+      ? "mapbox://styles/mapbox/dark-v11"
+      : "mapbox://styles/mapbox/light-v11"
+  }
+  onDidFinishLoadingStyle={() => setStyleReady(true)}
+  onPress={() => {
+    setSelectedPin(null);
+    setSelectedCluster(null);
+    setSelectedOfficer(null);
+  }}
+  onRegionDidChange={(feature) => {
+    const z = feature?.properties?.zoomLevel;
+    if (typeof z === "number") setMapZoom(z);
+  }}
+  minZoomLevel={11.5}
+>
           <Camera
             ref={cameraRef}
             zoomLevel={12}
@@ -621,16 +891,28 @@ if (!isRegistered) {
             animationDuration={800}
           />
 
-          {geoJSON && (
-            <ShapeSource id="barangays" shape={geoJSON}>
-              <FillLayer id="barangay-fill" style={fillLayerStyle} />
-              <LineLayer id="barangay-outline" style={outlineLayerStyle} />
-              <SymbolLayer id="barangay-labels" style={labelLayerStyle} />
+          {styleReady && (
+            <ShapeSource id="world-mask" shape={WORLD_MASK_GEOJSON}>
+              <FillLayer
+                id="world-mask-fill"
+                style={{
+                  fillColor: heatmapMode ? "#000000" : "#e5e7eb",
+                  fillOpacity: heatmapMode ? 0.6 : 0.55,
+                }}
+              />
             </ShapeSource>
           )}
 
+          {styleReady && geoJSON && (
+  <ShapeSource id="barangays" shape={geoJSON}>
+    <FillLayer id="barangay-fill" style={fillLayerStyle} />
+    <LineLayer id="barangay-outline" style={outlineLayerStyle} />
+    <SymbolLayer id="barangay-labels" style={labelLayerStyle} />
+  </ShapeSource>
+)}
+
           {/* Heatmap layer */}
-          {heatmapMode && heatGeoJSON && (
+          {styleReady && heatmapMode && heatGeoJSON && (
             <ShapeSource id="heat-points" shape={heatGeoJSON}>
               <HeatmapLayer id="crime-heat" style={heatmapLayerStyle} />
             </ShapeSource>
@@ -662,30 +944,59 @@ if (!isRegistered) {
               </MarkerView>
             ))}
 
-          {/* Crime teardrop pins — choropleth mode only */}
-          {!heatmapMode &&
-            pins.map((pin) => {
-              const color =
-                INCIDENT_COLORS[pin.incident_type?.toUpperCase()] || "#6b7280";
-              return (
-                <MarkerView
-                  key={`pin-${pin.blotter_id}`}
-                  id={`pin-${pin.blotter_id}`}
-                  coordinate={[pin.lng, pin.lat]}
-                  anchor={{ x: 0.5, y: 1 }}
-                >
-                  <TearDropPin
-                    color={color}
-                    onPress={() => {
-                      setSelectedPin(pin);
-                      setShowMorePopup(false);
-                    }}
-                  />
-                </MarkerView>
-              );
-            })}
+{/* Crime pin icons — native SymbolLayer, renders all at once, no mode-switch bugs */}
+          {styleReady && (
+          <Images
+            images={{
+              MURDER: require("../assets/pins/murder.png"),
+              HOMICIDE: require("../assets/pins/homicide.png"),
+              "PHYSICAL INJURY": require("../assets/pins/physical-injury.png"),
+              RAPE: require("../assets/pins/rape.png"),
+              ROBBERY: require("../assets/pins/robbery.png"),
+              THEFT: require("../assets/pins/theft.png"),
+              "CARNAPPING - MC": require("../assets/pins/carnapping-mc.png"),
+              "CARNAPPING - MV": require("../assets/pins/carnapping-mv.png"),
+              "SPECIAL COMPLEX CRIME": require("../assets/pins/special-complex.png"),
+            }}
+          />
+          )}
 
-          {/* Officer dots — blue shield dot */}
+          {styleReady && (
+          <ShapeSource
+            id="crime-pins"
+            shape={pinsGeoJSON}
+            onPress={(e) => {
+              const id = e.features?.[0]?.properties?.blotter_id;
+              const found = pins.find((p) => p.blotter_id === id);
+              if (found) {
+                setSelectedPin(found);
+                setShowMorePopup(false);
+              }
+            }}
+          >
+            <SymbolLayer
+              id="crime-pin-icons"
+              aboveLayerID="barangay-labels"
+              style={{
+                iconImage: ["get", "iconKey"],
+                iconSize: [
+                  "interpolate",
+                  ["linear"],
+                  ["zoom"],
+                  12, 0.14,
+                  15, 0.2,
+                  18, 0.28,
+                ],
+                iconAllowOverlap: true,
+                iconIgnorePlacement: true,
+                iconAnchor: "bottom",
+                visibility: !heatmapMode && mapZoom >= 13 ? "visible" : "none",
+              }}
+            />
+          </ShapeSource>
+          )}
+          
+          {/* Officer dots — blue shield dot, tap to see name */}
           {officers.map((officer) => (
             <MarkerView
               key={`officer-${officer.user_id}`}
@@ -696,56 +1007,69 @@ if (!isRegistered) {
               ]}
               anchor={{ x: 0.5, y: 0.5 }}
             >
-              <View style={styles.officerDot} />
+              <TouchableOpacity
+                onPress={() =>
+                  setSelectedOfficer((prev) =>
+                    prev?.user_id === officer.user_id ? null : officer,
+                  )
+                }
+                activeOpacity={0.8}
+              >
+                <View style={styles.officerDot} />
+              </TouchableOpacity>
             </MarkerView>
           ))}
 
-          {/* Native UserLocation — lightest option, runs off JS thread */}
-          {gpsEnabled && (
-            <UserLocation
-              visible={true}
-              renderMode="native"
-              showsUserHeadingIndicator={false}
-              style={{
-                puckColor: "#1d4ed8",
-                puckBearingEnabled: false,
-                puckShadowOpacity: 0,
-              }}
-            />
+          {/* Custom "my location" puck — MarkerView, not native UserLocation.
+              Gated on styleReady + keyed on it so it force-remounts cleanly
+              after every style reload (heatmap <-> choropleth switch). */}
+          {styleReady && userRole === "Patrol" && gpsEnabled && myLocation && (
+            <MarkerView
+              key={`my-location-puck-${styleReady}`}
+              id="my-location-puck"
+              coordinate={myLocation}
+              anchor={{ x: 0.5, y: 0.5 }}
+            >
+              <View style={styles.myLocationPuck} />
+            </MarkerView>
           )}
         </MapView>
 
         {/* Map overlay buttons */}
-        <TouchableOpacity
-          style={[styles.recenterBtn, !gpsEnabled && { opacity: 0.4 }]}
-          onPress={() =>
-            myLocation &&
-            cameraRef.current?.setCamera({
-              centerCoordinate: myLocation,
-              zoomLevel: 15,
-              animationDuration: 800,
-            })
-          }
-        >
-          <Ionicons name="navigate" size={20} color="#1e3a5f" />
-        </TouchableOpacity>
+{userRole === "Patrol" && (
+  <TouchableOpacity
+    style={[styles.recenterBtn, !gpsEnabled && { opacity: 0.4 }]}
+    onPress={() =>
+      myLocation &&
+      cameraRef.current?.setCamera({
+        centerCoordinate: myLocation,
+        zoomLevel: 15,
+        animationDuration: 800,
+      })
+    }
+  >
+    <Ionicons name="navigate" size={20} color="#1e3a5f" />
+  </TouchableOpacity>
+)}
 
-        <TouchableOpacity
-          style={[styles.gpsToggleBtn, gpsEnabled && styles.gpsToggleBtnActive]}
-          onPress={() => {
-            if (gpsEnabled) {
-              setGpsEnabled(false);
-            } else {
-              setShowGpsConfirm(true);
-            }
-          }}
-        >
-          <Ionicons
-            name={gpsEnabled ? "location" : "location-outline"}
-            size={20}
-            color={gpsEnabled ? "#ffffff" : "#1e3a5f"}
-          />
-        </TouchableOpacity>
+{userRole === "Patrol" && (
+  <TouchableOpacity
+    style={[styles.gpsToggleBtn, gpsEnabled && styles.gpsToggleBtnActive]}
+    onPress={() => {
+      if (gpsEnabled) {
+        setGpsEnabled(false);
+      } else {
+        setShowGpsConfirm(true);
+      }
+    }}
+  >
+    <Ionicons
+      name={gpsEnabled ? "location" : "location-outline"}
+      size={20}
+      color={gpsEnabled ? "#ffffff" : "#1e3a5f"}
+    />
+  </TouchableOpacity>
+)}
 
         <TouchableOpacity
           style={styles.resetBtn}
@@ -761,83 +1085,65 @@ if (!isRegistered) {
         </TouchableOpacity>
 
         {/* Risk legend (bottom-left) */}
-        <View style={styles.riskLegend}>
-          {heatmapMode ? (
-            <>
-              <Text
-                style={[
-                  styles.riskLabel,
-                  { marginBottom: 4, fontWeight: "700" },
-                ]}
-              >
-                Heatmap
-              </Text>
-              {[
-                { color: "#450a0a", label: "Very High" },
-                { color: "#dc2626", label: "High" },
-                { color: "#f97316", label: "Medium" },
-                { color: "#eab308", label: "Low" },
-              ].map((r) => (
-                <View key={r.label} style={styles.riskRow}>
-                  <View
-                    style={[styles.riskDot, { backgroundColor: r.color }]}
-                  />
-                  <Text style={styles.riskLabel}>{r.label}</Text>
-                </View>
-              ))}
-            </>
-          ) : (
-            [
-              { color: "#b91c1c", label: `High (${thresholds.medMax + 1}+)` },
-              {
-                color: "#f97316",
-                label: `Med (${thresholds.lowMax + 1}–${thresholds.medMax})`,
-              },
-              {
-                color: "#eab308",
-                label: `Low (1${thresholds.lowMax > 1 ? `–${thresholds.lowMax}` : ""})`,
-              },
-              { color: "#adb5bd", label: "None" },
-            ].map((r) => (
-              <View key={r.label} style={styles.riskRow}>
-                <View style={[styles.riskDot, { backgroundColor: r.color }]} />
-                <Text style={styles.riskLabel}>{r.label}</Text>
-              </View>
-            ))
-          )}
-        </View>
+        {!heatmapMode && (
+  <View style={styles.riskLegend}>
+    {[
+      { color: "#b91c1c", label: `High (${thresholds.medMax + 1}+)` },
+      {
+        color: "#f97316",
+        label: `Med (${thresholds.lowMax + 1}–${thresholds.medMax})`,
+      },
+      { color: "#eab308", label: `Low (1${thresholds.lowMax > 1 ? `–${thresholds.lowMax}` : ""})` },
+      { color: "#ffffff", label: "None" },
+    ].map((r) => (
+      <View key={r.label} style={styles.riskRow}>
+        <View style={[styles.riskDot, { backgroundColor: r.color }]} />
+        <Text style={styles.riskLabel}>{r.label}</Text>
+      </View>
+    ))}
+  </View>
+)}
 
-        {/* Officers online badge */}
+        {/* Officers online badge
         <View style={styles.officersBadge}>
           <View style={styles.officersBadgeDot} />
           <Text style={styles.officersBadgeText}>
             {officers.length} officer{officers.length !== 1 ? "s" : ""} online
           </Text>
-        </View>
+        </View> */}
 
         {/* GPS status pill */}
-        {gpsEnabled && (
-          <View
-            style={[
-              styles.gpsStatus,
-              {
-                backgroundColor: myLocation
-                  ? "rgba(34,197,94,0.88)"
-                  : "rgba(239,68,68,0.88)",
-              },
-            ]}
-          >
-            {!myLocation ? (
-              <ActivityIndicator
-                size="small"
-                color="#ffffff"
-                style={{ marginRight: 2 }}
-              />
-            ) : (
-              <View style={styles.gpsStatusDot} />
-            )}
-            <Text style={styles.gpsStatusText}>
-              {myLocation ? "GPS Active" : "Acquiring GPS..."}
+        {userRole === "Patrol" && gpsEnabled && (
+  <View
+    style={[
+      styles.gpsStatus,
+      {
+        backgroundColor: myLocation
+          ? "rgba(34,197,94,0.88)"
+          : "rgba(239,68,68,0.88)",
+      },
+    ]}
+  >
+    {!myLocation ? (
+      <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 2 }} />
+    ) : (
+      <View style={styles.gpsStatusDot} />
+    )}
+    <Text style={styles.gpsStatusText}>
+      {myLocation ? "GPS Active" : "Acquiring GPS..."}
+    </Text>
+  </View>
+)}
+
+        {/* Officer name tooltip */}
+        {selectedOfficer && (
+          <View style={styles.officerNameTooltip}>
+            <Text style={styles.officerNameTooltipText}>
+              {selectedOfficer.abbreviation
+                ? `${selectedOfficer.abbreviation}. ${selectedOfficer.first_name || ""} ${selectedOfficer.last_name || ""}`.trim()
+                : `${selectedOfficer.first_name || ""} ${selectedOfficer.last_name || ""}`.trim() ||
+                  selectedOfficer.username ||
+                  "Officer"}
             </Text>
           </View>
         )}
@@ -873,49 +1179,43 @@ if (!isRegistered) {
       </View>
 
       {/* GPS CONFIRMATION MODAL */}
-      <Modal
-        visible={showGpsConfirm}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowGpsConfirm(false)}
-      >
-        <View style={styles.confirmBackdrop}>
-          <View style={styles.confirmBox}>
-            <Ionicons
-              name="location"
-              size={32}
-              color="#1e3a5f"
-              style={{ marginBottom: 10 }}
-            />
-            <Text style={styles.confirmTitle}>Enable GPS Tracking</Text>
-            <Text style={styles.confirmMsg}>
-              Your location will be shared with the system and visible to
-              dispatchers while GPS is active.
-            </Text>
-            <View style={styles.confirmBtns}>
-              <TouchableOpacity
-                style={styles.confirmCancel}
-                onPress={() => setShowGpsConfirm(false)}
-              >
-                <Text style={styles.confirmCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.confirmOk}
-                onPress={() => {
-                  setShowGpsConfirm(false);
-                  setGpsEnabled(true);
-                }}
-              >
-                <Text style={styles.confirmOkText}>Enable</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+      {userRole === "Patrol" && (
+  <Modal
+    visible={showGpsConfirm}
+    transparent
+    animationType="fade"
+    onRequestClose={() => setShowGpsConfirm(false)}
+  >
+    <View style={styles.confirmBackdrop}>
+      <View style={styles.confirmBox}>
+        <Ionicons name="location" size={32} color="#1e3a5f" style={{ marginBottom: 10 }} />
+        <Text style={styles.confirmTitle}>Enable GPS Tracking</Text>
+        <Text style={styles.confirmMsg}>
+          Your location will be shared with the system and visible to
+          dispatchers while GPS is active.
+        </Text>
+        <View style={styles.confirmBtns}>
+          <TouchableOpacity style={styles.confirmCancel} onPress={() => setShowGpsConfirm(false)}>
+            <Text style={styles.confirmCancelText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.confirmOk}
+            onPress={() => {
+              setShowGpsConfirm(false);
+              setGpsEnabled(true);
+            }}
+          >
+            <Text style={styles.confirmOkText}>Enable</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
+      </View>
+    </View>
+  </Modal>
+)}
 
       {/* CRIME PIN POPUP */}
       {!heatmapMode && selectedPin && (
-        <View style={styles.popup}>
+        <View style={[styles.popup, { bottom: TAB_BAR_HEIGHT }]}>
           <View
             style={[
               styles.popupHeader,
@@ -1026,7 +1326,9 @@ if (!isRegistered) {
             style={styles.sidebarBody}
             showsVerticalScrollIndicator={false}
           >
-            {/* DATE FILTER */}
+            {/* ── COMBINED FILTERS ── */}
+
+            {/* Date section */}
             <View style={styles.dateFilterRow}>
               <TouchableOpacity
                 style={styles.dateFilterBtn}
@@ -1067,43 +1369,316 @@ if (!isRegistered) {
                   keyboardType="numeric"
                 />
                 <TouchableOpacity
-                  style={[
-                    styles.applyDateBtn,
-                    (!isValidDate(filterDateFrom) ||
-                      !isValidDate(filterDateTo) ||
-                      filterDateFrom >= filterDateTo) && { opacity: 0.5 },
-                  ]}
-                  onPress={() => {
-                    if (
-                      !isValidDate(filterDateFrom) ||
-                      !isValidDate(filterDateTo) ||
-                      filterDateFrom >= filterDateTo
-                    )
-                      return;
-                    setAppliedDateFrom(filterDateFrom);
-                    setAppliedDateTo(filterDateTo);
-                    setShowDateFilter(false);
-                    if (heatmapMode) fetchHeatmap();
-                  }}
-                >
-                  <Text style={styles.applyDateBtnText}>Apply</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
                   style={styles.clearDateBtn}
                   onPress={() => {
                     const from = getPHTOneYearAgo();
                     const to = getPHTToday();
                     setFilterDateFrom(from);
                     setFilterDateTo(to);
-                    setAppliedDateFrom(from);
-                    setAppliedDateTo(to);
-                    setShowDateFilter(false);
                   }}
                 >
                   <Text style={styles.clearDateBtnText}>Reset to 1 Year</Text>
                 </TouchableOpacity>
               </View>
             )}
+
+            {/* Crime type section */}
+            <View style={styles.dateFilterRow}>
+              <TouchableOpacity
+                style={styles.dateFilterBtn}
+                onPress={() => setShowCrimeTypeFilter((v) => !v)}
+              >
+                <Ionicons name="flag-outline" size={14} color="#1e3a5f" />
+                <Text style={styles.dateFilterBtnText}>
+                  {filterIncidentTypes.length === 0
+                    ? "All Crime Types"
+                    : `${filterIncidentTypes.length} Crime Type${filterIncidentTypes.length > 1 ? "s" : ""} Selected`}
+                </Text>
+                <Ionicons
+                  name={showCrimeTypeFilter ? "chevron-up" : "chevron-down"}
+                  size={12}
+                  color="#6b7280"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {showCrimeTypeFilter && (
+              <View style={styles.dateFilterPanel}>
+                <View style={styles.crimeTypeActionsRow}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setFilterIncidentTypes((prev) =>
+                        prev.length === INDEX_CRIMES.length
+                          ? []
+                          : [...INDEX_CRIMES],
+                      )
+                    }
+                  >
+                    <Text style={styles.crimeTypeActionText}>
+                      {filterIncidentTypes.length === INDEX_CRIMES.length
+                        ? "Clear all"
+                        : "Select all"}
+                    </Text>
+                  </TouchableOpacity>
+                  {filterIncidentTypes.length > 0 && (
+                    <TouchableOpacity onPress={() => setFilterIncidentTypes([])}>
+                      <Text
+                        style={[
+                          styles.crimeTypeActionText,
+                          { color: "#dc2626" },
+                        ]}
+                      >
+                        Clear ({filterIncidentTypes.length})
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {INDEX_CRIMES.map((c) => {
+                  const checked = filterIncidentTypes.includes(c);
+                  return (
+                    <TouchableOpacity
+                      key={c}
+                      style={styles.crimeTypeItem}
+                      onPress={() =>
+                        setFilterIncidentTypes((prev) =>
+                          checked
+                            ? prev.filter((x) => x !== c)
+                            : [...prev, c],
+                        )
+                      }
+                    >
+                      <View
+                        style={[
+                          styles.crimeTypeCheckbox,
+                          checked && styles.crimeTypeCheckboxChecked,
+                        ]}
+                      >
+                        {checked && (
+                          <Ionicons name="checkmark" size={12} color="#fff" />
+                        )}
+                      </View>
+                      <Text style={styles.crimeTypeItemText}>
+                        {CRIME_DISPLAY[c]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Barangay section — locked for patrol users with an ongoing schedule */}
+            {isPatrol && hasPatrolAssignment ? (
+              <View style={styles.dateFilterRow}>
+                <View style={styles.lockedFilterBox}>
+                  <Ionicons name="lock-closed-outline" size={14} color="#6b7280" />
+                  <Text style={styles.lockedFilterText}>
+                    {patrolAssignedBarangays.length} Assigned Barangay
+                    {patrolAssignedBarangays.length !== 1 ? "s" : ""}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.dateFilterRow}>
+                <TouchableOpacity
+                  style={styles.dateFilterBtn}
+                  onPress={() => setShowBarangayFilter((v) => !v)}
+                >
+                  <Ionicons name="location-outline" size={14} color="#1e3a5f" />
+                  <Text style={styles.dateFilterBtnText}>
+                    {filterBarangays.length === 0
+                      ? "All Barangays"
+                      : `${filterBarangays.length} Barangay${filterBarangays.length > 1 ? "s" : ""} Selected`}
+                  </Text>
+                  <Ionicons
+                    name={showBarangayFilter ? "chevron-up" : "chevron-down"}
+                    size={12}
+                    color="#6b7280"
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!(isPatrol && hasPatrolAssignment) && showBarangayFilter && (
+              <View style={styles.dateFilterPanel}>
+                <TextInput
+                  style={styles.barangaySearchInput}
+                  value={barangaySearch}
+                  onChangeText={setBarangaySearch}
+                  placeholder="Search barangay..."
+                  placeholderTextColor="#adb5bd"
+                />
+
+                <View style={styles.crimeTypeActionsRow}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setFilterBarangays((prev) =>
+                        prev.length === allBarangays.length
+                          ? []
+                          : [...allBarangays],
+                      )
+                    }
+                  >
+                    <Text style={styles.crimeTypeActionText}>
+                      {filterBarangays.length === allBarangays.length
+                        ? "Clear all"
+                        : "Select all"}
+                    </Text>
+                  </TouchableOpacity>
+                  {filterBarangays.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setFilterBarangays([]);
+                        setBarangaySearch("");
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.crimeTypeActionText,
+                          { color: "#dc2626" },
+                        ]}
+                      >
+                        Clear ({filterBarangays.length})
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <ScrollView
+                  style={styles.barangayListScroll}
+                  nestedScrollEnabled
+                >
+                  {filteredBarangayOptions.map((b) => {
+                    const checked = filterBarangays.includes(b);
+                    return (
+                      <TouchableOpacity
+                        key={b}
+                        style={styles.crimeTypeItem}
+                        onPress={() =>
+                          setFilterBarangays((prev) =>
+                            checked
+                              ? prev.filter((x) => x !== b)
+                              : [...prev, b],
+                          )
+                        }
+                      >
+                        <View
+                          style={[
+                            styles.crimeTypeCheckbox,
+                            checked && styles.crimeTypeCheckboxChecked,
+                          ]}
+                        >
+                          {checked && (
+                            <Ionicons name="checkmark" size={12} color="#fff" />
+                          )}
+                        </View>
+                        <Text style={styles.crimeTypeItemText}>
+                          {formatBarangayLabel(b)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {filteredBarangayOptions.length === 0 && (
+                    <Text style={styles.emptyText}>No barangays found.</Text>
+                  )}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* ── SINGLE APPLY / RESET ROW ── */}
+            <View style={styles.filterActionsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.applyDateBtn,
+                  { flex: 1 },
+                  (!isValidDate(filterDateFrom) ||
+                    !isValidDate(filterDateTo) ||
+                    filterDateFrom >= filterDateTo) && { opacity: 0.5 },
+                ]}
+                onPress={() => {
+                  if (
+                    !isValidDate(filterDateFrom) ||
+                    !isValidDate(filterDateTo) ||
+                    filterDateFrom >= filterDateTo
+                  )
+                    return;
+
+                  setAppliedDateFrom(filterDateFrom);
+                  setAppliedDateTo(filterDateTo);
+                  setAppliedIncidentTypes(filterIncidentTypes);
+                  setAppliedBarangays(filterBarangays);
+                  setShowDateFilter(false);
+                  setShowCrimeTypeFilter(false);
+                  setShowBarangayFilter(false);
+
+                  if (filterBarangays.length > 0 && rawGeoJSON) {
+                    const allCoords = [];
+                    filterBarangays.forEach((name) => {
+                      const feature = rawGeoJSON.features.find(
+                        (f) => f.properties.name_db === name,
+                      );
+                      if (!feature) return;
+                      const coords =
+                        feature.geometry.type === "Polygon"
+                          ? feature.geometry.coordinates[0]
+                          : feature.geometry.coordinates[0][0];
+                      allCoords.push(...coords);
+                    });
+                    if (allCoords.length > 0) {
+                      const lngs = allCoords.map((c) => c[0]);
+                      const lats = allCoords.map((c) => c[1]);
+                      cameraRef.current?.fitBounds(
+                        [Math.max(...lngs), Math.max(...lats)],
+                        [Math.min(...lngs), Math.min(...lats)],
+                        40,
+                        800,
+                      );
+                    }
+                  } else if (filterBarangays.length === 0) {
+                    cameraRef.current?.setCamera({
+                      centerCoordinate: BACOOR_CENTER,
+                      zoomLevel: 12,
+                      animationDuration: 800,
+                    });
+                  }
+                }}
+              >
+                <Text style={styles.applyDateBtnText}>Apply Filters</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.clearDateBtn, { flex: 1 }]}
+                onPress={() => {
+                  const from = getPHTOneYearAgo();
+                  const to = getPHTToday();
+                  const lockedBarangays =
+                    isPatrol && hasPatrolAssignment ? patrolAssignedBarangays : [];
+
+                  setFilterDateFrom(from);
+                  setFilterDateTo(to);
+                  setAppliedDateFrom(from);
+                  setAppliedDateTo(to);
+                  setFilterIncidentTypes([]);
+                  setAppliedIncidentTypes([]);
+                  setFilterBarangays(lockedBarangays);
+                  setAppliedBarangays(lockedBarangays);
+                  setBarangaySearch("");
+                  setShowDateFilter(false);
+                  setShowCrimeTypeFilter(false);
+                  setShowBarangayFilter(false);
+
+                  if (!(isPatrol && hasPatrolAssignment)) {
+                    cameraRef.current?.setCamera({
+                      centerCoordinate: BACOOR_CENTER,
+                      zoomLevel: 12,
+                      animationDuration: 800,
+                    });
+                  }
+                }}
+              >
+                <Text style={styles.clearDateBtnText}>Reset All</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* ── LEGEND TAB ── */}
             {activeTab === "legend" && (
@@ -1159,66 +1734,40 @@ if (!isRegistered) {
                     </View>
                   );
                 })}
-
-                <Text style={[styles.sectionLabel, { marginTop: 20 }]}>
-                  {heatmapMode ? "Heatmap Density" : "Barangay Risk Scale"}
-                </Text>
-                <Text style={styles.dateRangeNote}>
-                  {heatmapMode
-                    ? "Density of overlapping incidents"
-                    : `Thresholds for ${dayCount}-day range`}
-                </Text>
-                {heatmapMode
-                  ? [
-                      { color: "#450a0a", label: "Very High density" },
-                      { color: "#dc2626", label: "High density" },
-                      { color: "#f97316", label: "Medium density" },
-                      { color: "#eab308", label: "Low density" },
-                    ].map((r) => (
-                      <View key={r.label} style={styles.riskLegendRow}>
-                        <View
-                          style={[
-                            styles.riskLegendDot,
-                            { backgroundColor: r.color },
-                          ]}
-                        />
-                        <Text style={styles.riskLegendLabel}>{r.label}</Text>
-                      </View>
-                    ))
-                  : [
-                      { color: "#adb5bd", label: "No crimes", range: "0" },
-                      {
-                        color: "#eab308",
-                        label: "Low Risk",
-                        range:
-                          thresholds.lowMax === 1
-                            ? "1"
-                            : `1–${thresholds.lowMax}`,
-                      },
-                      {
-                        color: "#f97316",
-                        label: "Medium Risk",
-                        range: `${thresholds.lowMax + 1}–${thresholds.medMax}`,
-                      },
-                      {
-                        color: "#b91c1c",
-                        label: "High Risk",
-                        range: `${thresholds.medMax + 1}+`,
-                      },
-                    ].map((r) => (
-                      <View key={r.label} style={styles.riskLegendRow}>
-                        <View
-                          style={[
-                            styles.riskLegendDot,
-                            { backgroundColor: r.color },
-                          ]}
-                        />
-                        <Text style={styles.riskLegendLabel}>{r.label}</Text>
-                        <Text style={styles.riskLegendRange}>
-                          {r.range} crimes
-                        </Text>
-                      </View>
-                    ))}
+{!heatmapMode && (
+  <>
+    <Text style={[styles.sectionLabel, { marginTop: 20 }]}>
+      Barangay Crime Incidence
+    </Text>
+    <Text style={styles.dateRangeNote}>
+      {`Thresholds for ${dayCount}-day range`}
+    </Text>
+    {[
+      { color: "#ffffff", label: "No crimes", range: "0" },
+      {
+        color: "#eab308",
+        label: "Low Incidence",
+        range: thresholds.lowMax === 1 ? "1" : `1–${thresholds.lowMax}`,
+      },
+      {
+        color: "#f97316",
+        label: "Medium Incidence",
+        range: `${thresholds.lowMax + 1}–${thresholds.medMax}`,
+      },
+      {
+        color: "#b91c1c",
+        label: "High Incidence",
+        range: `${thresholds.medMax + 1}+`,
+      },
+    ].map((r) => (
+      <View key={r.label} style={styles.riskLegendRow}>
+        <View style={[styles.riskLegendDot, { backgroundColor: r.color }]} />
+        <Text style={styles.riskLegendLabel}>{r.label}</Text>
+        <Text style={styles.riskLegendRange}>{r.range} crimes</Text>
+      </View>
+    ))}
+  </>
+)}
               </View>
             )}
 
@@ -1277,15 +1826,6 @@ if (!isRegistered) {
                           key={`cluster-row-${i}`}
                           style={styles.clusterRow}
                           onPress={() => {
-                            setSelectedCluster({
-                              lng: f.geometry.coordinates[0],
-                              lat: f.geometry.coordinates[1],
-                              count: p.count,
-                              crime: p.dominant_crime,
-                              barangay: p.dominant_barangay,
-                              rank: p.rank,
-                              modus: p.dominant_modus,
-                            });
                             cameraRef.current?.setCamera({
                               centerCoordinate: f.geometry.coordinates,
                               zoomLevel: 14,
@@ -1295,15 +1835,9 @@ if (!isRegistered) {
                           }}
                         >
                           <View style={styles.clusterRowLeft}>
-                            <Text style={styles.clusterRank}>#{p.rank}</Text>
-                            <View>
-                              <Text style={styles.clusterCrime}>
-                                {p.dominant_crime || "Multiple crimes"}
-                              </Text>
-                              <Text style={styles.clusterBrgy}>
-                                {p.dominant_barangay || "Unknown"}
-                              </Text>
-                            </View>
+                            <Text style={styles.clusterCrime}>
+                              Cluster #{p.rank}
+                            </Text>
                           </View>
                           <View style={styles.clusterBadge}>
                             <Text style={styles.clusterBadgeText}>
@@ -1415,41 +1949,7 @@ const styles = StyleSheet.create({
   // Map container — flex:1 fills space between header and tab bar
   mapContainer: { flex: 1, position: "relative" },
   map: { flex: 1 },
-  // ── Teardrop pin ──────────────────────────────────────────
-  pinWrapper: {
-    alignItems: "center",
-    width: 22,
-    height: 30,
-  },
-  pinBody: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-  pinInner: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.7)",
-  },
-  pinTip: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 5,
-    borderRightWidth: 5,
-    borderTopWidth: 7,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    marginTop: -1,
-  },
-
+  
   // ── Legend teardrop icon (smaller) ────────────────────────
   legendPinWrap: {
     alignItems: "center",
@@ -1479,6 +1979,20 @@ const styles = StyleSheet.create({
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
     marginTop: -1,
+  },
+
+  myLocationPuck: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#1d4ed8",
+    borderWidth: 3,
+    borderColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
   },
 
   officerDot: {
@@ -1570,7 +2084,13 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 4,
   },
-  riskDot: { width: 10, height: 10, borderRadius: 3 },
+  riskDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: "#ced4da",
+  },
   riskLabel: { fontSize: 10, color: "#374151", fontWeight: "600" },
 
   officersBadge: {
@@ -1613,6 +2133,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
   },
   gpsStatusText: { fontSize: 11, color: "#ffffff", fontWeight: "700" },
+
+  officerNameTooltip: {
+    position: "absolute",
+    top: 56,
+    alignSelf: "center",
+    backgroundColor: "rgba(10,40,92,0.9)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  officerNameTooltipText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700",
+  },
 
   // GPS confirm modal
   confirmBackdrop: {
@@ -1776,12 +2311,34 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  filterActionsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
+  },
+
   // Date filter
   dateFilterRow: {
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
     marginBottom: 4,
+  },
+  lockedFilterBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+  },
+  lockedFilterText: {
+    fontSize: 11,
+    color: "#495057",
+    fontWeight: "600",
   },
   dateFilterBtn: {
     flexDirection: "row",
@@ -1806,6 +2363,53 @@ const styles = StyleSheet.create({
     gap: 6,
     borderWidth: 1,
     borderColor: "#e9ecef",
+  },
+  crimeTypeActionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  crimeTypeActionText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1e3a5f",
+  },
+  barangaySearchInput: {
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    borderRadius: 6,
+    padding: 8,
+    fontSize: 13,
+    color: "#111827",
+    backgroundColor: "#ffffff",
+    marginBottom: 8,
+  },
+  barangayListScroll: {
+    maxHeight: 220,
+  },
+  crimeTypeItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 6,
+  },
+  crimeTypeCheckbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: "#adb5bd",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+  },
+  crimeTypeCheckboxChecked: {
+    backgroundColor: "#1e3a5f",
+    borderColor: "#1e3a5f",
+  },
+  crimeTypeItemText: {
+    fontSize: 13,
+    color: "#374151",
   },
   dateFilterLabel: {
     fontSize: 11,
@@ -1866,7 +2470,13 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 4,
   },
-  riskLegendDot: { width: 12, height: 12, borderRadius: 3 },
+  riskLegendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: "#ced4da",
+  },
   riskLegendLabel: { fontSize: 13, color: "#374151", flex: 1 },
   riskLegendRange: { fontSize: 11, color: "#6b7280" },
 
