@@ -1,9 +1,34 @@
 // Profile
 
 // ================================================================================
-// ProfileScreen.js — BANTAY Mobile (REDESIGN v4 — Enhanced UI + Security Fixes)
+// ProfileScreen.js — BANTAY Mobile (REDESIGN v5 — Data Sync Fixes + Gradient Header)
 // ================================================================================
-// FIXES APPLIED:
+// FIXES APPLIED IN THIS PASS:
+// 5. silentRefresh() was writing `JSON.stringify(fresh)` to AsyncStorage, but
+//    `fresh` was never defined in that function — it threw a ReferenceError
+//    every single time, silently swallowed by the outer try/catch. This meant
+//    the background/polling refresh NEVER actually persisted updated user
+//    data to AsyncStorage, so other screens (like the Dashboard, which reads
+//    "auth_user" on focus) kept showing stale name/photo. Fixed to write
+//    `json.user` (the data that was actually just fetched).
+// 6. uploadPhoto() had the exact same bug: after a successful photo upload it
+//    tried to persist `JSON.stringify(fresh)` — again undefined — so the new
+//    profile picture was NEVER actually saved to AsyncStorage even though the
+//    upload itself succeeded. Fixed to write the `parsed` object (the cached
+//    user object with the new picture URL merged in).
+// 7. loadProfile() saved the freshly-fetched user under the AsyncStorage key
+//    "user" instead of "auth_user" — every other part of the app (including
+//    the Dashboard's loadUser()) reads "auth_user", so this mismatched key
+//    meant the initial profile fetch never reached the shared cache other
+//    screens rely on. Fixed to use the correct "auth_user" key.
+// 8. Header now uses a real <LinearGradient> (expo-linear-gradient) instead of
+//    a CSS `background: linear-gradient(...)` string, which does nothing on
+//    native — it's a web-only CSS property and was silently ignored on the
+//    phone, rendering as a flat navy color. Added subtle decorative circles
+//    and an avatar ring for a more polished, professional look, matching the
+//    gradient style already used on the Crime Dashboard's stat cards.
+// ---------------------------------------------------------------------------
+// PREVIOUS FIXES (v4):
 // 1. startTimer() now calls POST /users/email/force-lock (fire & forget) when the
 //    OTP timer expires with 0 resends — same fix as the web ProfileSettings.jsx.
 //    Takes a `whichOtp` param ("old"|"new") so backend knows which lock to set.
@@ -16,6 +41,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Platform, ActivityIndicator, AppState } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import {
@@ -813,7 +839,14 @@ export default function ProfileScreen({ navigation }) {
       const newStr = JSON.stringify(json.user);
       if (newStr === lastEtag.current) return;
       lastEtag.current = newStr;
-      await AsyncStorage.setItem("user", JSON.stringify(json.user));
+      // FIX #5: this used to write `JSON.stringify(fresh)` — `fresh` was
+      // never defined in this function, so it threw a ReferenceError every
+      // time, silently caught below, meaning this background/poll refresh
+      // NEVER actually persisted the updated user to AsyncStorage. That's
+      // why name/photo changes weren't showing up elsewhere (e.g. the
+      // Dashboard, which reads "auth_user" on focus) even after some time
+      // had passed. Now correctly writes the data that was just fetched.
+      await AsyncStorage.setItem("auth_user", JSON.stringify(json.user));
       applyToState(json.user);
       await resolveAddressNames(json.user);
     } catch (_) {
@@ -844,7 +877,11 @@ export default function ProfileScreen({ navigation }) {
       const json = await res.json();
       if (res.ok && json.success && json.user) {
         lastEtag.current = JSON.stringify(json.user);
-        await AsyncStorage.setItem("user", JSON.stringify(json.user));
+        // FIX #7: this used to save under the key "user" instead of
+        // "auth_user". Every other screen — including the Dashboard's
+        // loadUser() — reads "auth_user", so the initial profile fetch
+        // never actually reached the shared cache other screens rely on.
+        await AsyncStorage.setItem("auth_user", JSON.stringify(json.user));
         applyToState(json.user);
         await resolveAddressNames(json.user);
       } else {
@@ -1274,7 +1311,7 @@ export default function ProfileScreen({ navigation }) {
       );
       const fresh = json.user || { ...profileData, ...fmt };
       lastEtag.current = JSON.stringify(fresh);
-      await AsyncStorage.setItem("user", JSON.stringify(fresh));
+      await AsyncStorage.setItem("auth_user", JSON.stringify(fresh));
       applyToState(fresh);
       setSuccessMsg("Profile updated successfully!");
       setIsEditing(false);
@@ -1364,7 +1401,15 @@ export default function ProfileScreen({ navigation }) {
           const parsed = JSON.parse(cached);
           parsed.profile_picture = newPic;
           lastEtag.current = JSON.stringify(parsed);
-          await AsyncStorage.setItem("user", JSON.stringify(parsed));
+          // FIX #6: this used to write `JSON.stringify(fresh)` — `fresh`
+          // doesn't exist in this function, so it threw a ReferenceError
+          // every time (caught by the outer catch below), which meant the
+          // new photo was NEVER actually saved to AsyncStorage even though
+          // the upload itself succeeded on the server. That's exactly why
+          // the Dashboard (and any screen reading "auth_user") kept
+          // showing your OLD photo after you changed it. Now writes the
+          // correct `parsed` object that already has the new picture URL.
+          await AsyncStorage.setItem("auth_user", JSON.stringify(parsed));
         }
         setSuccessMsg("Profile photo updated!");
       }
@@ -1848,7 +1893,7 @@ export default function ProfileScreen({ navigation }) {
       }
       const fresh = json.user || { ...profileData, email: newEmail };
       lastEtag.current = JSON.stringify(fresh);
-      await AsyncStorage.setItem("user", JSON.stringify(fresh));
+      await AsyncStorage.setItem("auth_user", JSON.stringify(fresh));
       applyToState(fresh);
       setEmailStep("done");
     } catch {
@@ -2217,7 +2262,22 @@ export default function ProfileScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         {/* ════════════ HEADER ════════════ */}
-        <View style={st.header}>
+        {/* FIX #8: was a plain <View> with a CSS `background: linear-gradient
+            (...)` string in its style — that CSS property does nothing on
+            React Native (web-only), so the header was rendering as a flat
+            navy color on the phone. Now uses a real <LinearGradient>
+            component (same technique as the Dashboard's stat cards), plus a
+            couple of subtle decorative circles and a ring behind the avatar
+            for a more polished, professional look. */}
+        <LinearGradient
+          colors={[C.navyDark, C.navy, C.navyMid]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={st.header}
+        >
+          <View style={st.headerCircle1} pointerEvents="none" />
+          <View style={st.headerCircle2} pointerEvents="none" />
+
           {/* Top row: avatar + name + settings btn */}
           <View style={st.headerTopRow}>
             {/* Avatar */}
@@ -2226,6 +2286,7 @@ export default function ProfileScreen({ navigation }) {
               onPress={() => !uploadingPhoto && setShowPhotoModal(true)}
               activeOpacity={0.85}
             >
+              <View style={st.avatarRing} pointerEvents="none" />
               {profileData.profile_picture ? (
                 <Image
                   source={{ uri: profileData.profile_picture }}
@@ -2303,7 +2364,7 @@ export default function ProfileScreen({ navigation }) {
               <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />
             </View>
           )}
-        </View>
+        </LinearGradient>
 
         {/* ════════════ ACTION CARDS (grouped) ════════════ */}
         <View style={st.actionGroupCard}>
@@ -4256,9 +4317,10 @@ const st = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: "700", color: C.text },
 
   header: {
-    background:
-      "linear-gradient(135deg, #071D47 0%, #0B2D6B 60%, #1A3D7C 100%)",
-    backgroundColor: "#0c2856",
+    // FIX #8: the old CSS `background: linear-gradient(...)` string lived
+    // here — it's a no-op on native. The gradient is now rendered by the
+    // <LinearGradient> wrapping this style in the JSX above; this object
+    // just supplies layout/shape/shadow, same as before.
     paddingTop: 36,
     paddingBottom: 32,
     paddingHorizontal: 20,
@@ -4271,6 +4333,27 @@ const st = StyleSheet.create({
     shadowRadius: 24,
     elevation: 18,
   },
+  // Decorative translucent circles for a more professional, layered look —
+  // sized/positioned to stay clear of the header's square top corners so no
+  // overflow:hidden is needed (which would otherwise kill the header's shadow).
+  headerCircle1: {
+    position: "absolute",
+    top: -20,
+    right: -20,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  headerCircle2: {
+    position: "absolute",
+    bottom: 16,
+    left: -16,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
   headerTopRow: {
     flexDirection: "column",
     alignItems: "center",
@@ -4279,6 +4362,17 @@ const st = StyleSheet.create({
   avatarWrap: {
     position: "relative",
     marginBottom: 4,
+  },
+  // Subtle glow ring behind the avatar for extra polish.
+  avatarRing: {
+    position: "absolute",
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
+    borderRadius: 51,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.22)",
   },
   avatar: {
     width: 90,

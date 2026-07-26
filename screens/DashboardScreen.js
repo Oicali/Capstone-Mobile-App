@@ -1,3 +1,5 @@
+import * as NavigationBar from "expo-navigation-bar";
+import { LinearGradient } from "expo-linear-gradient";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { DeviceEventEmitter } from "react-native";
 import {
@@ -18,7 +20,11 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import * as Notifications from "expo-notifications";
 import {
   getCrimeDashboard,
@@ -27,7 +33,7 @@ import {
   getNotifications,
 } from "./services/api";
 
-const { width: SW } = Dimensions.get("window");
+const { width: SW, height: SH } = Dimensions.get("window");
 // Cap at 480 so web/laptop stays 2x2 like mobile
 const MAX_W = Math.min(SW, 480);
 const CARD_W = Math.floor((MAX_W - 44) / 2);
@@ -52,8 +58,16 @@ const BLUED = "#1d4ed8";
 const AMBER = "#f59e0b";
 const AMBERD = "#b45309";
 
-// Web exact card gradients: cd-card-blue, cd-card-green, cd-card-teal, cd-card-amber
-const CARD_BG = ["#1e3a5f", "#166534", "#0f766e", "#92400e"];
+// Web exact card gradients: cd-card-blue (Total), cd-card-indigo (CCE%),
+// cd-card-green (CSE%), cd-card-amber (Under Investigation). Each is a
+// [start, end] pair for expo-linear-gradient — order MUST match the card
+// order built in SummaryCards below.
+const CARD_GRADIENTS = [
+  ["#16305a", "#3d6099"], // Total Incidents — deeper navy → brighter blue, wider spread for a visible gradient
+  ["#6366f1", "#3730a3"], // CCE % — bright indigo → deep indigo, wider spread
+  ["#22c55e", "#15803d"], // CSE % — green
+  ["#d97706", "#92400e"], // Under Investigation — amber
+];
 
 // ─── BARANGAYS ────────────────────────────────────────────────────────────────
 const CURRENT_BARANGAYS = [
@@ -139,10 +153,18 @@ const LEGACY_OPTIONS = [
 ];
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
+// NOTE: "PHYSICAL INJURY" (singular) — this MUST match the backend's
+// INDEX_CRIMES exactly (backend/features/dashboard/controllers/
+// crimeDashboardController.js) and the web app's INDEX_CRIMES
+// (frontend/src/components/views/CrimeDashboard.jsx). The mobile app
+// previously had "PHYSICAL INJURIES" (plural), which meant selecting that
+// crime type as a filter sent a value the backend never matched, silently
+// returning zero results. This was the root cause of the mobile filters
+// not matching the web app.
 const INDEX_CRIMES = [
   "MURDER",
   "HOMICIDE",
-  "PHYSICAL INJURIES",
+  "PHYSICAL INJURY",
   "RAPE",
   "ROBBERY",
   "THEFT",
@@ -153,7 +175,7 @@ const INDEX_CRIMES = [
 const CDISPLAY = {
   MURDER: "Murder",
   HOMICIDE: "Homicide",
-  "PHYSICAL INJURIES": "Physical Injuries",
+  "PHYSICAL INJURY": "Physical Injury",
   RAPE: "Rape",
   ROBBERY: "Robbery",
   THEFT: "Theft",
@@ -164,7 +186,7 @@ const CDISPLAY = {
 const CSHORT = {
   MURDER: "Murder",
   HOMICIDE: "Homicide",
-  "PHYSICAL INJURIES": "Phys. Inj.",
+  "PHYSICAL INJURY": "Phys. Inj.",
   RAPE: "Rape",
   ROBBERY: "Robbery",
   THEFT: "Theft",
@@ -176,7 +198,7 @@ const CCOLORS = {
   Total: NAVY,
   MURDER: "#ef4444",
   HOMICIDE: "#f97316",
-  "PHYSICAL INJURIES": "#eab308",
+  "PHYSICAL INJURY": "#eab308",
   RAPE: "#a855f7",
   ROBBERY: "#ec4899",
   THEFT: "#14b8a6",
@@ -184,11 +206,13 @@ const CCOLORS = {
   "CARNAPPING - MV": "#6366f1",
   "SPECIAL COMPLEX CRIME": "#84cc16",
 };
+// Preset keys/labels now match the web app exactly (This Month / 1 Week /
+// 3 Months / 1 Year / Custom). "This Month" is the default on both.
 const PRESETS = [
-  { label: "Last 7 days", key: "7d" },
-  { label: "Last 30 days", key: "30d" },
-  { label: "Last 3 months", key: "3m" },
-  { label: "Last 365 days", key: "365d" },
+  { label: "This Month", key: "this_month" },
+  { label: "1 Week", key: "7d" },
+  { label: "3 Months", key: "3m" },
+  { label: "1 Year", key: "365d" },
   { label: "Custom", key: "custom" },
 ];
 const PAGE = 8;
@@ -219,18 +243,14 @@ const fmtISO = (d) =>
     ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
     : "";
 const isoDate = (iso) => (iso ? new Date(iso + "T00:00:00") : new Date());
-const granLbl = (g) =>
-  g === "daily"
-    ? "Daily"
-    : g === "bidaily"
-      ? "Every 2 Days"
-      : g === "weekly"
-        ? "Weekly"
-        : "Monthly";
+// Web only ever sends "daily" or "monthly" granularity to the backend, so
+// the mobile label helper is simplified to match — no more "weekly"/
+// "bidaily" labels that the web dashboard never produces.
+const granLbl = (g) => (g === "daily" ? "Daily" : "Monthly");
 const BLANK = () => {
-  const r = getPresetRange("365d");
+  const r = getPresetRange("this_month");
   return {
-    preset: "365d",
+    preset: "this_month",
     dateFrom: r.from,
     dateTo: r.to,
     crimeTypes: [],
@@ -412,7 +432,9 @@ function Bdg({ val, color }) {
   const tc = color === "green" ? GREEND : color === "red" ? "#ef4444" : AMBERD;
   return (
     <View style={[s.bdg, { backgroundColor: bg }]}>
-      <Text style={[s.bdgTxt, { color: tc }]}>{val}</Text>
+      <Text style={[s.bdgTxt, { color: tc }]} numberOfLines={1}>
+        {val}
+      </Text>
     </View>
   );
 }
@@ -469,16 +491,40 @@ function Pgn({ page, total, pageSize, onPrev, onNext, onPage }) {
 
 // ─── ROW DETAIL SHEET ────────────────────────────────────────────────────────
 function DetailSheet({ visible, data, onClose }) {
+  const insets = useSafeAreaInsets();
+  useEffect(() => {
+    if (visible && Platform.OS === "android") {
+      NavigationBar.setVisibilityAsync("hidden");
+    }
+  }, [visible]);
+
   if (!visible || !data) return null;
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      onShow={() => {
+        if (Platform.OS === "android") {
+          NavigationBar.setVisibilityAsync("hidden");
+        }
+      }}
+    >
       <View style={s.sheetBg}>
         <TouchableOpacity
           style={{ flex: 1 }}
           activeOpacity={1}
           onPress={onClose}
         />
-        <View style={s.detailSh}>
+        <View
+          style={[
+            s.detailSh,
+            // FIX: was a flat paddingBottom:36 — pushed too low on phones
+            // with a bigger gesture bar, covering the Close button.
+            { paddingBottom: Math.max(insets.bottom + 16, 36) },
+          ]}
+        >
           <View style={s.handle} />
           <View
             style={{
@@ -529,8 +575,14 @@ function MultiSelect({
   onApply,
   searchable,
 }) {
+  const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState([]);
   const [search, setSearch] = useState("");
+  useEffect(() => {
+    if (visible && Platform.OS === "android") {
+      NavigationBar.setVisibilityAsync("hidden");
+    }
+  }, [visible]);
   useEffect(() => {
     if (visible) {
       setDraft([...selected]);
@@ -551,9 +603,22 @@ function MultiSelect({
       transparent
       animationType="slide"
       onRequestClose={onClose}
+      onShow={() => {
+        if (Platform.OS === "android") {
+          NavigationBar.setVisibilityAsync("hidden");
+        }
+      }}
     >
       <View style={s.msOv}>
-        <View style={s.msSh}>
+        <View
+          style={[
+            s.msSh,
+            // FIX: push footer buttons up above the device's gesture/nav
+            // bar instead of the previous fixed 24/34px, which the nav
+            // bar could still cover on some Android devices.
+            { paddingBottom: Math.max(insets.bottom + 12, 20) },
+          ]}
+        >
           <View style={s.handle} />
           <View style={s.msTop}>
             <Text style={s.msTitle}>{title}</Text>
@@ -698,10 +763,16 @@ function MultiSelect({
 
 // ─── FILTER SHEET ─────────────────────────────────────────────────────────────
 function FilterSheet({ visible, applied, onApply, onClose }) {
+  const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState({ ...applied });
   const [dateErr, setDateErr] = useState("");
   const [showCrime, setShowCrime] = useState(false);
   const [showBrgy, setShowBrgy] = useState(false);
+  useEffect(() => {
+    if (visible && Platform.OS === "android") {
+      NavigationBar.setVisibilityAsync("hidden");
+    }
+  }, [visible]);
   useEffect(() => {
     if (visible) {
       setDraft({ ...applied });
@@ -750,9 +821,23 @@ function FilterSheet({ visible, applied, onApply, onClose }) {
         transparent
         animationType="slide"
         onRequestClose={onClose}
+        onShow={() => {
+          if (Platform.OS === "android") {
+            NavigationBar.setVisibilityAsync("hidden");
+          }
+        }}
       >
         <View style={s.fsOv}>
-          <View style={s.fsSh}>
+          <View
+            style={[
+              s.fsSh,
+              // FIX: buttons were getting covered by the phone's bottom
+              // nav/gesture bar. Instead of a flat 20/34px, pad by the
+              // device's actual safe-area bottom inset so "Apply Filters"
+              // always sits above it, on every phone.
+              { paddingBottom: Math.max(insets.bottom + 16, 24) },
+            ]}
+          >
             <View style={s.handle} />
             <View style={s.fsTop}>
               <View
@@ -774,7 +859,7 @@ function FilterSheet({ visible, applied, onApply, onClose }) {
               </TouchableOpacity>
             </View>
             <ScrollView
-              style={{ flex: 1 }}
+              style={{ maxHeight: SH * 0.55 }}
               contentContainerStyle={{ paddingBottom: 20 }}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
@@ -993,6 +1078,10 @@ function SummaryCards({ data }) {
   const cleared = data.reduce((s, d) => s + d.cleared, 0);
   const solved = data.reduce((s, d) => s + d.solved, 0);
   const ui = data.reduce((s, d) => s + d.underInvestigation, 0);
+  // CCE (Crime Clearance Efficiency) = (Cleared + Solved) ÷ Total — matches
+  // the web app's formula exactly. This was previously computed as just
+  // Cleared ÷ Total on mobile, which is why the mobile CCE% (e.g. 8.9%)
+  // never matched the web CCE% (e.g. 100.0%) for the same filtered data.
   const cards = [
     {
       label: "Total Incidents",
@@ -1002,15 +1091,18 @@ function SummaryCards({ data }) {
     },
     {
       label: "CCE %",
-      value: `${pct(cleared, total)}%`,
+      value: `${pct(cleared + solved, total)}%`,
       sub: `${cleared} cleared`,
-      icon: "lock-open-outline",
+      // Web uses CheckSquare for the CCE% card — checkmark-done-outline is
+      // the closest Ionicons equivalent.
+      icon: "checkmark-done-outline",
     },
     {
       label: "CSE %",
       value: `${pct(solved, total)}%`,
       sub: `${solved} solved`,
-      icon: "checkmark-done-outline",
+      // Web uses Unlock for the CSE% card — lock-open-outline matches.
+      icon: "lock-open-outline",
     },
     {
       label: "Under Investigation",
@@ -1022,9 +1114,12 @@ function SummaryCards({ data }) {
   return (
     <View style={s.cardGrid}>
       {cards.map((c, i) => (
-        <View
+        <LinearGradient
           key={i}
-          style={[s.statCard, { backgroundColor: CARD_BG[i], width: CARD_W }]}
+          colors={CARD_GRADIENTS[i]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[s.statCard, { width: CARD_W }]}
         >
           <View style={s.statCircle} />
           <View style={s.statTopRow}>
@@ -1037,7 +1132,7 @@ function SummaryCards({ data }) {
           </View>
           <Text style={s.statVal}>{c.value}</Text>
           <Text style={s.statLbl}>{c.label}</Text>
-        </View>
+        </LinearGradient>
       ))}
     </View>
   );
@@ -1090,7 +1185,7 @@ function IndexCrimeTable({ data, sel }) {
             ].map(([c, l]) => (
               <TouchableOpacity
                 key={c}
-                style={[s.tHBtn, { width: 58 }]}
+                style={[s.tHBtn, { width: 58, justifyContent: "center" }]}
                 onPress={() => sort(c)}
               >
                 <Text style={s.tHTxt}>{l}</Text>
@@ -1107,11 +1202,14 @@ function IndexCrimeTable({ data, sel }) {
                 />
               </TouchableOpacity>
             ))}
-            <Text style={[s.tH, { width: 50, textAlign: "right" }]}>CCE%</Text>
-            <Text style={[s.tH, { width: 50, textAlign: "right" }]}>CSE%</Text>
+            <Text style={[s.tH, { width: 62, textAlign: "center" }]}>CCE%</Text>
+            <Text style={[s.tH, { width: 62, textAlign: "center" }]}>CSE%</Text>
           </View>
           {rows.map((r, i) => {
-            const cce = parseFloat(pct(r.cleared, r.total));
+            // CCE% = (Cleared + Solved) ÷ Total — matches web formula.
+            // Previously this only used Cleared ÷ Total, which produced a
+            // much lower, incorrect percentage than the web dashboard.
+            const cce = parseFloat(pct(r.cleared + r.solved, r.total));
             const cse = parseFloat(pct(r.solved, r.total));
             return (
               <View key={i} style={[s.tRow, i % 2 === 1 && s.tRowAlt]}>
@@ -1128,13 +1226,13 @@ function IndexCrimeTable({ data, sel }) {
                 >
                   {CDISPLAY[r.crime] || r.crime}
                 </Text>
-                <Text style={[s.tD, { width: 58, textAlign: "right" }]}>
+                <Text style={[s.tD, { width: 58, textAlign: "center" }]}>
                   {r.total}
                 </Text>
                 <Text
                   style={[
                     s.tD,
-                    { width: 58, textAlign: "right", color: GREEND },
+                    { width: 58, textAlign: "center", color: GREEND },
                   ]}
                 >
                   {r.cleared}
@@ -1142,7 +1240,7 @@ function IndexCrimeTable({ data, sel }) {
                 <Text
                   style={[
                     s.tD,
-                    { width: 58, textAlign: "right", color: BLUED },
+                    { width: 58, textAlign: "center", color: BLUED },
                   ]}
                 >
                   {r.solved}
@@ -1150,18 +1248,18 @@ function IndexCrimeTable({ data, sel }) {
                 <Text
                   style={[
                     s.tD,
-                    { width: 58, textAlign: "right", color: AMBERD },
+                    { width: 58, textAlign: "center", color: AMBERD },
                   ]}
                 >
                   {r.underInvestigation}
                 </Text>
-                <View style={[s.tD, { width: 50, alignItems: "flex-end" }]}>
+                <View style={[s.tD, { width: 62, alignItems: "center" }]}>
                   <Bdg
                     val={`${cce.toFixed(1)}%`}
                     color={cce >= 50 ? "green" : "red"}
                   />
                 </View>
-                <View style={[s.tD, { width: 50, alignItems: "flex-end" }]}>
+                <View style={[s.tD, { width: 62, alignItems: "center" }]}>
                   <Bdg
                     val={`${cse.toFixed(1)}%`}
                     color={cse >= 50 ? "green" : "amber"}
@@ -1179,7 +1277,7 @@ function IndexCrimeTable({ data, sel }) {
             <Text
               style={[
                 s.tD,
-                { width: 58, textAlign: "right", fontWeight: "700" },
+                { width: 58, textAlign: "center", fontWeight: "700" },
               ]}
             >
               {tot.total}
@@ -1189,7 +1287,7 @@ function IndexCrimeTable({ data, sel }) {
                 s.tD,
                 {
                   width: 58,
-                  textAlign: "right",
+                  textAlign: "center",
                   fontWeight: "700",
                   color: GREEND,
                 },
@@ -1202,7 +1300,7 @@ function IndexCrimeTable({ data, sel }) {
                 s.tD,
                 {
                   width: 58,
-                  textAlign: "right",
+                  textAlign: "center",
                   fontWeight: "700",
                   color: BLUED,
                 },
@@ -1215,7 +1313,7 @@ function IndexCrimeTable({ data, sel }) {
                 s.tD,
                 {
                   width: 58,
-                  textAlign: "right",
+                  textAlign: "center",
                   fontWeight: "700",
                   color: AMBERD,
                 },
@@ -1223,10 +1321,13 @@ function IndexCrimeTable({ data, sel }) {
             >
               {tot.ui}
             </Text>
-            <View style={[s.tD, { width: 50, alignItems: "flex-end" }]}>
-              <Bdg val={`${pct(tot.cleared, tot.total)}%`} color="green" />
+            <View style={[s.tD, { width: 62, alignItems: "center" }]}>
+              <Bdg
+                val={`${pct(tot.cleared + tot.solved, tot.total)}%`}
+                color="green"
+              />
             </View>
-            <View style={[s.tD, { width: 50, alignItems: "flex-end" }]}>
+            <View style={[s.tD, { width: 62, alignItems: "center" }]}>
               <Bdg val={`${pct(tot.solved, tot.total)}%`} color="green" />
             </View>
           </View>
@@ -1238,7 +1339,12 @@ function IndexCrimeTable({ data, sel }) {
 }
 
 // ─── CASE STATUS ──────────────────────────────────────────────────────────────
+// FIX: Web shows a hover tooltip with Cleared/Solved/Under Inv. counts per
+// crime when you hover a bar. Mobile has no hover, so tapping a row now
+// toggles the exact same breakdown inline right under that row — same
+// interaction pattern already used by Crime Trends / Crime Clock below.
 function CaseStatus({ data, sel }) {
+  const [tipIdx, setTipIdx] = useState(null);
   const vis = sel.length > 0 ? data.filter((d) => sel.includes(d.crime)) : data;
   const maxT = Math.max(
     ...vis.map((r) => r.cleared + r.solved + r.underInvestigation),
@@ -1271,77 +1377,132 @@ function CaseStatus({ data, sel }) {
           ))}
         </View>
       </View>
-      <View style={{ padding: 14 }}>
+      <Text style={s.tapHint}>Tap a bar to see the breakdown</Text>
+      <View style={{ padding: 14, paddingTop: 4 }}>
         {vis.map((r, i) => {
           const tot = r.cleared + r.solved + r.underInvestigation;
           const bw = (tot / maxT) * (SW - 200);
+          const active = tipIdx === i;
           return (
-            <View
-              key={i}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginBottom: 10,
-              }}
-            >
-              <Text
-                style={{
-                  width: 80,
-                  fontSize: 10,
-                  fontWeight: "700",
-                  color: NAVY_M,
-                }}
-                numberOfLines={1}
+            <View key={i} style={{ marginBottom: 10 }}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setTipIdx(active ? null : i)}
+                style={{ flexDirection: "row", alignItems: "center" }}
               >
-                {CSHORT[r.crime] || r.crime}
-              </Text>
-              <View
-                style={{
-                  flexDirection: "row",
-                  height: 22,
-                  borderRadius: 3,
-                  overflow: "hidden",
-                  flex: 1,
-                  backgroundColor: G100,
-                }}
-              >
-                {r.cleared > 0 && (
-                  <View
+                <Text
+                  style={{
+                    width: 80,
+                    fontSize: 10,
+                    fontWeight: "700",
+                    color: NAVY_M,
+                  }}
+                  numberOfLines={1}
+                >
+                  {CSHORT[r.crime] || r.crime}
+                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    height: 22,
+                    borderRadius: 3,
+                    overflow: "hidden",
+                    flex: 1,
+                    backgroundColor: G100,
+                    borderWidth: active ? 1.5 : 0,
+                    borderColor: NAVY,
+                  }}
+                >
+                  {r.cleared > 0 && (
+                    <View
+                      style={{
+                        width: (r.cleared / Math.max(tot, 1)) * bw,
+                        backgroundColor: GREEN,
+                      }}
+                    />
+                  )}
+                  {r.solved > 0 && (
+                    <View
+                      style={{
+                        width: (r.solved / Math.max(tot, 1)) * bw,
+                        backgroundColor: BLUE,
+                      }}
+                    />
+                  )}
+                  {r.underInvestigation > 0 && (
+                    <View
+                      style={{
+                        width: (r.underInvestigation / Math.max(tot, 1)) * bw,
+                        backgroundColor: AMBER,
+                      }}
+                    />
+                  )}
+                </View>
+                <Text
+                  style={{
+                    width: 26,
+                    fontSize: 11,
+                    fontWeight: "700",
+                    color: NAVY,
+                    textAlign: "right",
+                    marginLeft: 8,
+                  }}
+                >
+                  {tot}
+                </Text>
+              </TouchableOpacity>
+              {active && (
+                <View style={s.caseTip}>
+                  <TouchableOpacity
                     style={{
-                      width: (r.cleared / Math.max(tot, 1)) * bw,
-                      backgroundColor: GREEN,
+                      position: "absolute",
+                      top: 4,
+                      right: 4,
+                      padding: 4,
                     }}
-                  />
-                )}
-                {r.solved > 0 && (
-                  <View
-                    style={{
-                      width: (r.solved / Math.max(tot, 1)) * bw,
-                      backgroundColor: BLUE,
-                    }}
-                  />
-                )}
-                {r.underInvestigation > 0 && (
-                  <View
-                    style={{
-                      width: (r.underInvestigation / Math.max(tot, 1)) * bw,
-                      backgroundColor: AMBER,
-                    }}
-                  />
-                )}
-              </View>
-              <Text
-                style={{
-                  width: 26,
-                  fontSize: 11,
-                  fontWeight: "700",
-                  color: NAVY,
-                  textAlign: "right",
-                  marginLeft: 8,
-                }}
-              >
-                {tot}
-              </Text>
+                    onPress={() => setTipIdx(null)}
+                  >
+                    <Ionicons name="close" size={12} color={G400} />
+                  </TouchableOpacity>
+                  <Text style={s.caseTipTitle}>
+                    {CDISPLAY[r.crime] || r.crime}
+                  </Text>
+                  <View style={s.caseTipRow}>
+                    <Text style={[s.caseTipLbl, { color: GREEND }]}>
+                      Cleared
+                    </Text>
+                    <Text style={[s.caseTipVal, { color: GREEND }]}>
+                      {r.cleared}
+                    </Text>
+                  </View>
+                  <View style={s.caseTipRow}>
+                    <Text style={[s.caseTipLbl, { color: BLUED }]}>Solved</Text>
+                    <Text style={[s.caseTipVal, { color: BLUED }]}>
+                      {r.solved}
+                    </Text>
+                  </View>
+                  <View style={s.caseTipRow}>
+                    <Text style={[s.caseTipLbl, { color: AMBERD }]}>
+                      Under Inv.
+                    </Text>
+                    <Text style={[s.caseTipVal, { color: AMBERD }]}>
+                      {r.underInvestigation}
+                    </Text>
+                  </View>
+                  <View style={[s.caseTipRow, { marginTop: 2 }]}>
+                    <Text
+                      style={[s.caseTipLbl, { color: G700, fontWeight: "700" }]}
+                    >
+                      Total
+                    </Text>
+                    <Text
+                      style={[s.caseTipVal, { color: NAVY, fontWeight: "700" }]}
+                    >
+                      {tot}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
           );
         })}
@@ -1352,26 +1513,17 @@ function CaseStatus({ data, sel }) {
 
 // ─── CRIME TRENDS ─────────────────────────────────────────────────────────────
 function CrimeTrends({ filters, data }) {
-  const [mode, setMode] = useState("total");
-  const [hidden, setHidden] = useState(new Set());
+  // Web's Crime Trends only ever plots the Total line — the per-crime lines
+  // in the web code exist purely to feed tooltip data, invisible on the
+  // chart itself (strokeWidth: 0). The mobile "Total / By Crime" toggle
+  // was a mobile-only addition that doesn't exist on web, so it's removed
+  // here to match exactly: one navy Total line, tap a point for breakdown.
+  const [tipIdx, setTipIdx] = useState(null);
   const gran = getGranularity(filters.preset, filters.dateFrom, filters.dateTo);
   const days =
     Math.round(
       (new Date(filters.dateTo) - new Date(filters.dateFrom)) / 86400000,
     ) + 1;
-  const crimes =
-    filters.crimeTypes.length > 0 ? filters.crimeTypes : INDEX_CRIMES;
-  const sw = (m) => {
-    setMode(m);
-    setHidden(new Set());
-  };
-  const tog = (k) =>
-    setHidden((p) => {
-      const n = new Set(p);
-      n.has(k) ? n.delete(k) : n.add(k);
-      return n;
-    });
-  const allVis = crimes.every((c) => !hidden.has(c));
 
   if (!data || data.length === 0)
     return (
@@ -1389,42 +1541,50 @@ function CrimeTrends({ filters, data }) {
 
   const step = Math.max(1, Math.floor(data.length / 13));
   const thin = data.filter((_, i) => i % step === 0 || i === data.length - 1);
+  const years = new Set(thin.map((d) => d.label?.slice(0, 4)).filter(Boolean));
+  const multiYear = gran === "monthly" && years.size > 1;
   const fmtL = (iso) => {
     if (!iso) return "";
     const [, m, d] = iso.split("-");
-    return gran === "monthly" || gran === "weekly"
+    return gran === "monthly"
       ? MONTHS[parseInt(m) - 1]
       : `${parseInt(m)}/${parseInt(d)}`;
   };
+  const fmtYear = (iso) => (iso ? iso.slice(0, 4) : "");
+  const fmtFullLabel = (iso) => {
+    if (!iso) return "";
+    if (gran === "monthly") {
+      const [y, m] = iso.split("-");
+      return `${MONTHS[parseInt(m) - 1]} ${y}`;
+    }
+    const [y, m, d] = iso.split("-");
+    return `${parseInt(m)}/${parseInt(d)}/${y}`;
+  };
   const PH = 160,
     PW = Math.max(SW - 64, thin.length * 38);
-  const PL = 6,
-    PR = 6,
+  const PL = 22,
+    PR = 22,
     PT = 12,
-    PB = 26,
+    // Extra bottom room when a year sub-label needs to render under the
+    // month, so the two-line label doesn't get clipped.
+    PB = multiYear ? 38 : 26,
     IW = PW - PL - PR,
     IH = PH - PT - PB;
-  const DS =
-    mode === "total"
-      ? [
-          {
-            key: "Total",
-            color: NAVY,
-            sw: 3,
-            vals: thin.map((d) => d.Total || 0),
-          },
-        ]
-      : crimes
-          .filter((c) => !hidden.has(c))
-          .map((c) => ({
-            key: c,
-            color: CCOLORS[c] || "#888",
-            sw: 2,
-            vals: thin.map((d) => d[c] || 0),
-          }));
-  const maxV = Math.max(...DS.flatMap((d) => d.vals), 1);
+
+  const vals = thin.map((d) => d.Total || 0);
+  const maxV = Math.max(...vals, 1);
   const toX = (i) => PL + (i / (thin.length - 1 || 1)) * IW;
   const toY = (v) => PT + IH - (v / maxV) * IH;
+  const pts = vals.map((v, i) => ({ x: toX(i), y: toY(v) }));
+
+  const tipData = tipIdx !== null ? thin[tipIdx] : null;
+  const tipCrimes = tipData
+    ? INDEX_CRIMES.filter((c) => tipData[c] > 0).sort(
+        (a, b) => tipData[b] - tipData[a],
+      )
+    : [];
+  const tipW = 150;
+  const tipH = tipCrimes.length * 15 + 44;
 
   return (
     <View style={s.card}>
@@ -1434,68 +1594,14 @@ function CrimeTrends({ filters, data }) {
           {granLbl(gran)} · {data.length} pts · {days} days
         </Text>
       </View>
-      <View style={s.modeRow}>
-        {[
-          ["total", "Total"],
-          ["crime", "By Crime"],
-        ].map(([m, l]) => (
-          <TouchableOpacity
-            key={m}
-            style={[s.modeBtn, mode === m && s.modeBtnOn]}
-            onPress={() => sw(m)}
-          >
-            <Text style={[s.modeTxt, mode === m && s.modeTxtOn]}>{l}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      {mode === "crime" && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ paddingHorizontal: 12, marginBottom: 8 }}
-        >
-          <View style={{ flexDirection: "row", gap: 5, alignItems: "center" }}>
-            <TouchableOpacity
-              style={s.showAllBtn}
-              onPress={() => setHidden(allVis ? new Set(crimes) : new Set())}
-            >
-              <Text style={s.showAllTxt}>
-                {allVis ? "Hide All" : "Show All"}
-              </Text>
-            </TouchableOpacity>
-            {crimes.map((c) => {
-              const off = hidden.has(c);
-              return (
-                <TouchableOpacity
-                  key={c}
-                  style={[s.cpill, off && s.cpillOff]}
-                  onPress={() => tog(c)}
-                >
-                  <View
-                    style={[
-                      s.cpillDot,
-                      { backgroundColor: off ? G400 : CCOLORS[c] },
-                    ]}
-                  />
-                  <Text
-                    style={[
-                      s.cpillTxt,
-                      off && {
-                        color: G400,
-                        textDecorationLine: "line-through",
-                      },
-                    ]}
-                  >
-                    {CSHORT[c]}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </ScrollView>
-      )}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={{ width: PW, height: PH + 10, paddingLeft: 2 }}>
+        <View
+          style={{
+            width: PW,
+            height: PH + (multiYear ? 18 : 10),
+            paddingLeft: 2,
+          }}
+        >
           {[0, 0.25, 0.5, 0.75, 1].map((r, i) => (
             <View
               key={i}
@@ -1509,78 +1615,160 @@ function CrimeTrends({ filters, data }) {
               }}
             />
           ))}
-          {DS.map((ds, di) => {
-            const pts = ds.vals.map((v, i) => ({ x: toX(i), y: toY(v) }));
+          {pts.map((pt, i) => {
+            if (i === 0) return null;
+            const pv = pts[i - 1],
+              dx = pt.x - pv.x,
+              dy = pt.y - pv.y;
+            const len = Math.sqrt(dx * dx + dy * dy),
+              ang = Math.atan2(dy, dx) * (180 / Math.PI);
             return (
               <View
-                key={di}
+                key={i}
                 style={{
                   position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: PW,
-                  height: PH,
+                  left: pv.x,
+                  top: pv.y - 1.5,
+                  width: len,
+                  height: 3,
+                  backgroundColor: NAVY,
+                  borderRadius: 1,
+                  transform: [{ rotate: `${ang}deg` }],
+                  transformOrigin: "0 50%",
                 }}
-              >
-                {pts.map((pt, i) => {
-                  if (i === 0) return null;
-                  const pv = pts[i - 1],
-                    dx = pt.x - pv.x,
-                    dy = pt.y - pv.y;
-                  const len = Math.sqrt(dx * dx + dy * dy),
-                    ang = Math.atan2(dy, dx) * (180 / Math.PI);
-                  return (
-                    <View
-                      key={i}
-                      style={{
-                        position: "absolute",
-                        left: pv.x,
-                        top: pv.y - ds.sw / 2,
-                        width: len,
-                        height: ds.sw,
-                        backgroundColor: ds.color,
-                        borderRadius: 1,
-                        transform: [{ rotate: `${ang}deg` }],
-                        transformOrigin: "0 50%",
-                      }}
-                    />
-                  );
-                })}
-                {pts.map((pt, i) => (
-                  <View
-                    key={`d${i}`}
-                    style={{
-                      position: "absolute",
-                      left: pt.x - 4,
-                      top: pt.y - 4,
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: ds.color,
-                      borderWidth: 2,
-                      borderColor: WHITE,
-                    }}
-                  />
-                ))}
-              </View>
+              />
             );
           })}
+          {pts.map((pt, i) => (
+            <TouchableOpacity
+              key={`d${i}`}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              onPress={() => setTipIdx(tipIdx === i ? null : i)}
+              style={{
+                position: "absolute",
+                left: pt.x - 10,
+                top: pt.y - 10,
+                width: 20,
+                height: 20,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <View
+                style={{
+                  width: tipIdx === i ? 10 : 8,
+                  height: tipIdx === i ? 10 : 8,
+                  borderRadius: 5,
+                  backgroundColor: NAVY,
+                  borderWidth: 2,
+                  borderColor: WHITE,
+                }}
+              />
+            </TouchableOpacity>
+          ))}
           {thin.map((d, i) => (
-            <Text
+            <View
               key={i}
               style={{
                 position: "absolute",
                 left: toX(i) - 18,
-                top: PH - 18,
+                top: PH - (multiYear ? 30 : 18),
                 width: 36,
-                textAlign: "center",
-                fontSize: 8,
-                color: G600,
+                alignItems: "center",
               }}
             >
-              {fmtL(d.label)}
-            </Text>
+              <Text style={{ fontSize: 8, color: G600, textAlign: "center" }}>
+                {fmtL(d.label)}
+              </Text>
+              {multiYear && (
+                <Text
+                  style={{
+                    fontSize: 7,
+                    color: G400,
+                    textAlign: "center",
+                    marginTop: 1,
+                  }}
+                >
+                  {fmtYear(d.label)}
+                </Text>
+              )}
+            </View>
           ))}
+          {tipData && (
+            <View
+              pointerEvents="box-none"
+              style={{
+                position: "absolute",
+                left: Math.min(
+                  Math.max(pts[tipIdx].x - tipW / 2, 4),
+                  PW - tipW - 4,
+                ),
+                top: Math.max(pts[tipIdx].y - tipH - 10, 2),
+                width: tipW,
+                backgroundColor: WHITE,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: G200,
+                padding: 10,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 6,
+                elevation: 6,
+                zIndex: 50,
+              }}
+            >
+              <TouchableOpacity
+                style={{ position: "absolute", top: 4, right: 4, padding: 4 }}
+                onPress={() => setTipIdx(null)}
+              >
+                <Ionicons name="close" size={12} color={G400} />
+              </TouchableOpacity>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: NAVY_M,
+                  marginBottom: 6,
+                  paddingRight: 14,
+                }}
+              >
+                {fmtFullLabel(tipData.label)}
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginBottom: tipCrimes.length ? 4 : 0,
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: "700", color: G700 }}>
+                  Total
+                </Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: NAVY }}>
+                  {tipData.Total || 0}
+                </Text>
+              </View>
+              {tipCrimes.map((c) => (
+                <View
+                  key={c}
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginBottom: 2,
+                  }}
+                >
+                  <Text style={{ fontSize: 10, color: G600 }} numberOfLines={1}>
+                    {CSHORT[c]}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: NAVY }}>
+                    {tipData[c]}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -1588,10 +1776,45 @@ function CrimeTrends({ filters, data }) {
 }
 
 // ─── CRIME CLOCK ─────────────────────────────────────────────────────────────
+// Web renders Crime Clock as a connected line chart (recharts LineChart),
+// not bars. This mirrors that: a single navy line across 24 hourly points,
+// with the peak hour highlighted as a larger dot — same drawing technique
+// used in CrimeTrends below (rotated View segments, since RN has no native
+// SVG line primitive without extra deps).
 function CrimeClock({ data }) {
+  const [tipIdx, setTipIdx] = useState(null);
+
   if (!data || data.length === 0) return null;
   const maxV = Math.max(...data.map((d) => d.count), 1);
   const peak = data.reduce((b, d) => (d.count > b.count ? d : b), data[0]);
+
+  const PH = 140,
+    PW = Math.max(SW - 64, data.length * 30);
+  const PL = 18,
+    PR = 18,
+    PT = 12,
+    PB = 22,
+    IW = PW - PL - PR,
+    IH = PH - PT - PB;
+
+  const pts = data.map((d, i) => ({
+    x: PL + (i / (data.length - 1 || 1)) * IW,
+    y: PT + IH - (d.count / maxV) * IH,
+  }));
+
+  // Match web: a label every 2 hours (12AM, 2AM, 4AM ... 10PM) instead of
+  // only 5 sparse points — the web Crime Clock shows the full 2-hour axis.
+  const labelIdx = new Set(data.map((_, i) => i).filter((i) => i % 2 === 0));
+
+  const tipData = tipIdx !== null ? data[tipIdx] : null;
+  const tipCrimes = tipData
+    ? INDEX_CRIMES.filter((c) => tipData[c] > 0).sort(
+        (a, b) => tipData[b] - tipData[a],
+      )
+    : [];
+  const tipW = 140;
+  const tipH = tipCrimes.length * 15 + 44;
+
   return (
     <View style={s.card}>
       <View style={s.cardHdr}>
@@ -1599,118 +1822,323 @@ function CrimeClock({ data }) {
         <Text style={s.cardSub}>Peak: {peak?.hour || "N/A"}</Text>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "flex-end",
-            height: 80,
-            paddingHorizontal: 14,
-            paddingBottom: 4,
-            gap: 2,
-            width: Math.max(SW - 64, 24 * 20),
-          }}
-        >
-          {data.map((d, i) => (
+        <View style={{ width: PW, height: PH + 18, paddingLeft: 2 }}>
+          {[0, 0.25, 0.5, 0.75, 1].map((r, i) => (
             <View
               key={i}
               style={{
-                flex: 1,
-                height: Math.max((d.count / maxV) * 64, 3),
-                backgroundColor:
-                  d.count > 0 && d.count === maxV
-                    ? NAVY
-                    : d.count > 0
-                      ? NAVY_M
-                      : G200,
-                borderRadius: 2,
+                position: "absolute",
+                left: PL,
+                right: PR,
+                top: PT + IH - r * IH,
+                height: 1,
+                backgroundColor: "#e5e7eb",
               }}
             />
           ))}
+          {pts.map((pt, i) => {
+            if (i === 0) return null;
+            const pv = pts[i - 1],
+              dx = pt.x - pv.x,
+              dy = pt.y - pv.y;
+            const len = Math.sqrt(dx * dx + dy * dy),
+              ang = Math.atan2(dy, dx) * (180 / Math.PI);
+            return (
+              <View
+                key={i}
+                style={{
+                  position: "absolute",
+                  left: pv.x,
+                  top: pv.y - 1.25,
+                  width: len,
+                  height: 2.5,
+                  backgroundColor: NAVY_M,
+                  borderRadius: 1,
+                  transform: [{ rotate: `${ang}deg` }],
+                  transformOrigin: "0 50%",
+                }}
+              />
+            );
+          })}
+          {pts.map((pt, i) => {
+            const isPeak = data[i].count > 0 && data[i].count === maxV;
+            const active = tipIdx === i;
+            const size = active ? 10 : isPeak ? 8 : 6;
+            return (
+              <TouchableOpacity
+                key={`d${i}`}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => setTipIdx(tipIdx === i ? null : i)}
+                style={{
+                  position: "absolute",
+                  left: pt.x - 10,
+                  top: pt.y - 10,
+                  width: 20,
+                  height: 20,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <View
+                  style={{
+                    width: size,
+                    height: size,
+                    borderRadius: size / 2,
+                    backgroundColor: isPeak ? NAVY : NAVY_M,
+                    borderWidth: isPeak || active ? 2 : 0,
+                    borderColor: WHITE,
+                  }}
+                />
+              </TouchableOpacity>
+            );
+          })}
+          {pts.map((pt, i) =>
+            labelIdx.has(i) ? (
+              <Text
+                key={`l${i}`}
+                style={{
+                  position: "absolute",
+                  left: pt.x - 12,
+                  top: PH - 2,
+                  width: 24,
+                  textAlign: "center",
+                  fontSize: 7,
+                  color: G400,
+                }}
+              >
+                {data[i].hour}
+              </Text>
+            ) : null,
+          )}
+          {tipData && (
+            <View
+              pointerEvents="box-none"
+              style={{
+                position: "absolute",
+                left: Math.min(
+                  Math.max(pts[tipIdx].x - tipW / 2, 4),
+                  PW - tipW - 4,
+                ),
+                top: Math.max(pts[tipIdx].y - tipH - 10, 2),
+                width: tipW,
+                backgroundColor: WHITE,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: G200,
+                padding: 10,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 6,
+                elevation: 6,
+                zIndex: 50,
+              }}
+            >
+              <TouchableOpacity
+                style={{ position: "absolute", top: 4, right: 4, padding: 4 }}
+                onPress={() => setTipIdx(null)}
+              >
+                <Ionicons name="close" size={12} color={G400} />
+              </TouchableOpacity>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: NAVY_M,
+                  marginBottom: 6,
+                  paddingRight: 14,
+                }}
+              >
+                {tipData.hour}
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginBottom: tipCrimes.length ? 4 : 0,
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: "700", color: G700 }}>
+                  Total
+                </Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: NAVY }}>
+                  {tipData.count || 0}
+                </Text>
+              </View>
+              {tipCrimes.map((c) => (
+                <View
+                  key={c}
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginBottom: 2,
+                  }}
+                >
+                  <Text style={{ fontSize: 10, color: G600 }} numberOfLines={1}>
+                    {CSHORT[c]}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: NAVY }}>
+                    {tipData[c]}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          paddingHorizontal: 14,
-          paddingBottom: 10,
-        }}
-      >
-        {["00:00", "06:00", "12:00", "18:00", "23:00"].map((l) => (
-          <Text key={l} style={{ fontSize: 9, color: G400 }}>
-            {l}
-          </Text>
-        ))}
-      </View>
     </View>
   );
 }
 
 // ─── CRIME BY DAY ─────────────────────────────────────────────────────────────
+// Web shows a per-crime breakdown on hover for each day bar; mobile has no
+// hover, so tapping a row opens this sheet with the same breakdown instead.
+function DayBreakdownSheet({ visible, row, onClose }) {
+  useEffect(() => {
+    if (visible && Platform.OS === "android") {
+      NavigationBar.setVisibilityAsync("hidden");
+    }
+  }, [visible]);
+
+  if (!visible || !row) return null;
+  const crimes = INDEX_CRIMES.filter((c) => row[c] > 0).sort(
+    (a, b) => row[b] - row[a],
+  );
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <View style={s.sheetBg}>
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        <View style={s.detailSh}>
+          <View style={s.handle} />
+          <Text style={[s.detailName, { marginBottom: 4 }]}>{row.day}</Text>
+          <Text style={{ fontSize: 12, color: G600, marginBottom: 16 }}>
+            {row.count} total incident{row.count !== 1 ? "s" : ""}
+          </Text>
+          {crimes.length === 0 ? (
+            <Text
+              style={{
+                fontSize: 13,
+                color: G400,
+                textAlign: "center",
+                paddingVertical: 20,
+              }}
+            >
+              No incidents recorded
+            </Text>
+          ) : (
+            crimes.map((c) => (
+              <View
+                key={c}
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  paddingVertical: 8,
+                  borderBottomWidth: 1,
+                  borderBottomColor: G100,
+                }}
+              >
+                <Text
+                  style={{ fontSize: 13, color: NAVY_M, fontWeight: "600" }}
+                >
+                  {CDISPLAY[c] || c}
+                </Text>
+                <Text style={{ fontSize: 13, color: NAVY, fontWeight: "700" }}>
+                  {row[c]}
+                </Text>
+              </View>
+            ))
+          )}
+          <TouchableOpacity
+            style={[s.detailClose, { marginTop: 20 }]}
+            onPress={onClose}
+          >
+            <Text style={s.detailCloseTxt}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function CrimeByDay({ data }) {
+  const [sel, setSel] = useState(null);
   if (!data || data.length === 0) return null;
   const maxV = Math.max(...data.map((d) => d.count), 1);
   return (
-    <View style={s.card}>
-      <View style={s.cardHdr}>
-        <Text style={s.cardTitle}>Crime by Day of Week</Text>
+    <>
+      <View style={s.card}>
+        <View style={s.cardHdr}>
+          <Text style={s.cardTitle}>Crime by Day of Week</Text>
+        </View>
+        <View style={{ padding: 14 }}>
+          {data.map((r, i) => (
+            <TouchableOpacity
+              key={i}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 10,
+              }}
+              onPress={() => setSel(r)}
+            >
+              <Text
+                style={{
+                  width: 84,
+                  fontSize: 11,
+                  color: NAVY_M,
+                  fontWeight: "600",
+                }}
+              >
+                {r.day}
+              </Text>
+              <View
+                style={{
+                  flex: 1,
+                  height: 22,
+                  backgroundColor: G100,
+                  borderRadius: 4,
+                  overflow: "hidden",
+                }}
+              >
+                {r.count > 0 && (
+                  <View
+                    style={{
+                      width: Math.max((r.count / maxV) * (SW - 190), 4),
+                      height: "100%",
+                      backgroundColor: NAVY_M,
+                      borderRadius: 4,
+                    }}
+                  />
+                )}
+              </View>
+              <Text
+                style={{
+                  width: 30,
+                  fontSize: 12,
+                  fontWeight: "700",
+                  color: NAVY,
+                  textAlign: "right",
+                  marginLeft: 8,
+                }}
+              >
+                {r.count}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
-      <View style={{ padding: 14 }}>
-        {data.map((r, i) => (
-          <View
-            key={i}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 10,
-            }}
-          >
-            <Text
-              style={{
-                width: 84,
-                fontSize: 11,
-                color: NAVY_M,
-                fontWeight: "600",
-              }}
-            >
-              {r.day}
-            </Text>
-            <View
-              style={{
-                flex: 1,
-                height: 22,
-                backgroundColor: G100,
-                borderRadius: 4,
-                overflow: "hidden",
-              }}
-            >
-              {r.count > 0 && (
-                <View
-                  style={{
-                    width: Math.max((r.count / maxV) * (SW - 190), 4),
-                    height: "100%",
-                    backgroundColor: NAVY_M,
-                    borderRadius: 4,
-                  }}
-                />
-              )}
-            </View>
-            <Text
-              style={{
-                width: 30,
-                fontSize: 12,
-                fontWeight: "700",
-                color: NAVY,
-                textAlign: "right",
-                marginLeft: 8,
-              }}
-            >
-              {r.count}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </View>
+      <DayBreakdownSheet
+        visible={!!sel}
+        row={sel}
+        onClose={() => setSel(null)}
+      />
+    </>
   );
 }
 
@@ -1854,7 +2282,10 @@ function PlaceTable({ data }) {
           </TouchableOpacity>
         </View>
         <View style={s.tHead}>
-          <Text style={[s.tH, { width: 28 }]}>#</Text>
+          {/* FIX: rank column widened + tighter padding + numberOfLines
+              so 2-digit ranks (10, 11, 12...) render on one line instead
+              of wrapping into "1" / "0" on two lines. */}
+          <Text style={[s.tH, s.tHRank]}>#</Text>
           <Text style={[s.tH, { flex: 1 }]}>Location</Text>
           <Text style={[s.tH, { width: 52, textAlign: "right" }]}>Count</Text>
           <Text style={[s.tH, { width: 22 }]}></Text>
@@ -1873,9 +2304,11 @@ function PlaceTable({ data }) {
             }
           >
             <Text
+              numberOfLines={1}
               style={[
                 s.tD,
-                { width: 28, color: G400, fontWeight: "700", fontSize: 10 },
+                s.tDRank,
+                { color: G400, fontWeight: "700", fontSize: 10 },
               ]}
             >
               {r.rank}
@@ -1890,6 +2323,7 @@ function PlaceTable({ data }) {
               {r.place}
             </Text>
             <Text
+              numberOfLines={1}
               style={[
                 s.tD,
                 {
@@ -1979,7 +2413,11 @@ function BarangayTable({ data }) {
           </Text>
         </View>
         <View style={s.tHead}>
-          <Text style={[s.tH, { width: 28 }]}>#</Text>
+          {/* FIX: same rank-column wrapping fix as PlaceTable above —
+              wider column, tighter padding, single line. This is the
+              "Barangay Incidents" table from the screenshot where ranks
+              like 10, 11, 12, 13 were splitting into two lines. */}
+          <Text style={[s.tH, s.tHRank]}>#</Text>
           <SBtn
             c="barangay"
             l="Barangay"
@@ -2011,9 +2449,11 @@ function BarangayTable({ data }) {
             }
           >
             <Text
+              numberOfLines={1}
               style={[
                 s.tD,
-                { width: 28, color: G400, fontWeight: "700", fontSize: 10 },
+                s.tDRank,
+                { color: G400, fontWeight: "700", fontSize: 10 },
               ]}
             >
               {r.rank}
@@ -2023,10 +2463,12 @@ function BarangayTable({ data }) {
                 s.tD,
                 { flex: 1, color: NAVY_M, fontWeight: "700", fontSize: 11 },
               ]}
+              numberOfLines={1}
             >
               {r.barangay}
             </Text>
             <Text
+              numberOfLines={1}
               style={[
                 s.tD,
                 {
@@ -2073,41 +2515,42 @@ export default function DashboardScreen({ navigation }) {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const fetchId = useRef(0);
-const [unreadCount, setUnreadCount] = useState(0);
-
-
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-  loadUser();
-  doFetch(BLANK());
+    loadUser();
+    doFetch(BLANK());
 
-  let prevUnread = 0;
-  const fetchUnread = async () => {
-    try {
-      const data = await getNotifications();
-      if (data.success) {
-        const newUnread = data.unread || 0;
-        if (newUnread > prevUnread) {
-          const { Vibration } = require("react-native");
-          Vibration.vibrate([0, 100, 50, 100]);
+    let prevUnread = 0;
+    const fetchUnread = async () => {
+      try {
+        const data = await getNotifications();
+        if (data.success) {
+          const newUnread = data.unread || 0;
+          if (newUnread > prevUnread) {
+            const { Vibration } = require("react-native");
+            Vibration.vibrate([0, 100, 50, 100]);
+          }
+          prevUnread = newUnread;
+          setUnreadCount(newUnread);
         }
-        prevUnread = newUnread;
-        setUnreadCount(newUnread);
-      }
-    } catch (_) {}
-  };
+      } catch (_) {}
+    };
 
-  fetchUnread();
-  const interval = setInterval(fetchUnread, 10000);
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 10000);
 
-  // ← add this: fetch immediately when FCM arrives
-  const sub = DeviceEventEmitter.addListener('onNewNotification', fetchUnread);
+    // ← add this: fetch immediately when FCM arrives
+    const sub = DeviceEventEmitter.addListener(
+      "onNewNotification",
+      fetchUnread,
+    );
 
-  return () => {
-    clearInterval(interval);
-    sub.remove();
-  };
-}, []);
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
+  }, []);
 
   const loadUser = async () => {
     try {
@@ -2115,6 +2558,17 @@ const [unreadCount, setUnreadCount] = useState(0);
       if (u) setUser(JSON.parse(u));
     } catch (_) {}
   };
+
+  // Re-read the cached profile every time this tab regains focus. The
+  // initial mount effect above only runs once, so without this, editing
+  // your name or photo on the Profile tab and coming back to Home would
+  // keep showing stale data until the app was fully restarted.
+  useFocusEffect(
+    useCallback(() => {
+      loadUser();
+    }, []),
+  );
+
   // ── FETCH: separates loading vs refreshing state properly ──
   const doFetch = useCallback(async (filters, isRefresh = false) => {
     const id = ++fetchId.current;
@@ -2172,7 +2626,7 @@ const [unreadCount, setUnreadCount] = useState(0);
   const activeCount =
     (applied.crimeTypes.length > 0 ? 1 : 0) +
     (applied.barangays.length > 0 ? 1 : 0) +
-    (applied.preset !== "365d" ? 1 : 0);
+    (applied.preset !== "this_month" ? 1 : 0);
   const userName = user?.first_name || "Officer";
   const userPic = user?.profile_picture || null;
   const userRole = user?.role || "";
@@ -2200,27 +2654,44 @@ const [unreadCount, setUnreadCount] = useState(0);
             </Text>
           </View>
         </View>
-        <View style={{ flexDirection: "row", gap: 8, marginLeft: 10, alignItems: "center" }}>
-           {/* BELL — add this first */}
-  <TouchableOpacity
-    style={[s.hBtn, unreadCount > 0 && { backgroundColor: "rgba(239,68,68,0.2)" }]}
-    onPress={() => navigation.navigate("Notifications")}
-  >
-    <Ionicons name="notifications-outline" size={18} color={WHITE} />
-    {unreadCount > 0 && (
-      <View style={{
-        position: "absolute", top: -4, right: -4,
-        backgroundColor: RED, borderRadius: 999,
-        minWidth: 16, height: 16,
-        alignItems: "center", justifyContent: "center",
-        paddingHorizontal: 3,
-      }}>
-        <Text style={{ fontSize: 9, color: WHITE, fontWeight: "700" }}>
-          {unreadCount > 99 ? "99+" : unreadCount}
-        </Text>
-      </View>
-    )}
-  </TouchableOpacity>
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 8,
+            marginLeft: 10,
+            alignItems: "center",
+          }}
+        >
+          {/* BELL — add this first */}
+          <TouchableOpacity
+            style={[
+              s.hBtn,
+              unreadCount > 0 && { backgroundColor: "rgba(239,68,68,0.2)" },
+            ]}
+            onPress={() => navigation.navigate("Notifications")}
+          >
+            <Ionicons name="notifications-outline" size={18} color={WHITE} />
+            {unreadCount > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -4,
+                  right: -4,
+                  backgroundColor: RED,
+                  borderRadius: 999,
+                  minWidth: 16,
+                  height: 16,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingHorizontal: 3,
+                }}
+              >
+                <Text style={{ fontSize: 9, color: WHITE, fontWeight: "700" }}>
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity
             style={[
               s.hBtn,
@@ -2364,7 +2835,7 @@ const [unreadCount, setUnreadCount] = useState(0);
               alignItems: "center",
             }}
           >
-            {applied.preset !== "365d" && (
+            {applied.preset !== "this_month" && (
               <View style={s.aC}>
                 <Ionicons name="calendar" size={9} color={NAVY_M} />
                 <Text style={s.aCTxt}>{presetLbl}</Text>
@@ -2752,6 +3223,44 @@ const s = StyleSheet.create({
   },
   cardTitle: { fontSize: 13, fontWeight: "700", color: G900 },
   cardSub: { fontSize: 10, color: G600, marginTop: 2 },
+  tapHint: {
+    fontSize: 9,
+    color: G400,
+    fontStyle: "italic",
+    paddingHorizontal: 14,
+    paddingTop: 8,
+  },
+
+  // Case Status tooltip (tap-to-reveal breakdown)
+  caseTip: {
+    marginTop: 6,
+    marginLeft: 80,
+    backgroundColor: WHITE,
+    borderWidth: 1,
+    borderColor: G200,
+    borderRadius: 8,
+    padding: 10,
+    paddingTop: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  caseTipTitle: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: NAVY_M,
+    marginBottom: 6,
+    paddingRight: 14,
+  },
+  caseTipRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 3,
+  },
+  caseTipLbl: { fontSize: 11, fontWeight: "600" },
+  caseTipVal: { fontSize: 11, fontWeight: "700" },
 
   // Table
   tHead: { flexDirection: "row", backgroundColor: NAVY, alignItems: "center" },
@@ -2762,6 +3271,11 @@ const s = StyleSheet.create({
     fontWeight: "600",
     color: WHITE,
   },
+  // FIX: dedicated rank/# column style — wider (32) + tight horizontal
+  // padding (4 instead of 10) so a 2 or 3-digit number always fits on a
+  // single line instead of wrapping onto a second line.
+  tHRank: { width: 32, paddingHorizontal: 4 },
+  tDRank: { width: 32, paddingHorizontal: 4, flexShrink: 0 },
   tHBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -2795,8 +3309,8 @@ const s = StyleSheet.create({
     borderTopColor: G100,
   },
 
-  bdg: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 },
-  bdgTxt: { fontSize: 10, fontWeight: "700" },
+  bdg: { paddingHorizontal: 5, paddingVertical: 2, borderRadius: 10 },
+  bdgTxt: { fontSize: 9.5, fontWeight: "700" },
 
   modeRow: {
     flexDirection: "row",
@@ -2941,7 +3455,9 @@ const s = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     height: "75%",
-    paddingBottom: Platform.OS === "ios" ? 34 : 24,
+    // NOTE: paddingBottom is now set inline per-instance using
+    // useSafeAreaInsets() so the Apply/Cancel footer clears the device's
+    // gesture/nav bar. See MultiSelect component above.
   },
   msTop: {
     flexDirection: "row",
@@ -3035,7 +3551,7 @@ const s = StyleSheet.create({
   },
   msApplyTxt: { fontSize: 14, fontWeight: "700", color: WHITE },
 
-  // Filter sheet — height:'88%' fixes Android not showing content
+  // Filter sheet
   fsOv: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -3045,8 +3561,9 @@ const s = StyleSheet.create({
     backgroundColor: WHITE,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    height: "88%",
-    paddingBottom: Platform.OS === "ios" ? 34 : 0,
+    // NOTE: paddingBottom is now set inline using useSafeAreaInsets() so
+    // "Apply Filters" clears the device's gesture/nav bar on every phone.
+    // See FilterSheet component above.
   },
   fsTop: {
     flexDirection: "row",
@@ -3080,7 +3597,8 @@ const s = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     paddingHorizontal: 20,
-    paddingTop: 14,
+    paddingTop: 16,
+    paddingBottom: 6,
     borderTopWidth: 1,
     borderTopColor: G100,
   },
