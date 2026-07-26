@@ -27,24 +27,29 @@ module.exports = {
       },
     },
     android: {
-  googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./android/app/google-services.json",
-  adaptiveIcon: {
-    foregroundImage: "./assets/adaptive-icon.png",
-    backgroundColor: "#ffffff",
-  },
-  edgeToEdgeEnabled: true,
-  package: "com.anonymous.CapstoneMobileApp",
-  permissions: [
-    "android.permission.ACCESS_COARSE_LOCATION",
-    "android.permission.ACCESS_FINE_LOCATION",
-    "android.permission.ACCESS_BACKGROUND_LOCATION",
-    "android.permission.FOREGROUND_SERVICE",
-    "android.permission.FOREGROUND_SERVICE_LOCATION",
-    "android.permission.RECEIVE_BOOT_COMPLETED",
-    "android.permission.VIBRATE",
-    "android.permission.POST_NOTIFICATIONS",
-  ],
-},
+      googleServicesFile:
+        process.env.GOOGLE_SERVICES_JSON ??
+        "./android/app/google-services.json",
+      adaptiveIcon: {
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#ffffff",
+      },
+      navigationBar: {
+        visible: "immersive",
+      },
+      edgeToEdgeEnabled: true,
+      package: "com.anonymous.CapstoneMobileApp",
+      permissions: [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS",
+      ],
+    },
     web: {
       favicon: "./assets/favicon.png",
     },
@@ -76,7 +81,7 @@ module.exports = {
               item.$["android:name"] !==
                 "com.google.firebase.messaging.default_notification_channel_id" &&
               item.$["android:name"] !==
-                "com.google.firebase.messaging.default_notification_color"
+                "com.google.firebase.messaging.default_notification_color",
           );
 
           // Add with tools:replace to override Firebase's injected values

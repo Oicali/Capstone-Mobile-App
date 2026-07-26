@@ -6,10 +6,23 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useEffect } from "react";
-import { Text, View } from "react-native";
-import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { getSession, validateToken, clearSession } from "./screens/services/api";
-import { registerForPushNotifications, savePushToken, setupNotificationHandlers, navigationRef } from './screens/services/pushNotifications';
+import { Text, View, Platform } from "react-native";
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import {
+  getSession,
+  validateToken,
+  clearSession,
+} from "./screens/services/api";
+import {
+  registerForPushNotifications,
+  savePushToken,
+  setupNotificationHandlers,
+  navigationRef,
+} from "./screens/services/pushNotifications";
+import * as NavigationBar from "expo-navigation-bar";
 
 import SplashScreen from "./screens/SplashScreen";
 import LoginScreen from "./screens/LoginScreen";
@@ -38,7 +51,9 @@ const Tab = createBottomTabNavigator();
 
 function TabIcon({ focused, iconName, label }) {
   return (
-    <View style={{ alignItems: "center", justifyContent: "center", paddingTop: 8 }}>
+    <View
+      style={{ alignItems: "center", justifyContent: "center", paddingTop: 8 }}
+    >
       <View
         style={{
           width: 40,
@@ -50,7 +65,11 @@ function TabIcon({ focused, iconName, label }) {
           marginBottom: 1,
         }}
       >
-        <Ionicons name={iconName} size={24} color={focused ? "#FFFFFF" : "#6c757d"} />
+        <Ionicons
+          name={iconName}
+          size={24}
+          color={focused ? "#FFFFFF" : "#6c757d"}
+        />
       </View>
       <Text
         numberOfLines={1}
@@ -77,8 +96,14 @@ function MainTabs() {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          height: 55 + insets.bottom,
-          paddingBottom: insets.bottom,
+          // Math.max(insets.bottom, 16): with the system nav bar hidden,
+          // insets.bottom drops to ~0 on most Android devices, which made
+          // the tab bar sit flush against the very bottom edge with no
+          // padding — looking cut off. A 16px floor restores breathing
+          // room while still respecting a larger inset (e.g. iPhone home
+          // indicator) when one is present.
+          height: 55 + Math.max(insets.bottom, 16),
+          paddingBottom: Math.max(insets.bottom, 16),
           paddingTop: 8,
           backgroundColor: "#FFFFFF",
           borderTopWidth: 1,
@@ -97,7 +122,11 @@ function MainTabs() {
         component={DashboardScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? "home" : "home-outline"} label="Home" />
+            <TabIcon
+              focused={focused}
+              iconName={focused ? "home" : "home-outline"}
+              label="Home"
+            />
           ),
         }}
       />
@@ -106,7 +135,11 @@ function MainTabs() {
         component={EBlotterScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? "document-text" : "document-text-outline"} label="Report" />
+            <TabIcon
+              focused={focused}
+              iconName={focused ? "document-text" : "document-text-outline"}
+              label="Report"
+            />
           ),
         }}
       />
@@ -117,24 +150,28 @@ function MainTabs() {
         renders full-screen above the tab bar.
       */}
       <Tab.Screen
-  name="Assignments"
-  component={RoleBasedPatrolScreen}
-  options={{
-    tabBarIcon: ({ focused }) => (
-      <TabIcon
-        focused={focused}
-        iconName={focused ? "shield" : "shield-outline"}
-        label="Patrol"
+        name="Assignments"
+        component={RoleBasedPatrolScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              focused={focused}
+              iconName={focused ? "shield" : "shield-outline"}
+              label="Patrol"
+            />
+          ),
+        }}
       />
-    ),
-  }}
-/>
       <Tab.Screen
         name="Map"
         component={MapScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? "map" : "map-outline"} label="Map" />
+            <TabIcon
+              focused={focused}
+              iconName={focused ? "map" : "map-outline"}
+              label="Map"
+            />
           ),
         }}
       />
@@ -143,7 +180,11 @@ function MainTabs() {
         component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} iconName={focused ? "person" : "person-outline"} label="Profile" />
+            <TabIcon
+              focused={focused}
+              iconName={focused ? "person" : "person-outline"}
+              label="Profile"
+            />
           ),
         }}
       />
@@ -151,36 +192,61 @@ function MainTabs() {
   );
 }
 
-
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(null);
-  
+
+  // Hide the Android system navigation bar (bottom gesture/nav bar)
   useEffect(() => {
-  const cleanup = setupNotificationHandlers(); // ← called once on mount
-  checkLogin();
-  return cleanup; // ← resets handlersInitialized on unmount
-}, []); // ← empty deps, good
+    if (Platform.OS === "android") {
+      NavigationBar.setVisibilityAsync("hidden");
+      NavigationBar.setBehaviorAsync("overlay-swipe");
+
+      // Auto re-hide any time the system nav bar becomes visible again —
+      // covers modal dialogs (which open a separate Android window) and
+      // any edge-swipe reveal, without needing per-modal onShow handlers.
+      const sub = NavigationBar.addVisibilityListener(({ visibility }) => {
+        if (visibility === "visible") {
+          NavigationBar.setVisibilityAsync("hidden");
+        }
+      });
+
+      return () => sub.remove();
+    }
+  }, []);
+
+  useEffect(() => {
+    const cleanup = setupNotificationHandlers(); // ← called once on mount
+    checkLogin();
+    return cleanup; // ← resets handlersInitialized on unmount
+  }, []); // ← empty deps, good
 
   // ✅ Only register token once we know user is logged in
   useEffect(() => {
-  if (isLoggedIn === true) {
-    registerForPushNotifications().then((token) => {
-      if (token) {
-        console.log('✅ Got token, saving:', token);
-        savePushToken(token);
-      } else {
-        console.log('❌ No token returned');
-      }
-    });
-  }
-}, [isLoggedIn]);
+    if (isLoggedIn === true) {
+      registerForPushNotifications().then((token) => {
+        if (token) {
+          console.log("✅ Got token, saving:", token);
+          savePushToken(token);
+        } else {
+          console.log("❌ No token returned");
+        }
+      });
+    }
+  }, [isLoggedIn]);
 
   const checkLogin = async () => {
     try {
       const session = await getSession();
-      if (!session?.token) { setIsLoggedIn(false); return; }
+      if (!session?.token) {
+        setIsLoggedIn(false);
+        return;
+      }
       const valid = await validateToken(session.token);
-      if (!valid) { await clearSession(); setIsLoggedIn(false); return; }
+      if (!valid) {
+        await clearSession();
+        setIsLoggedIn(false);
+        return;
+      }
       setIsLoggedIn(true);
     } catch (error) {
       console.error("checkLogin error:", error);
@@ -198,12 +264,28 @@ export default function App() {
           initialRouteName="Splash"
           screenOptions={{ headerShown: false, animation: "slide_from_right" }}
         >
-          <Stack.Screen name="Splash" component={SplashScreen} initialParams={{ isLoggedIn }} options={{ animation: "fade" }} />
-          <Stack.Screen name="Login" component={LoginScreen} options={{ animation: "fade" }} />
-          <Stack.Screen name="Main" component={MainTabs} options={{ gestureEnabled: false }} />
+          <Stack.Screen
+            name="Splash"
+            component={SplashScreen}
+            initialParams={{ isLoggedIn }}
+            options={{ animation: "fade" }}
+          />
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{ animation: "fade" }}
+          />
+          <Stack.Screen
+            name="Main"
+            component={MainTabs}
+            options={{ gestureEnabled: false }}
+          />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
           <Stack.Screen name="PatrolLog" component={PatrolLogScreen} />
-          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+          <Stack.Screen
+            name="ChangePassword"
+            component={ChangePasswordScreen}
+          />
 
           {/*
             PatrolDetailScreen lives on the root stack (not inside tabs)
@@ -216,10 +298,10 @@ export default function App() {
             options={{ animation: "slide_from_right" }}
           />
           <Stack.Screen
-  name="AfterPatrolReport"
-  component={AfterPatrolScreen}
-  options={{ animation: "slide_from_right" }}
-/>
+            name="AfterPatrolReport"
+            component={AfterPatrolScreen}
+            options={{ animation: "slide_from_right" }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
