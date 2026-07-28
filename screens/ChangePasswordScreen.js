@@ -320,18 +320,15 @@ const lk = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: C.navyLight,
-    borderWidth: 1,
-    borderColor: "#D6E0F5",
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    width: "100%",
-    justifyContent: "center",
-    shadowColor: C.navy,
+    backgroundColor: C.white,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    marginVertical: 12,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
     elevation: 2,
   },
   countdownTxt: {
@@ -365,14 +362,16 @@ const lk = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: C.navyLight,
-    borderWidth: 1,
-    borderColor: "#D6E0F5",
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    width: "100%",
-    justifyContent: "center",
+    backgroundColor: C.white,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    marginVertical: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
 });
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -910,8 +909,14 @@ export default function ChangePasswordScreen({ navigation }) {
           {/* ── BLOCKED (Password changed 2x in 24h) ── */}
           {step === "blocked" && (
             <View style={lk.wrap}>
-              <View style={[lk.iconCircle, { backgroundColor: "#FFF7ED" }]}>
-                <Ionicons name="lock-closed" size={34} color="#0B2D6B" />
+              <View style={lk.iconOuter}>
+                <View style={lk.iconInner}>
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={32}
+                    color={C.navy}
+                  />
+                </View>
               </View>
               <Text style={lk.title}>Change Password Unavailable</Text>
               <Text style={lk.msg}>
@@ -920,24 +925,33 @@ export default function ChangePasswordScreen({ navigation }) {
                 hours.{"\n\n"}
                 This limit protects your account from unauthorized changes.
               </Text>
-              <Text
-                style={[
-                  lk.msg,
-                  { fontWeight: "700", color: C.text, marginTop: 4 },
-                ]}
-              >
-                You can change your password again in:
-              </Text>
-              <View style={lk.countdownBadge}>
-                <Ionicons name="time-outline" size={16} color="#C1272D" />
-                <Text style={lk.countdownTxt}>
-                  {blockedCountdown || "Calculating…"}
+              <View style={lk.countdownWrap}>
+                <Text
+                  style={[
+                    lk.countdownLabel,
+                    {
+                      fontWeight: "800",
+                      color: C.text,
+                      fontSize: 14,
+                      textTransform: "none",
+                      letterSpacing: 0,
+                      marginBottom: 4,
+                    },
+                  ]}
+                >
+                  You can change your password again in:
                 </Text>
+                <View style={lk.countdownBadge}>
+                  <Ionicons name="time-outline" size={18} color="#92400E" />
+                  <Text style={lk.countdownTxt}>
+                    {blockedCountdown || "Calculating…"}
+                  </Text>
+                </View>
               </View>
               <TouchableOpacity
-                style={[lk.btn, { backgroundColor: "#0B2D6B" }]}
+                style={[lk.btn, { backgroundColor: C.navy }]}
                 onPress={() => navigation.goBack()}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
                 <Text style={lk.btnTxt}>Got it, Close</Text>
               </TouchableOpacity>
@@ -946,67 +960,106 @@ export default function ChangePasswordScreen({ navigation }) {
 
           {/* ── SESSION LOCKED ── */}
           {step === "session-locked" && (
-  <View style={lk.wrap}>
-    <View style={lk.iconOuter}>
-      <View style={lk.iconInner}>
-        <Ionicons name="shield-off-outline" size={32} color={C.navy} />
-      </View>
-    </View>
-    <Text style={lk.title}>Temporarily Locked</Text>
-    <Text style={lk.msg}>
-      For your security, this process has been temporarily locked due to too many failed attempts.
-    </Text>
-   
-    <View style={lk.countdownWrap}>
-      <Text style={lk.countdownLabel}>Try again in</Text>
-      <View style={lk.countdownBadge}>
-        <Ionicons name="time-outline" size={18} color={C.textMuted} />
-        <Text style={lk.countdownTxt}>
-          {sessionCountdown || "Calculating…"}
-        </Text>
-      </View>
-    </View>
-    <TouchableOpacity
-      style={[lk.btn, { backgroundColor: C.navy }]}
-      onPress={() => navigation.goBack()}
-      activeOpacity={0.85}
-    >
-      <Text style={lk.btnTxt}>Got it, Go Back</Text>
-    </TouchableOpacity>
-  </View>
-)}
+            <View style={lk.wrap}>
+              <View style={lk.iconOuter}>
+                <View style={lk.iconInner}>
+                  <Ionicons
+                    name="shield-off-outline"
+                    size={32}
+                    color={C.navy}
+                  />
+                </View>
+              </View>
+              <Text style={lk.title}>Temporarily Locked</Text>
+              <Text style={lk.msg}>
+                For your security, this process has been temporarily locked due
+                to too many failed attempts.
+              </Text>
+
+              <View style={lk.countdownWrap}>
+                <Text
+                  style={[
+                    lk.countdownLabel,
+                    {
+                      fontWeight: "800",
+                      color: C.text,
+                      fontSize: 14,
+                      textTransform: "none",
+                      letterSpacing: 0,
+                      marginBottom: 4,
+                    },
+                  ]}
+                >
+                  TRY AGAIN IN:
+                </Text>
+                <View style={lk.countdownBadge}>
+                  <Ionicons name="time-outline" size={18} color="#92400E" />
+                  <Text style={lk.countdownTxt}>
+                    {sessionCountdown || "Calculating…"}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[lk.btn, { backgroundColor: C.navy }]}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.85}
+              >
+                <Text style={lk.btnTxt}>Got it, Go Back</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* ── PW LOCKED ── */}
-      {step === "pw-locked" && (
-  <View style={lk.wrap}>
-    <View style={lk.iconOuter}>
-      <View style={lk.iconInner}>
-        <Ionicons name="key-outline" size={32} color={C.navy} />
-      </View>
-    </View>
-    <Text style={lk.title}>Too Many Attempts</Text>
-    <Text style={lk.msg}>
-      Your account is temporarily locked due to too many incorrect password attempts.
-    </Text>
-  
-    <View style={lk.countdownWrap}>
-      <Text style={lk.countdownLabel}>Try again in</Text>
-      <View style={lk.countdownBadge}>
-        <Ionicons name="time-outline" size={18} color={C.textMuted} />
-        <Text style={lk.countdownTxt}>
-          {pwCountdown || "Calculating…"}
-        </Text>
-      </View>
-    </View>
-    <TouchableOpacity
-      style={[lk.btn, { backgroundColor: C.red }]}
-      onPress={() => navigation.goBack()}
-      activeOpacity={0.85}
-    >
-      <Text style={lk.btnTxt}>Close</Text>
-    </TouchableOpacity>
-  </View>
-)}
+          {step === "pw-locked" && (
+            <View style={lk.wrap}>
+              <View style={lk.iconOuter}>
+                <View style={lk.iconInner}>
+                  <Ionicons name="key-outline" size={32} color={C.navy} />
+                </View>
+              </View>
+              <Text style={lk.title}>Change Password Unavailable</Text>
+              <Text style={lk.msg}>
+                Too many incorrect password attempts. Your access has been
+                temporarily paused to protect your account.
+              </Text>
+              <Text style={lk.msg}></Text>
+              <Text style={lk.msg}>
+                If this wasn't you, your password may be at risk. Consider
+                changing it from a trusted device once this lock expires.
+              </Text>
+
+              <View style={lk.countdownWrap}>
+                <Text
+                  style={[
+                    lk.countdownLabel,
+                    {
+                      fontWeight: "800",
+                      color: C.text,
+                      fontSize: 14,
+                      textTransform: "none",
+                      letterSpacing: 0,
+                   
+                    },
+                  ]}
+                >
+                  TRY AGAIN IN:
+                </Text>
+                <View style={lk.countdownBadge}>
+                  <Ionicons name="time-outline" size={18} color="#92400E" />
+                  <Text style={lk.countdownTxt}>
+                    {pwCountdown || "Calculating…"}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={[lk.btn, { backgroundColor: C.red }]}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.85}
+              >
+                <Text style={lk.btnTxt}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* ── DONE ── */}
           {step === "done" && (
@@ -1035,13 +1088,17 @@ export default function ChangePasswordScreen({ navigation }) {
           {step === "verify-current" && (
             <View style={s.stepWrap}>
               <StepBar current={1} total={3} />
-<View style={s.stepIconRow}>
-  <View style={s.stepIconOuter}>
-    <View style={s.stepIconCircle}>
-      <Ionicons name="shield-checkmark" size={26} color={C.navy} />
-    </View>
-  </View>
-</View>
+              <View style={s.stepIconRow}>
+                <View style={s.stepIconOuter}>
+                  <View style={s.stepIconCircle}>
+                    <Ionicons
+                      name="shield-checkmark"
+                      size={26}
+                      color={C.navy}
+                    />
+                  </View>
+                </View>
+              </View>
               <Text style={s.stepTitle}>Confirm Your Identity</Text>
               <Text style={s.stepSub}>
                 Enter your current password to continue.
@@ -1109,13 +1166,13 @@ export default function ChangePasswordScreen({ navigation }) {
             <View style={s.stepWrap}>
               <StepBar current={2} total={3} />
 
-             <View style={s.stepIconRow}>
-  <View style={s.stepIconOuter}>
-    <View style={s.stepIconCircle}>
-      <Ionicons name="create-outline" size={26} color={C.navy} />
-    </View>
-  </View>
-</View>
+              <View style={s.stepIconRow}>
+                <View style={s.stepIconOuter}>
+                  <View style={s.stepIconCircle}>
+                    <Ionicons name="create-outline" size={26} color={C.navy} />
+                  </View>
+                </View>
+              </View>
               <Text style={s.stepTitle}>Set New Password</Text>
               <Text style={s.stepSub}>
                 Create a strong password that meets all requirements below.
@@ -1338,13 +1395,13 @@ export default function ChangePasswordScreen({ navigation }) {
             <View style={s.stepWrap}>
               <StepBar current={3} total={3} />
 
-            <View style={s.stepIconRow}>
-  <View style={s.stepIconOuter}>
-    <View style={s.stepIconCircle}>
-      <Ionicons name="mail" size={26} color={C.navy} />
-    </View>
-  </View>
-</View>
+              <View style={s.stepIconRow}>
+                <View style={s.stepIconOuter}>
+                  <View style={s.stepIconCircle}>
+                    <Ionicons name="mail" size={26} color={C.navy} />
+                  </View>
+                </View>
+              </View>
               <Text style={s.stepTitle}>Enter Verification Code</Text>
 
               {/* Info card */}

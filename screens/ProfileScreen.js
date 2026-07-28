@@ -57,7 +57,10 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import { BASE_URL } from "../screens/services/api";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { clearPushToken } from "../screens/services/pushNotifications"; // ← adjust path to match your actual file location
 
 const PSGC_API = "https://psgc.gitlab.io/api";
@@ -505,6 +508,7 @@ const sl = StyleSheet.create({
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function ProfileScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [profileData, setProfileData] = useState(null);
   const [formData, setFormData] = useState({
     first_name: "",
@@ -2162,6 +2166,7 @@ export default function ProfileScreen({ navigation }) {
     iconName,
     title,
     message,
+    message2,
     submessage,
     countdown,
   }) => (
@@ -2176,13 +2181,16 @@ export default function ProfileScreen({ navigation }) {
       {/* Title & message */}
       <Text style={em.lockedTitle}>{title}</Text>
       <Text style={em.lockedMsg}>{message}</Text>
+      {message2 && (
+        <Text style={[em.lockedMsg, { marginTop: 20 }]}>{message2}</Text>
+      )}
 
       {/* Countdown */}
       {!!countdown && (
         <View style={em.lockedCountdownWrap}>
           <Text style={em.lockedSubmsg}>{submessage}</Text>
           <View style={em.lockedCountdownBadge}>
-            <Ionicons name="time-outline" size={18} color={C.textMuted} />
+            <Ionicons name="time-outline" size={18} color="#92400E" />
             <Text style={em.lockedCountdownTxt}>{countdown}</Text>
           </View>
         </View>
@@ -2270,9 +2278,10 @@ export default function ProfileScreen({ navigation }) {
             couple of subtle decorative circles and a ring behind the avatar
             for a more polished, professional look. */}
         <LinearGradient
-          colors={[C.navyDark, C.navy, C.navyMid]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          colors={[C.navyDark, "#1E4D8C", C.navy, C.navyDark]}
+          locations={[0, 0.45, 0.7, 1]}
+          start={{ x: 0.2, y: 0 }}
+          end={{ x: 0.8, y: 1 }}
           style={st.header}
         >
           <View style={st.headerCircle1} pointerEvents="none" />
@@ -2281,6 +2290,7 @@ export default function ProfileScreen({ navigation }) {
           {/* Top row: avatar + name + settings btn */}
           <View style={st.headerTopRow}>
             {/* Avatar */}
+
             <TouchableOpacity
               style={st.avatarWrap}
               onPress={() => !uploadingPhoto && setShowPhotoModal(true)}
@@ -2345,16 +2355,23 @@ export default function ProfileScreen({ navigation }) {
                 </View>
               )}
 
-              {/* Role pill */}
+              {/* Role pill — gold gradient */}
               {!!profileData.role && (
-                <View style={st.rolePill}>
-                  <Ionicons
-                    name="shield-checkmark-outline"
-                    size={10}
-                    color="rgba(255,255,255,0.9)"
-                  />
+                <LinearGradient
+                  colors={[
+                    "#B8860B",
+                    "#F4E5A3",
+                    "#D4AF37",
+                    "#FFF3C4",
+                    "#B8860B",
+                  ]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={st.rolePill}
+                >
+                  <Ionicons name="shield-checkmark" size={11} color="#4A3B00" />
                   <Text style={st.rolePillTxt}>{profileData.role}</Text>
-                </View>
+                </LinearGradient>
               )}
             </View>
           </View>
@@ -2660,7 +2677,7 @@ export default function ProfileScreen({ navigation }) {
 
       {/* Toasts */}
       {!!successMsg && (
-        <View style={st.toastWrap}>
+        <View style={[st.toastWrap, { bottom: insets.bottom + 100 }]}>
           <View style={st.toastOk}>
             <View style={st.toastIconWrap}>
               <Ionicons name="checkmark-circle" size={18} color={C.white} />
@@ -2670,7 +2687,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
       )}
       {!!errorMsg && (
-        <View style={st.toastWrap}>
+        <View style={[st.toastWrap, { bottom: insets.bottom + 100 }]}>
           <View style={st.toastErr}>
             <View style={st.toastIconWrap}>
               <Ionicons name="close-circle" size={18} color={C.white} />
@@ -2741,12 +2758,16 @@ export default function ProfileScreen({ navigation }) {
               )}
               {emailStep === "cooldown" && (
                 <View style={em.lockedWrap}>
-                  <View
-                    style={[em.lockedIcon, { backgroundColor: C.navyLight }]}
-                  >
-                    <Ionicons name="lock-closed" size={34} color={C.navy} />
+                  <View style={em.lockedIconOuter}>
+                    <View style={em.lockedIconInner}>
+                      <Ionicons
+                        name="lock-closed-outline"
+                        size={32}
+                        color={C.navy}
+                      />
+                    </View>
                   </View>
-                  <Text style={em.lockedTitle}>Email Change Unavailable</Text>
+                  <Text style={em.lockedTitle}>Change Email Unavailable</Text>
                   <Text style={em.lockedMsg}>
                     Your email was already changed today.
                   </Text>
@@ -2768,7 +2789,7 @@ export default function ProfileScreen({ navigation }) {
                     You can update your email again in:
                   </Text>
                   <View style={em.countdownBadge}>
-                    <Ionicons name="time-outline" size={16} color="#92400E" />
+                    <Ionicons name="time-outline" size={16} color="#94A3B8" />
                     <Text style={em.countdownTxt}>
                       {emailCooldownCountdown || "Calculating…"}
                     </Text>
@@ -2797,7 +2818,7 @@ export default function ProfileScreen({ navigation }) {
                   title: "Temporarily Locked",
                   message:
                     "For your security, this process has been temporarily locked due to too many failed attempts.",
-                  submessage: "TRY AGAIN IN",
+                  submessage: "TRY AGAIN IN:",
                   countdown: emailSessionCountdown || "Calculating…",
                 })}
               {emailStep === "pw-locked" &&
@@ -2805,10 +2826,13 @@ export default function ProfileScreen({ navigation }) {
                   iconBg: "#F1F5F9",
                   iconColor: C.navy,
                   iconName: "key-outline",
-                  title: "Too Many Attempts",
+                  title: "Change Email Unavailable",
                   message:
-                    "Your account is temporarily locked due to too many incorrect password attempts.",
-                  submessage: "TRY AGAIN IN",
+                    "Too many incorrect password attempts. Your access has been temporarily paused to protect your account.",
+                  message2:
+                    "If this wasn't you, your password may be at risk. Consider changing it from a trusted device once this lock expires.",
+
+                  submessage: "TRY AGAIN IN:",
                   countdown: emailPwLockedCountdown || "Calculating…",
                 })}
               {emailStep === "done" && (
@@ -3644,26 +3668,22 @@ const em = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     backgroundColor: C.white,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    width: "100%",
-    justifyContent: "center",
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    marginVertical: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
     elevation: 2,
   },
   lockedSubmsg: {
     fontSize: 12,
     fontWeight: "700",
-    color: C.navy,
+    color: C.text,
     textTransform: "uppercase",
     letterSpacing: 0.8,
-    textAlign: "center",
   },
   lockedCountdownTxt: {
     fontSize: 28,
@@ -3751,7 +3771,7 @@ const em = StyleSheet.create({
   lockedSubmsg: {
     fontSize: 12,
     fontWeight: "700",
-    color: C.textMuted,
+    color: C.text,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
@@ -3935,17 +3955,15 @@ const em = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     backgroundColor: C.white,
-    borderWidth: 2,
-    borderColor: C.border,
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 28,
     marginVertical: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
   countdownTxt: {
     fontSize: 26,
@@ -3960,90 +3978,6 @@ const em = StyleSheet.create({
     color: C.text,
     letterSpacing: 1.5,
   },
-  // ← DITO ILAGAY YUNG BAGONG STYLES
-  lockedIconOuter: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  lockedIconInner: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  lockedCountdownWrap: {
-    alignItems: "center",
-    width: "100%",
-    marginVertical: 8,
-    gap: 8,
-  },
-  lockedCountdownBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: C.navyLight,
-    borderWidth: 1,
-    borderColor: "#D6E0F5",
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    width: "100%",
-    justifyContent: "center",
-    shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  lockedCountdownIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  lockedCountdownTxt: {
-    fontSize: 32,
-    fontWeight: "800",
-    letterSpacing: 2,
-  },
-  lockedBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 24,
-    paddingVertical: 16,
-    borderRadius: 16,
-    width: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  lockedBtnTxt: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: C.white,
-    letterSpacing: -0.2,
-  },
-  lockedSubmsg: {
-    fontSize: 13,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  // ← closing ng em StyleSheet
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -4336,24 +4270,7 @@ const st = StyleSheet.create({
   // Decorative translucent circles for a more professional, layered look —
   // sized/positioned to stay clear of the header's square top corners so no
   // overflow:hidden is needed (which would otherwise kill the header's shadow).
-  headerCircle1: {
-    position: "absolute",
-    top: -20,
-    right: -20,
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: "rgba(255,255,255,0.06)",
-  },
-  headerCircle2: {
-    position: "absolute",
-    bottom: 16,
-    left: -16,
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "rgba(255,255,255,0.05)",
-  },
+
   headerTopRow: {
     flexDirection: "column",
     alignItems: "center",
@@ -4371,7 +4288,7 @@ const st = StyleSheet.create({
     right: -6,
     bottom: -6,
     borderRadius: 51,
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: "rgba(255,255,255,0.22)",
   },
   avatar: {
@@ -4379,7 +4296,7 @@ const st = StyleSheet.create({
     height: 90,
     borderRadius: 45,
     borderWidth: 3,
-    borderColor: C.red,
+    borderColor: "rgba(230, 13, 13, 0.55)",
   },
   avatarPlaceholder: {
     width: 90,
@@ -4464,8 +4381,8 @@ const st = StyleSheet.create({
   },
   rolePillTxt: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.95)",
-    fontWeight: "700",
+    color: "#4A3B00",
+    fontWeight: "800",
   },
   settingsBtn: {
     width: 36,
