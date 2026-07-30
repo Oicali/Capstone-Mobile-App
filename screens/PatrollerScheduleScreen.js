@@ -425,7 +425,8 @@ export default function PatrollerScheduleScreen({ navigation }) {
       const data = await res.json();
       if (data.success) setPatrols(data.data);
     } catch (err) {
-      console.error("fetchMyPatrols error:", err);
+      // console.error("fetchMyPatrols error:", err);
+      // setErrorMsg("Network error. Check your connection.");
     } finally {
       setLoading(false);
       setRefreshing(false);

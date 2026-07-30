@@ -27,6 +27,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -113,6 +114,36 @@ const CRIME_DISPLAY = {
   "SPECIAL COMPLEX CRIME": "Special Complex Crime",
 };
 
+const LEGACY_OPTIONS = [
+  { label: "Alima (→ Sineguelasan)", value: "SINEGUELASAN" },
+  { label: "Banalo (→ Sineguelasan)", value: "SINEGUELASAN" },
+  { label: "Camposanto (→ Kaingin Pob.)", value: "KAINGIN (POB.)" },
+  { label: "Daang Bukid (→ Kaingin Pob.)", value: "KAINGIN (POB.)" },
+  { label: "Tabing Dagat (→ Kaingin Pob.)", value: "KAINGIN (POB.)" },
+  { label: "Kaingin (→ Kaingin Digman)", value: "KAINGIN DIGMAN" },
+  { label: "Digman (→ Kaingin Digman)", value: "KAINGIN DIGMAN" },
+  { label: "Panapaan (→ P.F. Espiritu I)", value: "P.F. ESPIRITU I (PANAPAAN)" },
+  { label: "Panapaan 2 (→ P.F. Espiritu II)", value: "P.F. ESPIRITU II" },
+  { label: "Panapaan 4 (→ P.F. Espiritu IV)", value: "P.F. ESPIRITU IV" },
+  { label: "Panapaan 5 (→ P.F. Espiritu V)", value: "P.F. ESPIRITU V" },
+  { label: "Panapaan 6 (→ P.F. Espiritu VI)", value: "P.F. ESPIRITU VI" },
+  { label: "Mabolo 1 (→ Mabolo)", value: "MABOLO" },
+  { label: "Mabolo 2 (→ Mabolo)", value: "MABOLO" },
+  { label: "Mabolo 3 (→ Mabolo)", value: "MABOLO" },
+  { label: "Aniban 3 (→ Aniban I)", value: "ANIBAN I" },
+  { label: "Aniban 4 (→ Aniban II)", value: "ANIBAN II" },
+  { label: "Aniban 5 (→ Aniban I)", value: "ANIBAN I" },
+  { label: "Maliksi 3 (→ Maliksi II)", value: "MALIKSI II" },
+  { label: "Mambog 5 (→ Mambog II)", value: "MAMBOG II" },
+  { label: "Niog 2 (→ Niog)", value: "NIOG" },
+  { label: "Niog 3 (→ Niog)", value: "NIOG" },
+  { label: "Real 2 (→ Real)", value: "REAL" },
+  { label: "Salinas 3 (→ Salinas II)", value: "SALINAS II" },
+  { label: "Salinas 4 (→ Salinas II)", value: "SALINAS II" },
+  { label: "Talaba 4 (→ Talaba III)", value: "TALABA III" },
+  { label: "Talaba 7 (→ Talaba I)", value: "TALABA I" },
+];
+
 const WORLD_MASK_GEOJSON = {
   type: "FeatureCollection",
   features: [
@@ -166,6 +197,12 @@ const formatBarangayLabel = (name) => {
 
 const isValidDate = (str) =>
   /^\d{4}-\d{2}-\d{2}$/.test(str) && !isNaN(new Date(str));
+
+const isoDate = (iso) => (iso ? new Date(iso + "T00:00:00") : new Date());
+const fmtISODate = (d) =>
+  d
+    ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+    : "";
 
 
 const CRIME_ICONS = {
@@ -243,6 +280,333 @@ const CRIME_ICONS = {
     </Svg>
   ),
 };
+
+const DatePickerBtn = React.memo(function DatePickerBtn({
+  label,
+  value,
+  onChange,
+  minimumDate,
+  maximumDate,
+}) {
+  const [show, setShow] = useState(false);
+  const [temp, setTemp] = useState(new Date());
+  const maxISO = fmtISODate(maximumDate || new Date());
+  const minISO = minimumDate ? fmtISODate(minimumDate) : undefined;
+  const disp = value
+    ? (() => {
+        const d = isoDate(value);
+        return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
+      })()
+    : "";
+
+  if (Platform.OS === "web")
+    return (
+      <View style={{ flex: 1 }}>
+        <Text style={dpStyles.lbl}>{label}</Text>
+        <input
+          type="date"
+          value={value || ""}
+          min={minISO}
+          max={maxISO}
+          style={{
+            height: 42,
+            padding: "0 10px",
+            border: "1.5px solid #dee2e6",
+            borderRadius: 8,
+            fontSize: 13,
+            fontFamily: "inherit",
+            color: "#111827",
+            background: "#f8f9fa",
+            outline: "none",
+            colorScheme: "light",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
+          onChange={(e) => {
+            if (e.target.value) {
+              const p = e.target.value.split("-");
+              onChange(
+                new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2])),
+              );
+            }
+          }}
+        />
+      </View>
+    );
+
+  if (Platform.OS === "ios")
+    return (
+      <View style={{ flex: 1 }}>
+        <Text style={dpStyles.lbl}>{label}</Text>
+        <TouchableOpacity
+          style={dpStyles.btn}
+          onPress={() => {
+            setTemp(value ? isoDate(value) : new Date());
+            setShow(true);
+          }}
+        >
+          <Text style={[dpStyles.btnTxt, !value && { color: "#adb5bd" }]}>
+            {disp || "Select date"}
+          </Text>
+          <Ionicons name="calendar-outline" size={15} color="#6b7280" />
+        </TouchableOpacity>
+        {show && (
+          <Modal visible transparent animationType="slide">
+            <View style={dpStyles.iosOv}>
+              <View style={dpStyles.iosSh}>
+                <View style={dpStyles.iosHdr}>
+                  <TouchableOpacity onPress={() => setShow(false)}>
+                    <Text style={dpStyles.iosCan}>Cancel</Text>
+                  </TouchableOpacity>
+                  <Text style={dpStyles.iosTit}>{label}</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      onChange(temp);
+                      setShow(false);
+                    }}
+                  >
+                    <Text style={dpStyles.iosDone}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={temp}
+                  mode="date"
+                  display="spinner"
+                  onChange={(_, d) => d && setTemp(d)}
+                  minimumDate={minimumDate}
+                  maximumDate={maximumDate || new Date()}
+                />
+              </View>
+            </View>
+          </Modal>
+        )}
+      </View>
+    );
+
+  const androidValue = React.useMemo(
+    () => (value ? isoDate(value) : new Date()),
+    [value],
+  );
+  const androidMax = React.useMemo(
+    () => maximumDate || new Date(),
+    [maximumDate],
+  );
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={dpStyles.lbl}>{label}</Text>
+      <TouchableOpacity style={dpStyles.btn} onPress={() => setShow(true)}>
+        <Text style={[dpStyles.btnTxt, !value && { color: "#adb5bd" }]}>
+          {disp || "Select date"}
+        </Text>
+        <Ionicons name="calendar-outline" size={15} color="#6b7280" />
+      </TouchableOpacity>
+      {show && (
+        <DateTimePicker
+          value={androidValue}
+          mode="date"
+          display="calendar"
+          onChange={(e, d) => {
+            setShow(false);
+            if (e.type !== "dismissed" && d) onChange(d);
+          }}
+          minimumDate={minimumDate}
+          maximumDate={androidMax}
+        />
+      )}
+    </View>
+  );
+});
+
+function MultiSelect({ visible, title, items, legacy, selected, searchable, onClose, onApply }) {
+  const insets = useSafeAreaInsets();
+  const [draft, setDraft] = useState([]);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (visible) {
+      setDraft([...selected]);
+      setSearch("");
+    }
+  }, [visible, selected]);
+
+  const filt = searchable
+    ? items.filter((i) =>
+        (typeof i === "string" ? i : i.label)
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+      )
+    : items;
+
+  const filtLeg = legacy
+    ? legacy.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+    : [];
+
+  const allValues = items.map((i) => (typeof i === "string" ? i : i.value));
+  const toggle = (v) =>
+    setDraft((d) => (d.includes(v) ? d.filter((x) => x !== v) : [...d, v]));
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={msStyles.ov}>
+        <View
+          style={[
+            msStyles.sh,
+            { paddingBottom: Math.max(insets.bottom + 12, 20) },
+          ]}
+        >
+          <View style={msStyles.handle} />
+          <View style={msStyles.top}>
+            <Text style={msStyles.title}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={22} color="#0a285c" />
+            </TouchableOpacity>
+          </View>
+
+          {searchable && (
+            <View style={msStyles.search}>
+              <Ionicons name="search-outline" size={15} color="#adb5bd" />
+              <TextInput
+                style={msStyles.searchTxt}
+                placeholder="Search..."
+                value={search}
+                onChangeText={setSearch}
+                placeholderTextColor="#adb5bd"
+              />
+              {!!search && (
+                <TouchableOpacity onPress={() => setSearch("")}>
+                  <Ionicons name="close-circle" size={16} color="#adb5bd" />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          <View style={msStyles.actions}>
+            <TouchableOpacity
+              onPress={() =>
+                setDraft(draft.length === allValues.length ? [] : allValues)
+              }
+            >
+              <Text style={msStyles.actTxt}>
+                {draft.length === allValues.length ? "Clear all" : "Select all"}
+              </Text>
+            </TouchableOpacity>
+            {draft.length > 0 && (
+              <TouchableOpacity
+                style={{ marginLeft: 16 }}
+                onPress={() => setDraft([])}
+              >
+                <Text style={[msStyles.actTxt, { color: "#dc2626" }]}>
+                  Clear ({draft.length})
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <ScrollView style={msStyles.list} showsVerticalScrollIndicator={false}>
+            {filt.map((item, i) => {
+              const value = typeof item === "string" ? item : item.value;
+              const label = typeof item === "string" ? item : item.label;
+              const sel = draft.includes(value);
+              return (
+                <TouchableOpacity
+                  key={i}
+                  style={msStyles.item}
+                  onPress={() => toggle(value)}
+                >
+                  <View style={[msStyles.chk, sel && msStyles.chkOn]}>
+                    {sel && (
+                      <Ionicons name="checkmark" size={12} color="#fff" />
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      msStyles.itemTxt,
+                      sel && { color: "#0a285c", fontWeight: "700" },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+            {filtLeg.length > 0 && (
+              <>
+                <View style={msStyles.group}>
+                  <View style={msStyles.groupLine} />
+                  <Text style={msStyles.groupTxt}>
+                    Pre-2023 Names (Auto-resolved)
+                  </Text>
+                  <View style={msStyles.groupLine} />
+                </View>
+                {filtLeg.map((o, i) => {
+                  const sel = draft.includes(o.value);
+                  return (
+                    <TouchableOpacity
+                      key={`l${i}`}
+                      style={msStyles.item}
+                      onPress={() => toggle(o.value)}
+                    >
+                      <View style={[msStyles.chk, sel && msStyles.chkOn]}>
+                        {sel && (
+                          <Ionicons name="checkmark" size={12} color="#fff" />
+                        )}
+                      </View>
+                      <Text
+                        style={[
+                          msStyles.itemTxt,
+                          { color: "#6b7280" },
+                          sel && { color: "#0a285c", fontWeight: "700" },
+                        ]}
+                      >
+                        {o.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </>
+            )}
+            {filt.length === 0 && filtLeg.length === 0 && (
+              <Text
+                style={{
+                  textAlign: "center",
+                  color: "#9ca3af",
+                  padding: 24,
+                  fontSize: 13,
+                }}
+              >
+                No results
+              </Text>
+            )}
+            <View style={{ height: 20 }} />
+          </ScrollView>
+
+          <View style={msStyles.foot}>
+            <TouchableOpacity style={msStyles.cancel} onPress={onClose}>
+              <Text style={msStyles.cancelTxt}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={msStyles.apply}
+              onPress={() => {
+                onApply(draft);
+                onClose();
+              }}
+            >
+              <Text style={msStyles.applyTxt}>
+                Apply{draft.length > 0 ? ` (${draft.length})` : ""}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 export default function MapScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -393,7 +757,7 @@ useEffect(() => {
         const data = await (await fetch(asset.localUri)).json();
         if (isMounted.current) setRawGeoJSON(data);
       } catch (err) {
-        console.error("[Map] GeoJSON load error:", err.message);
+        // console.error("[Map] GeoJSON load error:", err.message);
       }
     })();
   }, []);
@@ -570,10 +934,10 @@ const fetchMapData = useCallback(async () => {
       const headers = { Authorization: `Bearer ${token}` };
       let q = `?date_from=${appliedDateFrom}&date_to=${appliedDateTo}`;
       if (appliedIncidentTypes.length) {
-        q += `&incident_type=${appliedIncidentTypes.join(",")}`;
+        q += `&incident_type=${encodeURIComponent(appliedIncidentTypes.join(","))}`;
       }
       if (appliedBarangays.length) {
-        q += `&barangays=${appliedBarangays.map((b) => b.toUpperCase()).join(",")}`;
+        q += `&barangays=${encodeURIComponent(appliedBarangays.map((b) => b.toUpperCase()).join(","))}`;
       }
       const [bRes, pRes, sRes] = await Promise.all([
         fetch(`${API}/crime-map/boundaries${q}`, { headers }),
@@ -590,7 +954,7 @@ const fetchMapData = useCallback(async () => {
       if (pData.success) setPins(pData.data);
       if (sData.success) setStats(sData.data);
     } catch (err) {
-      console.error("[Map] fetchMapData error:", err.message);
+      // console.error("[Map] fetchMapData error:", err.message);
     } finally {
       if (isMounted.current) setLoading(false);
     }
@@ -602,10 +966,10 @@ const fetchMapData = useCallback(async () => {
       const token = await getToken();
       let q = `?date_from=${appliedDateFrom}&date_to=${appliedDateTo}`;
       if (appliedIncidentTypes.length) {
-        q += `&incident_type=${appliedIncidentTypes.join(",")}`;
+        q += `&incident_type=${encodeURIComponent(appliedIncidentTypes.join(","))}`;
       }
       if (appliedBarangays.length) {
-        q += `&barangays=${appliedBarangays.map((b) => b.toUpperCase()).join(",")}`;
+        q += `&barangays=${encodeURIComponent(appliedBarangays.map((b) => b.toUpperCase()).join(","))}`;
       }
       const res = await fetch(`${API}/crime-map/heatmap${q}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -617,7 +981,7 @@ const fetchMapData = useCallback(async () => {
         setClusterGeoJSON(data.clusters);
       }
     } catch (err) {
-      console.error("[Map] fetchHeatmap error:", err.message);
+      // console.error("[Map] fetchHeatmap error:", err.message);
     } finally {
       if (isMounted.current) setHeatLoading(false);
     }
@@ -772,6 +1136,39 @@ useEffect(() => {
       18, 0.75,
     ],
   };
+
+// Start can move freely up to today — no dependency on End Date.
+  // End must be at least (Start + 1 day), capped at today. This makes
+  // 28→29 valid but blocks 29→29 (same-day), with the tightest possible
+  // pair being Start=today-1, End=today.
+  // Memoized so these stay the SAME object reference across re-renders
+  // (e.g. the 5s officer GPS poll) unless the underlying date actually
+  // changes — otherwise the native Android calendar dialog treats a new
+  // Date() reference as "bounds changed" and snaps back to the current
+  // month mid-swipe.
+const maxFromDate = React.useMemo(() => new Date(), []);
+const minToDate = React.useMemo(
+  () =>
+    filterDateFrom
+      ? (() => {
+          const d = isoDate(filterDateFrom);
+          d.setDate(d.getDate() + 1);
+          return d;
+        })()
+      : undefined,
+  [filterDateFrom],
+);
+
+// Stable references so the officer/GPS polling doesn't force
+// DatePickerBtn to re-render (and reset the open Android calendar).
+const onFromDateChange = useCallback(
+  (d) => setFilterDateFrom(fmtISODate(d)),
+  [],
+);
+const onToDateChange = useCallback(
+  (d) => setFilterDateTo(fmtISODate(d)),
+  [],
+);
 
 const isPatrol = userRole === "Patrol";
 const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
@@ -1336,7 +1733,7 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
               >
                 <Ionicons name="calendar-outline" size={14} color="#1e3a5f" />
                 <Text style={styles.dateFilterBtnText}>
-                  {appliedDateFrom} → {appliedDateTo}
+                  {appliedDateFrom} — {appliedDateTo}
                 </Text>
                 <Ionicons
                   name={showDateFilter ? "chevron-up" : "chevron-down"}
@@ -1348,45 +1745,33 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
 
             {showDateFilter && (
               <View style={styles.dateFilterPanel}>
-                <Text style={styles.dateFilterLabel}>From (YYYY-MM-DD)</Text>
-                <TextInput
-                  style={styles.dateInput}
-                  value={filterDateFrom}
-                  onChangeText={setFilterDateFrom}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#adb5bd"
-                  maxLength={10}
-                  keyboardType="numeric"
-                />
-                <Text style={styles.dateFilterLabel}>To (YYYY-MM-DD)</Text>
-                <TextInput
-                  style={styles.dateInput}
-                  value={filterDateTo}
-                  onChangeText={setFilterDateTo}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#adb5bd"
-                  maxLength={10}
-                  keyboardType="numeric"
-                />
-                <TouchableOpacity
-                  style={styles.clearDateBtn}
-                  onPress={() => {
-                    const from = getPHTOneYearAgo();
-                    const to = getPHTToday();
-                    setFilterDateFrom(from);
-                    setFilterDateTo(to);
-                  }}
-                >
-                  <Text style={styles.clearDateBtnText}>Reset to 1 Year</Text>
-                </TouchableOpacity>
-              </View>
+                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+                  
+<DatePickerBtn
+  label="Start Date"
+  value={filterDateFrom}
+  onChange={onFromDateChange}
+  maximumDate={maxFromDate}
+/>
+<View style={{ paddingTop: 30, paddingHorizontal: 2 }}>
+  <Text style={{ color: "#adb5bd", fontSize: 16 }}>→</Text>
+</View>
+<DatePickerBtn
+  label="End Date"
+  value={filterDateTo}
+  onChange={onToDateChange}
+  minimumDate={minToDate}
+  maximumDate={maxFromDate}
+/>
+                </View>
+                </View>
             )}
 
             {/* Crime type section */}
             <View style={styles.dateFilterRow}>
               <TouchableOpacity
                 style={styles.dateFilterBtn}
-                onPress={() => setShowCrimeTypeFilter((v) => !v)}
+                onPress={() => setShowCrimeTypeFilter(true)}
               >
                 <Ionicons name="flag-outline" size={14} color="#1e3a5f" />
                 <Text style={styles.dateFilterBtnText}>
@@ -1394,78 +1779,9 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
                     ? "All Crime Types"
                     : `${filterIncidentTypes.length} Crime Type${filterIncidentTypes.length > 1 ? "s" : ""} Selected`}
                 </Text>
-                <Ionicons
-                  name={showCrimeTypeFilter ? "chevron-up" : "chevron-down"}
-                  size={12}
-                  color="#6b7280"
-                />
+                <Ionicons name="chevron-forward" size={12} color="#6b7280" />
               </TouchableOpacity>
             </View>
-
-            {showCrimeTypeFilter && (
-              <View style={styles.dateFilterPanel}>
-                <View style={styles.crimeTypeActionsRow}>
-                  <TouchableOpacity
-                    onPress={() =>
-                      setFilterIncidentTypes((prev) =>
-                        prev.length === INDEX_CRIMES.length
-                          ? []
-                          : [...INDEX_CRIMES],
-                      )
-                    }
-                  >
-                    <Text style={styles.crimeTypeActionText}>
-                      {filterIncidentTypes.length === INDEX_CRIMES.length
-                        ? "Clear all"
-                        : "Select all"}
-                    </Text>
-                  </TouchableOpacity>
-                  {filterIncidentTypes.length > 0 && (
-                    <TouchableOpacity onPress={() => setFilterIncidentTypes([])}>
-                      <Text
-                        style={[
-                          styles.crimeTypeActionText,
-                          { color: "#dc2626" },
-                        ]}
-                      >
-                        Clear ({filterIncidentTypes.length})
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {INDEX_CRIMES.map((c) => {
-                  const checked = filterIncidentTypes.includes(c);
-                  return (
-                    <TouchableOpacity
-                      key={c}
-                      style={styles.crimeTypeItem}
-                      onPress={() =>
-                        setFilterIncidentTypes((prev) =>
-                          checked
-                            ? prev.filter((x) => x !== c)
-                            : [...prev, c],
-                        )
-                      }
-                    >
-                      <View
-                        style={[
-                          styles.crimeTypeCheckbox,
-                          checked && styles.crimeTypeCheckboxChecked,
-                        ]}
-                      >
-                        {checked && (
-                          <Ionicons name="checkmark" size={12} color="#fff" />
-                        )}
-                      </View>
-                      <Text style={styles.crimeTypeItemText}>
-                        {CRIME_DISPLAY[c]}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
 
             {/* Barangay section — locked for patrol users with an ongoing schedule */}
             {isPatrol && hasPatrolAssignment ? (
@@ -1482,7 +1798,7 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
               <View style={styles.dateFilterRow}>
                 <TouchableOpacity
                   style={styles.dateFilterBtn}
-                  onPress={() => setShowBarangayFilter((v) => !v)}
+                  onPress={() => setShowBarangayFilter(true)}
                 >
                   <Ionicons name="location-outline" size={14} color="#1e3a5f" />
                   <Text style={styles.dateFilterBtnText}>
@@ -1490,98 +1806,8 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
                       ? "All Barangays"
                       : `${filterBarangays.length} Barangay${filterBarangays.length > 1 ? "s" : ""} Selected`}
                   </Text>
-                  <Ionicons
-                    name={showBarangayFilter ? "chevron-up" : "chevron-down"}
-                    size={12}
-                    color="#6b7280"
-                  />
+                  <Ionicons name="chevron-forward" size={12} color="#6b7280" />
                 </TouchableOpacity>
-              </View>
-            )}
-
-            {!(isPatrol && hasPatrolAssignment) && showBarangayFilter && (
-              <View style={styles.dateFilterPanel}>
-                <TextInput
-                  style={styles.barangaySearchInput}
-                  value={barangaySearch}
-                  onChangeText={setBarangaySearch}
-                  placeholder="Search barangay..."
-                  placeholderTextColor="#adb5bd"
-                />
-
-                <View style={styles.crimeTypeActionsRow}>
-                  <TouchableOpacity
-                    onPress={() =>
-                      setFilterBarangays((prev) =>
-                        prev.length === allBarangays.length
-                          ? []
-                          : [...allBarangays],
-                      )
-                    }
-                  >
-                    <Text style={styles.crimeTypeActionText}>
-                      {filterBarangays.length === allBarangays.length
-                        ? "Clear all"
-                        : "Select all"}
-                    </Text>
-                  </TouchableOpacity>
-                  {filterBarangays.length > 0 && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        setFilterBarangays([]);
-                        setBarangaySearch("");
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.crimeTypeActionText,
-                          { color: "#dc2626" },
-                        ]}
-                      >
-                        Clear ({filterBarangays.length})
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <ScrollView
-                  style={styles.barangayListScroll}
-                  nestedScrollEnabled
-                >
-                  {filteredBarangayOptions.map((b) => {
-                    const checked = filterBarangays.includes(b);
-                    return (
-                      <TouchableOpacity
-                        key={b}
-                        style={styles.crimeTypeItem}
-                        onPress={() =>
-                          setFilterBarangays((prev) =>
-                            checked
-                              ? prev.filter((x) => x !== b)
-                              : [...prev, b],
-                          )
-                        }
-                      >
-                        <View
-                          style={[
-                            styles.crimeTypeCheckbox,
-                            checked && styles.crimeTypeCheckboxChecked,
-                          ]}
-                        >
-                          {checked && (
-                            <Ionicons name="checkmark" size={12} color="#fff" />
-                          )}
-                        </View>
-                        <Text style={styles.crimeTypeItemText}>
-                          {formatBarangayLabel(b)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                  {filteredBarangayOptions.length === 0 && (
-                    <Text style={styles.emptyText}>No barangays found.</Text>
-                  )}
-                </ScrollView>
               </View>
             )}
 
@@ -1683,57 +1909,54 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
             {/* ── LEGEND TAB ── */}
             {activeTab === "legend" && (
               <View style={styles.tabContent}>
-                <Text style={styles.sectionLabel}>Crime Types</Text>
-                {(stats?.by_incident_type?.length > 0
-                  ? stats.by_incident_type
-                  : Object.keys(INCIDENT_COLORS).map((k) => ({
-                      incident_type: k,
-                      count: 0,
-                    }))
-                ).map((item) => {
-                  const name = item.incident_type;
-                  const color =
-                    INCIDENT_COLORS[name?.toUpperCase()] || "#6b7280";
-                  const count = parseInt(item.count) || 0;
-                  const max =
-                    parseInt(stats?.by_incident_type?.[0]?.count) || 1;
-                  const pct = Math.round((count / max) * 100);
-                  return (
-                    <View key={name} style={styles.legendRow}>
-                      <View style={styles.legendTop}>
-                        <View style={styles.legendLeft}>
-                          {/* Teardrop legend icon */}
-                          <View style={styles.legendPinWrap}>
-                            <View
-                              style={[
-                                styles.legendPinBody,
-                                { backgroundColor: color },
-                              ]}
-                            >
-                              <View style={styles.legendPinInner} />
-                            </View>
-                            <View
-                              style={[
-                                styles.legendPinTip,
-                                { borderTopColor: color },
-                              ]}
-                            />
-                          </View>
-                          <Text style={styles.legendName}>{name}</Text>
-                        </View>
-                        <Text style={styles.legendCount}>{count}</Text>
-                      </View>
-                      <View style={styles.barBg}>
-                        <View
-                          style={[
-                            styles.barFill,
-                            { width: `${pct}%`, backgroundColor: color },
-                          ]}
-                        />
-                      </View>
-                    </View>
-                  );
-                })}
+                
+<Text style={styles.sectionLabel}>Crime Types</Text>
+{(() => {
+  const maxCount = Math.max(
+    ...(stats?.by_incident_type || []).map(
+      (i) => parseInt(i.count) || 0,
+    ),
+    1,
+  );
+  return INDEX_CRIMES.map((crimeKey) => {
+    const item = stats?.by_incident_type?.find(
+      (i) => i.incident_type?.toUpperCase() === crimeKey,
+    );
+    const color = INCIDENT_COLORS[crimeKey] || "#6b7280";
+    const count = parseInt(item?.count) || 0;
+    const pct = Math.round((count / maxCount) * 100);
+    return (
+      <View key={crimeKey} style={styles.legendRow}>
+        <View style={styles.legendTop}>
+          <View style={styles.legendLeft}>
+            <View style={styles.legendPinWrap}>
+              <View
+                style={[styles.legendPinBody, { backgroundColor: color }]}
+              >
+                <View style={styles.legendPinInner} />
+              </View>
+              <View
+                style={[styles.legendPinTip, { borderTopColor: color }]}
+              />
+            </View>
+            <Text style={styles.legendName}>
+              {CRIME_DISPLAY[crimeKey] || crimeKey}
+            </Text>
+          </View>
+          <Text style={styles.legendCount}>{count}</Text>
+        </View>
+        <View style={styles.barBg}>
+          <View
+            style={[
+              styles.barFill,
+              { width: `${pct}%`, backgroundColor: color },
+            ]}
+          />
+        </View>
+      </View>
+    );
+  });
+})()}
 {!heatmapMode && (
   <>
     <Text style={[styles.sectionLabel, { marginTop: 20 }]}>
@@ -1913,6 +2136,27 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
           </ScrollView>
         </View>
       </Modal>
+
+      <MultiSelect
+        visible={showCrimeTypeFilter}
+        title="Incident Type"
+        items={INDEX_CRIMES.map((c) => ({ label: CRIME_DISPLAY[c], value: c }))}
+        selected={filterIncidentTypes}
+        searchable={false}
+        onClose={() => setShowCrimeTypeFilter(false)}
+        onApply={(sel) => setFilterIncidentTypes(sel)}
+      />
+
+      <MultiSelect
+        visible={showBarangayFilter}
+        title="Barangay"
+        items={allBarangays.map((b) => ({ label: formatBarangayLabel(b), value: b }))}
+        legacy={LEGACY_OPTIONS}
+        selected={filterBarangays}
+        searchable={true}
+        onClose={() => setShowBarangayFilter(false)}
+        onApply={(sel) => setFilterBarangays(sel)}
+      />
     </SafeAreaView>
   );
 }
@@ -2560,4 +2804,159 @@ const styles = StyleSheet.create({
     fontSize: 13,
     paddingVertical: 24,
   },
+});
+
+const dpStyles = StyleSheet.create({
+  lbl: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 6,
+  },
+  btn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    height: 42,
+    borderWidth: 1.5,
+    borderColor: "#dee2e6",
+    borderRadius: 8,
+    backgroundColor: "#f8f9fa",
+    paddingHorizontal: 10,
+  },
+  btnTxt: { fontSize: 13, color: "#111827", flex: 1 },
+  iosOv: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  iosSh: {
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 34,
+  },
+  iosHdr: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e9ecef",
+  },
+  iosCan: { fontSize: 15, color: "#6b7280", fontWeight: "600" },
+  iosTit: { fontSize: 15, fontWeight: "700", color: "#0a285c" },
+  iosDone: { fontSize: 15, color: "#1e3a5f", fontWeight: "700" },
+});
+
+const msStyles = StyleSheet.create({
+  ov: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  sh: {
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: "75%",
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "#dee2e6",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  top: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  title: { fontSize: 15, fontWeight: "700", color: "#0a285c" },
+  search: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 4,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    paddingHorizontal: 12,
+    height: 40,
+  },
+  searchTxt: { flex: 1, fontSize: 13, color: "#111827", padding: 0 },
+  actions: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  actTxt: { fontSize: 12, fontWeight: "700", color: "#1e3a5f" },
+  list: { flex: 1, minHeight: 200 },
+  item: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  chk: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: "#adb5bd",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chkOn: { backgroundColor: "#1e3a5f", borderColor: "#1e3a5f" },
+  itemTxt: { flex: 1, fontSize: 13, color: "#374151", fontWeight: "500" },
+  group: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  groupLine: { flex: 1, height: 1, backgroundColor: "#dee2e6" },
+  groupTxt: { fontSize: 10, color: "#adb5bd", fontWeight: "600" },
+  foot: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  cancel: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1.5,
+    borderColor: "#dee2e6",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelTxt: { fontSize: 14, fontWeight: "600", color: "#374151" },
+  apply: {
+    flex: 2,
+    height: 44,
+    backgroundColor: "#1e3a5f",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  applyTxt: { fontSize: 14, fontWeight: "700", color: "#ffffff" },
 });

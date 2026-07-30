@@ -232,7 +232,9 @@ export default function NotificationsScreen({ navigation }) {
     try {
       const data = await getNotifications();
       if (data.success) { setNotifs(data.data || []); setUnread(data.unread || 0); }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error(e); 
+    }
     finally { setLoading(false); setRefresh(false); }
   }, []);
 

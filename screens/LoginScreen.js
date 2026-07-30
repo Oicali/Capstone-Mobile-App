@@ -189,7 +189,7 @@ export default function LoginScreen({ navigation }) {
  try {
   const { registerForPushNotifications, savePushToken } = require('./services/pushNotifications');
   const pushToken = await registerForPushNotifications();
-  console.log("PUSH TOKEN RESULT:", pushToken);
+  // console.log("PUSH TOKEN RESULT:", pushToken);
   if (pushToken) await savePushToken(pushToken);
 } catch (err) {
 }

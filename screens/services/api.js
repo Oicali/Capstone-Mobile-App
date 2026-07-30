@@ -91,7 +91,7 @@ export const getProfile = async (token) => {
     });
     return validateResponse(response);
   } catch (error) {
-    console.error("Get Profile Error:", error);
+    // console.error("Get Profile Error:", error);
     throw error;
   }
 };
@@ -251,7 +251,7 @@ export const getCrimeDashboard = async (filters) => {
     const data = await validateResponse(response);
     return data;
   } catch (error) {
-    console.error("getCrimeDashboard Error:", error);
+    // console.error("getCrimeDashboard Error:", error);
     throw error;
   }
 };
@@ -267,7 +267,7 @@ export const sendOTP = async (email) => {
     });
     return await response.json();
   } catch (error) {
-    console.error("sendOTP Error:", error);
+    // console.error("sendOTP Error:", error);
     return {
       success: false,
       message: "Failed to connect to server. Please try again.",
@@ -284,7 +284,7 @@ export const verifyOTP = async (email, code) => {
     });
     return await response.json();
   } catch (error) {
-    console.error("verifyOTP Error:", error);
+    // console.error("verifyOTP Error:", error);
     return {
       success: false,
       message: "Failed to verify code. Please try again.",
@@ -301,7 +301,7 @@ export const resendOTP = async (email) => {
     });
     return await response.json();
   } catch (error) {
-    console.error("resendOTP Error:", error);
+    // console.error("resendOTP Error:", error);
     return {
       success: false,
       message: "Failed to resend code. Please try again.",
@@ -318,7 +318,7 @@ export const resetPassword = async (email, newPassword) => {
     });
     return await response.json();
   } catch (error) {
-    console.error("resetPassword Error:", error);
+    // console.error("resetPassword Error:", error);
     return { success: false, message: "An unexpected error occurred." };
   }
 };
@@ -334,7 +334,7 @@ export const getNotifications = async () => {
     });
     return await res.json();
   } catch (err) {
-    console.error("getNotifications error:", err);
+    // console.error("getNotifications error:", err); // Commented out to reduce noise in logs
     return { success: false, data: [], unread: 0 };
   }
 };
