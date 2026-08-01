@@ -309,6 +309,19 @@ export const resendOTP = async (email) => {
   }
 };
 
+export const forceLockOTP = async (email) => {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/otp/force-lock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("forceLockOTP Error:", error);
+    return { success: false };
+  }
+};
 export const resetPassword = async (email, newPassword) => {
   try {
     const response = await fetch(`${BASE_URL}/auth/password/reset`, {
