@@ -1070,7 +1070,8 @@ export default function ProfileScreen({ navigation }) {
             : "") || "",
       });
     } catch (e) {
-      console.error("resolveAddressNames:", e);
+      // console.error("resolveAddressNames:", e);
+      setErrorMsg("Could not resolve address names");
     }
   };
 
@@ -1323,7 +1324,7 @@ export default function ProfileScreen({ navigation }) {
       setAltPhoneChanged(false);
       startPolling();
     } catch (err) {
-      console.error("doSave:", err);
+      // console.error("doSave:", err);
       setErrorMsg("Network error. Check your connection.");
     } finally {
       setIsSaving(false);
@@ -1418,7 +1419,7 @@ export default function ProfileScreen({ navigation }) {
         setSuccessMsg("Profile photo updated!");
       }
     } catch (err) {
-      console.error("uploadPhoto:", err);
+      // console.error("uploadPhoto:", err);
       setErrorMsg("Error uploading photo.");
     } finally {
       setUploadingPhoto(false);

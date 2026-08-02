@@ -269,16 +269,19 @@ const EMPTYDB = () => ({
 const valDates = (f, t) => {
   if (!f || !t) return "Select both dates.";
   if (f >= t) return "Start must be before end.";
-  if (Math.round((new Date(t) - new Date(f)) / 86400000) < 7)
+  // Inclusive day count = (t - f in days) + 1, so a 7-day-inclusive range
+  // (e.g. day 1 to day 7) has a raw difference of 6, not 7.
+  if (Math.round((new Date(t) - new Date(f)) / 86400000) < 6)
     return "Min 7 days range.";
   return "";
 };
 
 // ─── DATE PICKER (exact EBlotter.js pattern) ─────────────────────────────────
-function DatePickerBtn({ label, value, onChange, maximumDate }) {
+function DatePickerBtn({ label, value, onChange, minimumDate, maximumDate }) {
   const [show, setShow] = useState(false);
   const [temp, setTemp] = useState(new Date());
   const maxISO = fmtISO(maximumDate || new Date());
+  const minISO = minimumDate ? fmtISO(minimumDate) : undefined;
   const disp = value
     ? (() => {
         const d = isoDate(value);
@@ -293,6 +296,7 @@ function DatePickerBtn({ label, value, onChange, maximumDate }) {
         <input
           type="date"
           value={value || ""}
+          min={minISO}
           max={maxISO}
           style={{
             height: 42,
@@ -359,6 +363,7 @@ function DatePickerBtn({ label, value, onChange, maximumDate }) {
                   mode="date"
                   display="spinner"
                   onChange={(_, d) => d && setTemp(d)}
+                  minimumDate={minimumDate}
                   maximumDate={maximumDate || new Date()}
                 />
               </View>
@@ -386,6 +391,7 @@ function DatePickerBtn({ label, value, onChange, maximumDate }) {
             setShow(false);
             if (e.type !== "dismissed" && d) onChange(d);
           }}
+          minimumDate={minimumDate}
           maximumDate={maximumDate || new Date()}
         />
       )}
@@ -768,6 +774,13 @@ function FilterSheet({ visible, applied, onApply, onClose }) {
   const [dateErr, setDateErr] = useState("");
   const [showCrime, setShowCrime] = useState(false);
   const [showBrgy, setShowBrgy] = useState(false);
+  // Latest selectable Start Date = today - 6 days, so there are always
+  // at least 7 days of room between Start and today (the latest End Date).
+  const maxStartDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    return d;
+  })();
   useEffect(() => {
     if (visible && Platform.OS === "android") {
       NavigationBar.setVisibilityAsync("hidden");
@@ -917,7 +930,15 @@ function FilterSheet({ visible, applied, onApply, onClose }) {
                       value={draft.dateFrom}
                       onChange={onFrom}
                       maximumDate={
-                        draft.dateTo ? isoDate(draft.dateTo) : new Date()
+                        draft.dateTo
+                          ? (() => {
+                              const capFromEnd = isoDate(draft.dateTo);
+                              capFromEnd.setDate(capFromEnd.getDate() - 6);
+                              return capFromEnd < maxStartDate
+                                ? capFromEnd
+                                : maxStartDate;
+                            })()
+                          : maxStartDate
                       }
                     />
                     <View style={{ paddingTop: 30, paddingHorizontal: 2 }}>
@@ -927,6 +948,15 @@ function FilterSheet({ visible, applied, onApply, onClose }) {
                       label="End Date"
                       value={draft.dateTo}
                       onChange={onTo}
+                      minimumDate={
+                        draft.dateFrom
+                          ? (() => {
+                              const d = isoDate(draft.dateFrom);
+                              d.setDate(d.getDate() + 6); // +6 = 7-day range inclusive
+                              return d;
+                            })()
+                          : undefined
+                      }
                       maximumDate={new Date()}
                     />
                   </View>

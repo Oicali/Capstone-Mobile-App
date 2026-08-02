@@ -314,6 +314,7 @@ export default function LoginScreen({ navigation }) {
         setUsername("");
         setPassword("");
         setErrorMsg(data.message || "Invalid credentials");
+
       }
     } catch (err) {
       setUsername("");

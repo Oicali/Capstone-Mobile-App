@@ -5174,7 +5174,7 @@ export default function EBlotterScreen() {
       }
       return await res.json();
     } catch (e) {
-      console.error("api:", e);
+      // console.error("api:", e);
       return null;
     }
   }, []);
@@ -6197,7 +6197,7 @@ export default function EBlotterScreen() {
       });
       return await res.json();
     } catch (e) {
-      console.error("uploadAttachment error:", e);
+      // console.error("uploadAttachment error:", e);
       return null;
     }
   }, []);

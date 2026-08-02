@@ -191,7 +191,7 @@ export default function PatrolSchedulingScreen({ navigation }) {
       const data = await res.json();
       if (data.success) setPatrols(data.data);
     } catch (err) {
-      console.error("fetchPatrols error:", err);
+      // console.error("fetchPatrols error:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
