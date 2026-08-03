@@ -833,7 +833,8 @@ useEffect(() => {
     }
   }, []);
 
-  const stopTracking = useCallback(async () => {
+const stopTracking = useCallback(async () => {
+  //console.log("[GPS] stopTracking called", new Error().stack);   // ← add this line
   // Stop foreground watcher
   if (watchRef.current) {
     watchRef.current.remove();
