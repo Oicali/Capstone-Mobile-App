@@ -276,11 +276,6 @@ export default function LoginScreen({ navigation }) {
       return;
     }
 
-    if (username.length < 4 || password.length < 8) {
-      setErrorMsg("Account does not exist");
-      return;
-    }
-
     if (!backendConnected) {
       setErrorMsg(
         "Backend server is not responding. Please start the backend.",
@@ -291,11 +286,11 @@ export default function LoginScreen({ navigation }) {
     try {
       setLoading(true);
       const data = await login(username, password);
-
       if (data.success) {
         setUsername("");
         setPassword("");
         setErrorMsg("");
+        setSuccessMsg("Login Successful!");
         // Register push token after login
         try {
           const {
@@ -306,15 +301,16 @@ export default function LoginScreen({ navigation }) {
           console.log("PUSH TOKEN RESULT:", pushToken);
           if (pushToken) await savePushToken(pushToken);
         } catch (err) {}
-        nav.reset({
-          index: 0,
-          routes: [{ name: "Main", params: { screen: "Dashboard" } }],
-        });
+        setTimeout(() => {
+          nav.reset({
+            index: 0,
+            routes: [{ name: "Main", params: { screen: "Dashboard" } }],
+          });
+        }, 1000);
       } else {
         setUsername("");
         setPassword("");
         setErrorMsg(data.message || "Invalid credentials");
-
       }
     } catch (err) {
       setUsername("");
@@ -329,10 +325,12 @@ export default function LoginScreen({ navigation }) {
 
   // ─── FORGOT PASSWORD — SEND OTP ───────────────────────────────────────────
   const handleSendOTP = async () => {
-    if (
-      !email ||
-      !/^[^\s@.]+(\.[^\s@.]+)*@[^\s@.]+(\.[^\s@.]+)+$/.test(email.trim())
-    ) {
+    if (!email.trim()) {
+      setErrorMsg("Email is required");
+      return;
+    }
+
+    if (!/^[^\s@.]+(\.[^\s@.]+)*@[^\s@.]+(\.[^\s@.]+)+$/.test(email.trim())) {
       setErrorMsg("Invalid email format");
       return;
     }

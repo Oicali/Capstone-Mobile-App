@@ -14,22 +14,6 @@ const validateResponse = async (response) => {
 
 export const login = async (username, password) => {
   try {
-    if (!username || !password) {
-      return { success: false, message: "Username and password are required" };
-    }
-    if (username.length < 4) {
-      return {
-        success: false,
-        message: "Username must be at least 4 characters",
-      };
-    }
-    if (password.length < 8) {
-      return {
-        success: false,
-        message: "Password must be at least 8 characters",
-      };
-    }
-
     const response = await fetch(`${BASE_URL}/auth/mobile/login`, {
       method: "POST",
       headers: {
