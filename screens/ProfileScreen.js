@@ -2203,7 +2203,9 @@ export default function ProfileScreen({ navigation }) {
         onPress={closeEmailModal}
         activeOpacity={0.85}
       >
-        <Text style={[em.lockedBtnTxt, { color: "#FFFFFF" }]}>Close</Text>
+        <Text style={[em.lockedBtnTxt, { color: "#FFFFFF" }]}>
+          Got it, Go Back
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -2815,7 +2817,7 @@ export default function ProfileScreen({ navigation }) {
                 renderEmailLockedStep({
                   iconBg: "#F1F5F9",
                   iconColor: C.navy,
-                  iconName: "shield-off-outline",
+                  iconName: "lock-closed-outline",
                   title: "Temporarily Locked",
                   message:
                     "For your security, this process has been temporarily locked due to too many failed attempts.",

@@ -964,7 +964,7 @@ export default function ChangePasswordScreen({ navigation }) {
               <View style={lk.iconOuter}>
                 <View style={lk.iconInner}>
                   <Ionicons
-                    name="shield-off-outline"
+                    name="lock-closed-outline"
                     size={32}
                     color={C.navy}
                   />
@@ -1038,7 +1038,6 @@ export default function ChangePasswordScreen({ navigation }) {
                       fontSize: 14,
                       textTransform: "none",
                       letterSpacing: 0,
-                   
                     },
                   ]}
                 >
