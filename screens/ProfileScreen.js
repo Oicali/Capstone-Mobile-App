@@ -2840,15 +2840,18 @@ export default function ProfileScreen({ navigation }) {
                 })}
               {emailStep === "done" && (
                 <View style={em.lockedWrap}>
-                  <View
-                    style={[em.lockedIcon, { backgroundColor: C.greenLight }]}
-                  >
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={30}
-                      color={C.green}
-                    />
+                  {/* Double-ring icon — matches the password changed screen */}
+                  <View style={em.lockedIconOuter}>
+                    <View
+                      style={[
+                        em.lockedIconInner,
+                        { backgroundColor: C.greenLight },
+                      ]}
+                    >
+                      <Ionicons name="checkmark" size={32} color={C.green} />
+                    </View>
                   </View>
+
                   <Text style={[em.lockedTitle, { color: C.green }]}>
                     Email Updated!
                   </Text>
@@ -2858,12 +2861,19 @@ export default function ProfileScreen({ navigation }) {
                   <Text style={em.lockedMsg}>
                     Security notifications sent to both email addresses.
                   </Text>
+
+                  {/* Full-width button matching the password screen style */}
                   <TouchableOpacity
                     style={[
                       em.primaryBtn,
-                      { backgroundColor: C.green, marginTop: 20 },
+                      {
+                        backgroundColor: C.green,
+                        marginTop: 20,
+                        alignSelf: "stretch",
+                      },
                     ]}
                     onPress={closeEmailModal}
+                    activeOpacity={0.85}
                   >
                     <Text style={em.primaryBtnTxt}>Done</Text>
                   </TouchableOpacity>
