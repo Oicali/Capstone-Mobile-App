@@ -44,6 +44,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
+import * as NavigationBar from "expo-navigation-bar";
 import {
   View,
   Text,
@@ -160,7 +161,12 @@ const V = {
 function LoadingOverlay({ visible, message = "Please wait…" }) {
   if (!visible) return null;
   return (
-    <Modal visible transparent animationType="fade">
+    <Modal
+      visible
+      transparent
+      animationType="fade"
+      onShow={() => NavigationBar.setVisibilityAsync("hidden")}
+    >
       <View style={lo.overlay}>
         <View style={lo.box}>
           <ActivityIndicator size="large" color={C.navy} />
@@ -211,7 +217,12 @@ function ConfirmModal({
 }) {
   if (!visible) return null;
   return (
-    <Modal visible transparent animationType="fade">
+    <Modal
+      visible
+      transparent
+      animationType="fade"
+      onShow={() => NavigationBar.setVisibilityAsync("hidden")}
+    >
       <View style={cm.overlay}>
         <View style={cm.box}>
           <Text style={cm.title}>{title}</Text>
@@ -951,6 +962,7 @@ export default function ProfileScreen({ navigation }) {
     setPsgcLoading((p) => ({ ...p, regions: false }));
     return arr;
   }, []);
+
   const loadProvinces = useCallback(async (rc) => {
     if (!rc) {
       setProvinces([]);
@@ -961,6 +973,20 @@ export default function ProfileScreen({ navigation }) {
     setPsgcLoading((p) => ({ ...p, provinces: true }));
     let arr = [];
     try {
+      if (rc === "130000000") {
+        // NCR has no provinces — load cities directly
+        const d = await (
+          await fetch(`${PSGC_API}/regions/${rc}/cities-municipalities/`)
+        ).json();
+        arr = Array.isArray(d)
+          ? d.sort((a, b) => a.name.localeCompare(b.name))
+          : [];
+        setProvinces([{ code: "NCR_ONLY", name: "Metro Manila (NCR)" }]);
+        setMunicipalities(arr);
+        setBarangays([]);
+        setPsgcLoading((p) => ({ ...p, provinces: false }));
+        return arr;
+      }
       const d = await (
         await fetch(`${PSGC_API}/regions/${rc}/provinces/`)
       ).json();
@@ -1112,6 +1138,10 @@ export default function ProfileScreen({ navigation }) {
       : originalFormData.alternate_phone;
     if (ep && eap && ep.replace(/\D/g, "") === eap.replace(/\D/g, ""))
       e.alternate_phone = "Alternate phone cannot be same as primary";
+    // Check if new phone is same as another user's — handled by backend,
+    // but we show a clear message if backend returns phone error
+    if (formData.phone && formData.phone === formData.alternate_phone)
+      e.alternate_phone = "Alternate phone cannot be same as primary phone";
     if ((formData.address_line || "").length > 255)
       e.address_line = "Max 255 characters";
     if (!formData.region_code) e.region_code = "Region is required";
@@ -1168,7 +1198,10 @@ export default function ProfileScreen({ navigation }) {
       barangay_code: "",
     }));
     setShowDropdown(null);
-    await loadMunicipalities(code);
+    // NCR: municipalities already loaded inside loadProvinces, skip
+    if (code !== "NCR_ONLY") {
+      await loadMunicipalities(code);
+    }
   };
   const onMunicipality = async (code) => {
     setFormData((p) => ({ ...p, municipality_code: code, barangay_code: "" }));
@@ -1179,8 +1212,8 @@ export default function ProfileScreen({ navigation }) {
     setFormData((p) => ({ ...p, barangay_code: code }));
     setShowDropdown(null);
   };
-
   const startEdit = async () => {
+    NavigationBar.setVisibilityAsync("hidden");
     stopPolling();
     setFormData({ ...originalFormData, phone: "", alternate_phone: "" });
     setPhoneChanged(false);
@@ -1189,15 +1222,32 @@ export default function ProfileScreen({ navigation }) {
     setIsEditing(true);
     await loadRegions();
     if (originalFormData.region_code) {
-      await loadProvinces(originalFormData.region_code);
-      if (originalFormData.province_code) {
-        await loadMunicipalities(originalFormData.province_code);
+      if (originalFormData.region_code === "130000000") {
+        // NCR: no provinces, load cities directly
+        setProvinces([{ code: "NCR_ONLY", name: "Metro Manila (NCR)" }]);
+        try {
+          const d = await (
+            await fetch(`${PSGC_API}/regions/130000000/cities-municipalities/`)
+          ).json();
+          const arr = Array.isArray(d)
+            ? d.sort((a, b) => a.name.localeCompare(b.name))
+            : [];
+          setMunicipalities(arr);
+        } catch {}
         if (originalFormData.municipality_code)
           await loadBarangays(originalFormData.municipality_code);
+      } else {
+        await loadProvinces(originalFormData.region_code);
+        if (originalFormData.province_code) {
+          await loadMunicipalities(originalFormData.province_code);
+          if (originalFormData.municipality_code)
+            await loadBarangays(originalFormData.municipality_code);
+        }
       }
     }
   };
   const cancelEdit = () => {
+    NavigationBar.setVisibilityAsync("visible");
     setFormData(originalFormData);
     setErrors({});
     setPhoneChanged(false);
@@ -1296,15 +1346,23 @@ export default function ProfileScreen({ navigation }) {
         },
       );
       const json = await res.json();
+      console.log("SAVE RESPONSE:", JSON.stringify(json));
       if (!res.ok || !json.success) {
+        // Check for field-level errors array
         if (json.errors && Array.isArray(json.errors)) {
           const be = {};
           json.errors.forEach((e) => {
             if (e.field) be[e.field] = e.message;
+            else if (!be.general) be.general = e.message;
           });
           if (Object.keys(be).length) setErrors(be);
         }
-        setErrorMsg(json.message || "Failed to update profile");
+        // Check for phone-specific message from backend
+        const msg = json.message || "Failed to update profile";
+        if (msg.toLowerCase().includes("phone")) {
+          setErrors((prev) => ({ ...prev, phone: msg }));
+        }
+        setErrorMsg(msg);
         setIsSaving(false);
         return;
       }
@@ -1323,6 +1381,7 @@ export default function ProfileScreen({ navigation }) {
       setPhoneChanged(false);
       setAltPhoneChanged(false);
       startPolling();
+      NavigationBar.setVisibilityAsync("visible");
     } catch (err) {
       // console.error("doSave:", err);
       setErrorMsg("Network error. Check your connection.");
@@ -1996,7 +2055,7 @@ export default function ProfileScreen({ navigation }) {
             ) : (
               <ScrollView
                 style={{ maxHeight: 420 }}
-                contentContainerStyle={ef.ddModalList}
+                contentContainerStyle={[ef.ddModalList, { paddingBottom: 60 }]}
                 showsVerticalScrollIndicator={true}
               >
                 {items.map((item) => (
@@ -2726,6 +2785,7 @@ export default function ProfileScreen({ navigation }) {
         visible={emailModalVisible}
         animationType="slide"
         transparent={false}
+        onShow={() => NavigationBar.setVisibilityAsync("hidden")}
       >
         <SafeAreaView style={em.safe}>
           <View style={em.header}>
@@ -2771,8 +2831,8 @@ export default function ProfileScreen({ navigation }) {
           >
             <ScrollView
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={em.scrollContent}
               showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
             >
               {emailStep === "checking" && (
                 <View style={em.centerBox}>
@@ -3140,8 +3200,13 @@ export default function ProfileScreen({ navigation }) {
       </Modal>
 
       {/* EDIT PROFILE MODAL — unchanged */}
-      <Modal visible={isEditing} animationType="slide" transparent={false}>
-        <SafeAreaView style={ef.safe}>
+      <Modal
+        visible={isEditing}
+        animationType="slide"
+        transparent={false}
+        onShow={() => NavigationBar.setVisibilityAsync("hidden")}
+      >
+        <SafeAreaView style={ef.safe} edges={["top", "left", "right"]}>
           <View style={ef.header}>
             <TouchableOpacity
               onPress={cancelEdit}
@@ -3548,7 +3613,12 @@ export default function ProfileScreen({ navigation }) {
       </Modal>
 
       {/* Photo picker sheet — unchanged */}
-      <Modal visible={showPhotoModal} animationType="slide" transparent>
+      <Modal
+        visible={showPhotoModal}
+        animationType="slide"
+        transparent
+        onShow={() => NavigationBar.setVisibilityAsync("hidden")}
+      >
         <View style={st.photoOverlay}>
           <View style={st.photoSheet}>
             <View style={st.photoHandle} />
@@ -4018,7 +4088,7 @@ const em = StyleSheet.create({
 // EDIT FORM STYLES
 // ══════════════════════════════════════════════════════════════════════════════
 const ef = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg },
+  safe: { flex: 1, backgroundColor: C.bg, paddingBottom: 0 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -4231,7 +4301,7 @@ const ef = StyleSheet.create({
   },
   ddErrTxt: { color: C.danger, fontSize: 12, fontWeight: "500", flex: 1 },
 
-  bottomRow: { flexDirection: "row", gap: 10, marginTop: 24 },
+  bottomRow: { flexDirection: "row", gap: 10, marginTop: 24, marginBottom: 16 },
   saveBtn: {
     flex: 1,
     flexDirection: "row",
@@ -4278,7 +4348,8 @@ const ef = StyleSheet.create({
     backgroundColor: C.white,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
-    maxHeight: "70%",
+    maxHeight: "75%",
+    paddingBottom: 40,
   },
   ddModalHandle: {
     width: 40,
@@ -4760,4 +4831,72 @@ const st = StyleSheet.create({
     alignItems: "center",
   },
   photoCancelTxt: { fontSize: 15, fontWeight: "700", color: C.red },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(7,29,71,0.5)",
+    justifyContent: "flex-end",
+  },
+  pickerSheet: {
+    backgroundColor: C.white,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 12,
+    paddingHorizontal: 0,
+    maxHeight: "75%",
+    paddingBottom: 20,
+  },
+  pickerHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: C.border,
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  pickerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+    marginBottom: 4,
+  },
+  pickerTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: C.text,
+    letterSpacing: -0.3,
+  },
+  pickerItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  pickerItemOn: {
+    backgroundColor: C.navyLight,
+  },
+  pickerItemTxt: {
+    fontSize: 15,
+    color: C.text,
+    fontWeight: "500",
+    flex: 1,
+  },
+  pickerItemTxtOn: {
+    color: C.navy,
+    fontWeight: "700",
+  },
+  pickerEmpty: {
+    paddingVertical: 40,
+    alignItems: "center",
+  },
+  pickerEmptyTxt: {
+    fontSize: 14,
+    color: C.textMuted,
+    fontStyle: "italic",
+  },
 });
