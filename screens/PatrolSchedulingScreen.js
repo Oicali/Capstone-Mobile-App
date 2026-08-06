@@ -51,10 +51,30 @@ const getPatrolStatus = (patrol) => {
 };
 
 const STATUS_CONFIG = {
-  active:    { label: "Active",    bg: "#dcfce7", color: "#166534", border: "#86efac" },
-  upcoming:  { label: "Upcoming",  bg: "#fef9c3", color: "#854d0e", border: "#fde047" },
-  completed: { label: "Completed", bg: "#f1f5f9", color: "#475569", border: "#cbd5e1" },
-  unknown:   { label: "Unknown",   bg: "#f1f5f9", color: "#475569", border: "#cbd5e1" },
+  active: {
+    label: "Active",
+    bg: "#dcfce7",
+    color: "#166534",
+    border: "#86efac",
+  },
+  upcoming: {
+    label: "Upcoming",
+    bg: "#fef9c3",
+    color: "#854d0e",
+    border: "#fde047",
+  },
+  completed: {
+    label: "Completed",
+    bg: "#f1f5f9",
+    color: "#475569",
+    border: "#cbd5e1",
+  },
+  unknown: {
+    label: "Unknown",
+    bg: "#f1f5f9",
+    color: "#475569",
+    border: "#cbd5e1",
+  },
 };
 
 const STATUS_ORDER = { active: 0, upcoming: 1, completed: 2, unknown: 3 };
@@ -85,7 +105,7 @@ const PatrolCard = ({ patrol, onPress }) => {
       (patrol.routes || [])
         .filter((r) => (r.stop_order || 0) <= 0 && r.barangay)
         .map((r) => r.barangay)
-        .filter(Boolean)
+        .filter(Boolean),
     ),
   ];
 
@@ -214,7 +234,9 @@ export default function PatrolSchedulingScreen({ navigation }) {
         search &&
         !(
           (p.patrol_name || "").toLowerCase().includes(search.toLowerCase()) ||
-          (p.mobile_unit_name || "").toLowerCase().includes(search.toLowerCase())
+          (p.mobile_unit_name || "")
+            .toLowerCase()
+            .includes(search.toLowerCase())
         )
       )
         return false;
@@ -240,8 +262,8 @@ export default function PatrolSchedulingScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#1e3a5f" />
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <StatusBar barStyle="light-content" backgroundColor="#0d1f3c" />
 
       {/* ── Header ── */}
       <View style={styles.header}>
@@ -251,92 +273,104 @@ export default function PatrolSchedulingScreen({ navigation }) {
             {counts.all} total · {counts.active} active
           </Text>
         </View>
-        <TouchableOpacity style={styles.refreshBtn} onPress={() => fetchPatrols()}>
-          <Ionicons name="refresh-outline" size={20} color="#fff" />
+        <TouchableOpacity
+          style={styles.refreshBtn}
+          onPress={() => fetchPatrols()}
+        >
+          <Ionicons name="sync-outline" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* ── Search ── */}
-      <View style={styles.searchWrap}>
-        <Ionicons
-          name="search-outline"
-          size={16}
-          color="#adb5bd"
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search patrol or unit..."
-          placeholderTextColor="#adb5bd"
-          value={search}
-          onChangeText={setSearch}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-        />
-        {search.length > 0 && Platform.OS === "android" && (
-          <TouchableOpacity onPress={() => setSearch("")}>
-            <Ionicons name="close-circle" size={16} color="#adb5bd" />
-          </TouchableOpacity>
+      {/* ── Content (light gray area below header) ── */}
+      <View style={styles.contentArea}>
+        {/* ── Search ── */}
+        <View style={styles.searchWrap}>
+          <Ionicons
+            name="search-outline"
+            size={16}
+            color="#adb5bd"
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search patrol or unit..."
+            placeholderTextColor="#adb5bd"
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+          {search.length > 0 && Platform.OS === "android" && (
+            <TouchableOpacity onPress={() => setSearch("")}>
+              <Ionicons name="close-circle" size={16} color="#adb5bd" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* ── Filter Pills ── */}
+        <View style={styles.pillRow}>
+          {[
+            { key: "all", label: `All (${counts.all})` },
+            { key: "active", label: `Active (${counts.active})` },
+            { key: "upcoming", label: `Upcoming (${counts.upcoming})` },
+            { key: "completed", label: `Done (${counts.completed})` },
+          ].map(({ key, label }) => (
+            <FilterPill
+              key={key}
+              label={label}
+              active={statusFilter === key}
+              onPress={() => setStatusFilter(key)}
+            />
+          ))}
+        </View>
+
+        {/* ── List ── */}
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color="#1e3a5f" />
+            <Text style={styles.loadingText}>Loading patrols...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => String(item.patrol_id)}
+            renderItem={({ item }) => (
+              <PatrolCard
+                patrol={item}
+                onPress={(patrol) =>
+                  navigation.navigate("PatrolDetail", { patrol, isAdmin: true })
+                }
+              />
+            )}
+            contentContainerStyle={[
+              styles.listContent,
+              filtered.length === 0 && styles.listEmpty,
+            ]}
+            ListEmptyComponent={
+              <EmptyState filtered={search || statusFilter !== "all"} />
+            }
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#1e3a5f"
+                colors={["#1e3a5f"]}
+              />
+            }
+            showsVerticalScrollIndicator={false}
+          />
         )}
       </View>
-
-      {/* ── Filter Pills ── */}
-      <View style={styles.pillRow}>
-        {[
-          { key: "all", label: `All (${counts.all})` },
-          { key: "active", label: `Active (${counts.active})` },
-          { key: "upcoming", label: `Upcoming (${counts.upcoming})` },
-          { key: "completed", label: `Done (${counts.completed})` },
-        ].map(({ key, label }) => (
-          <FilterPill
-            key={key}
-            label={label}
-            active={statusFilter === key}
-            onPress={() => setStatusFilter(key)}
-          />
-        ))}
-      </View>
-
-      {/* ── List ── */}
-      {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color="#1e3a5f" />
-          <Text style={styles.loadingText}>Loading patrols...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => String(item.patrol_id)}
-          renderItem={({ item }) => (
-            <PatrolCard
-              patrol={item}
-            onPress={(patrol) =>
-  navigation.navigate("PatrolDetail", { patrol, isAdmin: true })
-}
-            />
-          )}
-          contentContainerStyle={[
-            styles.listContent,
-            filtered.length === 0 && styles.listEmpty,
-          ]}
-          ListEmptyComponent={<EmptyState filtered={search || statusFilter !== "all"} />}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#1e3a5f"
-              colors={["#1e3a5f"]}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        />
-      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: "#0d1f3c",
+  },
+  contentArea: {
     flex: 1,
     backgroundColor: "#f8f9fa",
   },
@@ -346,7 +380,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#0a1628",
+    backgroundColor: "#0d1f3c",
     paddingHorizontal: 20,
     paddingVertical: 14,
   },

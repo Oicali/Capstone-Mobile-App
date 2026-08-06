@@ -461,8 +461,8 @@ export default function PatrollerScheduleScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#1e3a5f" />
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <StatusBar barStyle="light-content" backgroundColor="#0d1f3c" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -475,6 +475,7 @@ export default function PatrollerScheduleScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.contentArea}>
       {loading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color="#1e3a5f" />
@@ -587,19 +588,21 @@ export default function PatrollerScheduleScreen({ navigation }) {
           <View style={{ height: 100 }} />
         </ScrollView>
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  container: { flex: 1, backgroundColor: "#0d1f3c" },
+  contentArea: { flex: 1, backgroundColor: "#f8f9fa" },
 
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#1e3a5f",
+    backgroundColor: "#0d1f3c",
     paddingHorizontal: 20,
     paddingVertical: 14,
   },

@@ -442,6 +442,7 @@ const currentPatrollers = activeShift === "AM" ? amPatrollers : pmPatrollers;
         ))}
       </View>
 
+      <View style={styles.contentArea}>
       {/* ══ SCHEDULE TAB ══════════════════════════════════════════ */}
       {activeTab === "schedule" && (
         <ScrollView
@@ -631,12 +632,17 @@ const currentPatrollers = activeShift === "AM" ? amPatrollers : pmPatrollers;
           </View>
         </ScrollView>
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: "#0d1f3c",
+  },
+  contentArea: {
     flex: 1,
     backgroundColor: "#f8f9fa",
   },

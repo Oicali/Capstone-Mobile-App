@@ -2,13 +2,13 @@ module.exports = {
   expo: {
     name: "BANTAY",
     slug: "BANTAY",
-    version: "1.0.0",
+    version: "1.0.1",
     orientation: "portrait",
-    icon: "./assets/icon.png",
+    icon: "./assets/Bantay-logo.png",
     userInterfaceStyle: "light",
     newArchEnabled: true,
     splash: {
-      image: "./assets/splash-icon.png",
+      image: "./assets/Bantay-logo.png",
       resizeMode: "contain",
       backgroundColor: "#ffffff",
     },
@@ -31,7 +31,7 @@ module.exports = {
         process.env.GOOGLE_SERVICES_JSON ??
         "./android/app/google-services.json",
       adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
+        foregroundImage: "./assets/Bantay-logo.png",
         backgroundColor: "#ffffff",
       },
       navigationBar: {
@@ -51,7 +51,7 @@ module.exports = {
       ],
     },
     web: {
-      favicon: "./assets/favicon.png",
+      favicon: "./assets/Bantay-logo.png",
     },
     updates: {
       enabled: false,
@@ -109,7 +109,7 @@ module.exports = {
       [
         "expo-notifications",
         {
-          icon: "./assets/icon.png",
+          icon: "./assets/Bantay-logo.png",
           color: "#0a1628",
           defaultChannel: "default",
         },

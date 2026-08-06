@@ -81,7 +81,7 @@ const BLANK_F = {
 
 /* ─── Palette ─────────────────────────────────────────────────────────────── */
 const C = {
-  navy: "#0B2447",
+  navy: "#0d1f3c",
   navyMid: "#19376D",
   navy50: "#EEF3FF",
   red: "#B91C1C",
@@ -3813,10 +3813,14 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
   if (!visible) return null;
 
   const toggle = (id) =>
-    setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+    setSelected((p) =>
+      p.includes(id) ? p.filter((x) => x !== id) : [...p, id],
+    );
 
   const toggleAll = () =>
-    setSelected(selected.length === patrols.length ? [] : patrols.map((p) => p.user_id));
+    setSelected(
+      selected.length === patrols.length ? [] : patrols.map((p) => p.user_id),
+    );
 
   const submit = async () => {
     if (!selected.length) return;
@@ -3832,9 +3836,16 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <View style={cm.overlay}>
-        <View style={[cm.box, { maxWidth: 400, padding: 0, overflow: "hidden" }]}>
+        <View
+          style={[cm.box, { maxWidth: 400, padding: 0, overflow: "hidden" }]}
+        >
           <View
             style={{
               flexDirection: "row",
@@ -3848,7 +3859,11 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
                 Remind Patrol Officers
               </Text>
               <Text
-                style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 3 }}
+                style={{
+                  color: "rgba(255,255,255,0.7)",
+                  fontSize: 12,
+                  marginTop: 3,
+                }}
               >
                 Select officers to remind about #{blotterNumber}
               </Text>
@@ -3896,12 +3911,21 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
                 >
                   <Ionicons
                     name={
-                      selected.length === patrols.length ? "checkbox" : "square-outline"
+                      selected.length === patrols.length
+                        ? "checkbox"
+                        : "square-outline"
                     }
                     size={18}
                     color={C.navyMid}
                   />
-                  <Text style={{ flex: 1, fontWeight: "700", fontSize: 13, color: C.text }}>
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontWeight: "700",
+                      fontSize: 13,
+                      color: C.text,
+                    }}
+                  >
                     Select All
                   </Text>
                   <Text
@@ -3954,7 +3978,11 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
                           }}
                         >
                           <Text
-                            style={{ color: C.white, fontWeight: "700", fontSize: 12 }}
+                            style={{
+                              color: C.white,
+                              fontWeight: "700",
+                              fontSize: 12,
+                            }}
                           >
                             {item.first_name?.[0]}
                             {item.last_name?.[0]}
@@ -3962,13 +3990,22 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text
-                            style={{ fontWeight: "700", fontSize: 13, color: C.text }}
+                            style={{
+                              fontWeight: "700",
+                              fontSize: 13,
+                              color: C.text,
+                            }}
                             numberOfLines={1}
                           >
-                            {item.rank_abbreviation ? `${item.rank_abbreviation}. ` : ""}
+                            {item.rank_abbreviation
+                              ? `${item.rank_abbreviation}. `
+                              : ""}
                             {item.first_name} {item.last_name}
                           </Text>
-                          <Text style={{ fontSize: 11, color: C.muted }} numberOfLines={1}>
+                          <Text
+                            style={{ fontSize: 11, color: C.muted }}
+                            numberOfLines={1}
+                          >
                             {item.email}
                           </Text>
                         </View>
@@ -4004,7 +4041,9 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
               {submitting ? (
                 <ActivityIndicator size="small" color={C.white} />
               ) : (
-                <Text style={cm.confirmTxt}>Send Reminder ({selected.length})</Text>
+                <Text style={cm.confirmTxt}>
+                  Send Reminder ({selected.length})
+                </Text>
               )}
             </TouchableOpacity>
           </View>
@@ -4103,7 +4142,7 @@ const ViewContent = memo(function ViewContent({
       </View>
     );
 
-const d = viewData;
+  const d = viewData;
   const isReferred = (d.blotter_entry_number || "")
     .toUpperCase()
     .startsWith("BRGY");
@@ -4233,70 +4272,72 @@ const d = viewData;
             icon="alert-circle-outline"
             color={C.navy}
           >
-          {(d.suspects || []).length === 0 ? (
-            <View
-              style={[vw.card, { padding: 20, alignItems: "center", gap: 8 }]}
-            >
-              <Ionicons
-                name="person-remove-outline"
-                size={28}
-                color={C.faint}
-              />
-              <Text style={{ fontSize: 13, fontWeight: "600", color: C.muted }}>
-                No Suspect Identified
-              </Text>
-              <Text
-                style={{ fontSize: 12, color: C.faint, textAlign: "center" }}
+            {(d.suspects || []).length === 0 ? (
+              <View
+                style={[vw.card, { padding: 20, alignItems: "center", gap: 8 }]}
               >
-                Suspect information was not provided for this report
-              </Text>
-            </View>
-          ) : (
-            (d.suspects || []).map((s, i) => (
-              <View key={i} style={vw.card}>
-                <Text style={vw.cardTitle}>Suspect #{i + 1}</Text>
-                {VI(
-                  "Name",
-                  [s.first_name, s.middle_name, s.last_name, s.qualifier]
-                    .filter(Boolean)
-                    .join(" ") || "Unknown",
-                )}
-                {VI("Alias", s.alias || "N/A")}
-                {VI("Gender", s.gender)}
-                {VI("Status", s.status)}
-                {VI("Degree of Participation", s.degree_participation)}
-                {VI("Birthday", s.birthday || "N/A")}
-                {VI("Age", s.age || "N/A")}
-                {VI("Birth Place", s.birth_place || "N/A")}
-                {VI("Nationality", s.nationality)}
-                {VI(
-                  "Educational Attainment",
-                  s.educational_attainment || "N/A",
-                )}
-                {VI("Height", s.height_cm ? `${s.height_cm} cm` : "N/A")}
-                {VI("Drug Used", s.drug_used ? "Yes" : "No")}
-                {VI("Occupation", s.occupation || "N/A")}
-                {VI("Relation to Victim", s.relation_to_victim || "N/A")}
-                {s.location_if_arrested
-                  ? VI("Arrest Location", s.location_if_arrested)
-                  : null}
-                {VI(
-                  "Address",
-                  [
-                    s.house_street,
-                    s.barangay,
-                    s.city_municipality,
-                    s.district_province,
-                    s.region,
-                  ]
-                    .filter((v) => v && String(v).trim())
-                    .join(", ") || "N/A",
-                )}
-                {VI("Motive", s.motive || "N/A")}
+                <Ionicons
+                  name="person-remove-outline"
+                  size={28}
+                  color={C.faint}
+                />
+                <Text
+                  style={{ fontSize: 13, fontWeight: "600", color: C.muted }}
+                >
+                  No Suspect Identified
+                </Text>
+                <Text
+                  style={{ fontSize: 12, color: C.faint, textAlign: "center" }}
+                >
+                  Suspect information was not provided for this report
+                </Text>
               </View>
-            ))
-          )}
-        </Sec>
+            ) : (
+              (d.suspects || []).map((s, i) => (
+                <View key={i} style={vw.card}>
+                  <Text style={vw.cardTitle}>Suspect #{i + 1}</Text>
+                  {VI(
+                    "Name",
+                    [s.first_name, s.middle_name, s.last_name, s.qualifier]
+                      .filter(Boolean)
+                      .join(" ") || "Unknown",
+                  )}
+                  {VI("Alias", s.alias || "N/A")}
+                  {VI("Gender", s.gender)}
+                  {VI("Status", s.status)}
+                  {VI("Degree of Participation", s.degree_participation)}
+                  {VI("Birthday", s.birthday || "N/A")}
+                  {VI("Age", s.age || "N/A")}
+                  {VI("Birth Place", s.birth_place || "N/A")}
+                  {VI("Nationality", s.nationality)}
+                  {VI(
+                    "Educational Attainment",
+                    s.educational_attainment || "N/A",
+                  )}
+                  {VI("Height", s.height_cm ? `${s.height_cm} cm` : "N/A")}
+                  {VI("Drug Used", s.drug_used ? "Yes" : "No")}
+                  {VI("Occupation", s.occupation || "N/A")}
+                  {VI("Relation to Victim", s.relation_to_victim || "N/A")}
+                  {s.location_if_arrested
+                    ? VI("Arrest Location", s.location_if_arrested)
+                    : null}
+                  {VI(
+                    "Address",
+                    [
+                      s.house_street,
+                      s.barangay,
+                      s.city_municipality,
+                      s.district_province,
+                      s.region,
+                    ]
+                      .filter((v) => v && String(v).trim())
+                      .join(", ") || "N/A",
+                  )}
+                  {VI("Motive", s.motive || "N/A")}
+                </View>
+              ))
+            )}
+          </Sec>
         )}
 
         {/* CASE DETAILS with MAP */}
@@ -4340,8 +4381,7 @@ const d = viewData;
             {!isReferred && VI("COP (Officer on Case)", d.cop || "N/A")}
 
             {/* 8. PRIVATE PLACE — officer-side field */}
-            {!isReferred &&
-              VI("Private Place?", d.is_private_place || "N/A")}
+            {!isReferred && VI("Private Place?", d.is_private_place || "N/A")}
 
             {/* 9. AMOUNT INVOLVED — officer-side field */}
             {!isReferred &&
@@ -5664,7 +5704,7 @@ export default function EBlotterScreen() {
     (id) => {
       showConfirm(
         "Delete Record",
-        "Move this blotter record to Deleted Records?",
+        "Move this crime record to Deleted Records?",
         "Delete",
         C.red,
         async () => {
@@ -6644,7 +6684,7 @@ export default function EBlotterScreen() {
       <View style={ml.header}>
         <View>
           <Text style={ml.headerTitle}>Reporting Records</Text>
-          <Text style={ml.headerSub}>B.A.N.T.A.Y. E-Blotter System</Text>
+          <Text style={ml.headerSub}>B.A.N.T.A.Y. Reporting</Text>
         </View>
         <View style={{ flexDirection: "row", gap: 10 }}>
           <TouchableOpacity
@@ -7024,11 +7064,11 @@ export default function EBlotterScreen() {
                 setShowReferralModal(true);
               }}
               onRemind={() =>
-  setRemindTarget({
-    blotterId: item.blotter_id,
-    blotterNumber: item.blotter_entry_number,
-  })
-}
+                setRemindTarget({
+                  blotterId: item.blotter_id,
+                  blotterNumber: item.blotter_entry_number,
+                })
+              }
             />
           )}
           keyExtractor={(item) => String(item.blotter_id)}
@@ -7080,7 +7120,7 @@ export default function EBlotterScreen() {
                     ? "Try adjusting your filters"
                     : activeReportTab === "referred"
                       ? "No referred records for this station"
-                      : "Tap + to add a new blotter entry"}
+                      : "Tap + to add a new crime record"}
                 </Text>
               </View>
             )
@@ -7124,7 +7164,7 @@ export default function EBlotterScreen() {
                   ? "Accept Referral"
                   : editMode
                     ? "Edit Record"
-                    : "New Blotter Entry"}
+                    : "New Crime Record"}
             </Text>
             <View style={{ width: 36 }} />
           </View>
@@ -7316,8 +7356,8 @@ export default function EBlotterScreen() {
                           {acceptMode
                             ? "Accept & Create Case"
                             : editMode
-                              ? "Update Blotter"
-                              : "Submit Blotter"}
+                              ? "Update Report"
+                              : "Submit Report"}
                         </Text>
                       </>
                     )}
@@ -7874,22 +7914,22 @@ export default function EBlotterScreen() {
       />
 
       <RemindPatrolModal
-  visible={!!remindTarget}
-  blotterId={remindTarget?.blotterId}
-  blotterNumber={remindTarget?.blotterNumber}
-  onClose={() => setRemindTarget(null)}
-  api={api}
-  onSent={(count) => {
-    showConfirm(
-      "Reminders Sent",
-      `Sent to ${count} officer(s).`,
-      "OK",
-      C.navyMid,
-      hideConfirm,
-    );
-    load(filters, activeReportTab);
-  }}
-/>
+        visible={!!remindTarget}
+        blotterId={remindTarget?.blotterId}
+        blotterNumber={remindTarget?.blotterNumber}
+        onClose={() => setRemindTarget(null)}
+        api={api}
+        onSent={(count) => {
+          showConfirm(
+            "Reminders Sent",
+            `Sent to ${count} officer(s).`,
+            "OK",
+            C.navyMid,
+            hideConfirm,
+          );
+          load(filters, activeReportTab);
+        }}
+      />
     </SafeAreaView>
   );
 }

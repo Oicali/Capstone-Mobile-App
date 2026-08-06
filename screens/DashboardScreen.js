@@ -31,6 +31,7 @@ import {
   getPresetRange,
   getGranularity,
   getNotifications,
+  BASE_URL,
 } from "./services/api";
 
 const { width: SW, height: SH } = Dimensions.get("window");
@@ -247,15 +248,28 @@ const isoDate = (iso) => (iso ? new Date(iso + "T00:00:00") : new Date());
 // the mobile label helper is simplified to match — no more "weekly"/
 // "bidaily" labels that the web dashboard never produces.
 const granLbl = (g) => (g === "daily" ? "Daily" : "Monthly");
+// ─── DEFAULT DATE RANGE ───────────────────────────────────────────────────
+// Change this to "this_month" to switch the default range back — every
+// default/reset/"is this the default" check below reads from this one
+// constant, so nothing else needs to change.
+const DEFAULT_PRESET = "365d";
+
 const BLANK = () => {
-  const r = getPresetRange("this_month");
+  const r = getPresetRange(DEFAULT_PRESET);
   return {
-    preset: "this_month",
+    preset: DEFAULT_PRESET,
     dateFrom: r.from,
     dateTo: r.to,
     crimeTypes: [],
     barangays: [],
   };
+};
+const BLANK_FOR = (hasPatrolAssignment, patrolBarangays) => {
+  const b = BLANK();
+  if (hasPatrolAssignment && patrolBarangays.length > 0) {
+    b.barangays = patrolBarangays;
+  }
+  return b;
 };
 const EMPTYDB = () => ({
   summary: [],
@@ -768,7 +782,15 @@ function MultiSelect({
 }
 
 // ─── FILTER SHEET ─────────────────────────────────────────────────────────────
-function FilterSheet({ visible, applied, onApply, onClose }) {
+function FilterSheet({
+  visible,
+  applied,
+  onApply,
+  onClose,
+  isPatrol,
+  hasPatrolAssignment,
+  patrolAssignedBarangays,
+}) {
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState({ ...applied });
   const [dateErr, setDateErr] = useState("");
@@ -1020,52 +1042,68 @@ function FilterSheet({ visible, applied, onApply, onClose }) {
               {/* BARANGAY */}
               <Text style={s.fsLbl}>Barangay</Text>
               <View style={{ paddingHorizontal: 20 }}>
-                <TouchableOpacity
-                  style={s.dropBtn}
-                  onPress={() => setShowBrgy(true)}
-                >
-                  <View style={s.dropInner}>
-                    {draft.barangays.length === 0 ? (
-                      <Text style={s.dropPh}>All Barangays</Text>
-                    ) : (
-                      <>
-                        {draft.barangays.slice(0, 2).map((b) => (
-                          <View key={b} style={s.pill}>
-                            <Text style={s.pillTxt} numberOfLines={1}>
-                              {b}
-                            </Text>
-                            <TouchableOpacity
-                              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-                              onPress={() =>
-                                setDraft((f) => ({
-                                  ...f,
-                                  barangays: f.barangays.filter((x) => x !== b),
-                                }))
-                              }
-                            >
-                              <Text style={s.pillX}>×</Text>
-                            </TouchableOpacity>
-                          </View>
-                        ))}
-                        {draft.barangays.length > 2 && (
-                          <View style={[s.pill, { backgroundColor: G400 }]}>
-                            <Text style={s.pillTxt}>
-                              +{draft.barangays.length - 2}
-                            </Text>
-                          </View>
-                        )}
-                      </>
-                    )}
+                {isPatrol && hasPatrolAssignment ? (
+                  <View style={s.dropBtnLocked}>
+                    <Ionicons name="lock-closed" size={13} color={G600} />
+                    <Text style={s.dropLockedTxt} numberOfLines={1}>
+                      {(patrolAssignedBarangays || []).length === 1
+                        ? patrolAssignedBarangays[0]
+                        : `${(patrolAssignedBarangays || []).length} Assigned Barangays`}
+                    </Text>
                   </View>
-                  <Ionicons name="chevron-down" size={16} color={G600} />
-                </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={s.dropBtn}
+                    onPress={() => setShowBrgy(true)}
+                  >
+                    <View style={s.dropInner}>
+                      {draft.barangays.length === 0 ? (
+                        <Text style={s.dropPh}>All Barangays</Text>
+                      ) : (
+                        <>
+                          {draft.barangays.slice(0, 2).map((b) => (
+                            <View key={b} style={s.pill}>
+                              <Text style={s.pillTxt} numberOfLines={1}>
+                                {b}
+                              </Text>
+                              <TouchableOpacity
+                                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                                onPress={() =>
+                                  setDraft((f) => ({
+                                    ...f,
+                                    barangays: f.barangays.filter(
+                                      (x) => x !== b,
+                                    ),
+                                  }))
+                                }
+                              >
+                                <Text style={s.pillX}>×</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                          {draft.barangays.length > 2 && (
+                            <View style={[s.pill, { backgroundColor: G400 }]}>
+                              <Text style={s.pillTxt}>
+                                +{draft.barangays.length - 2}
+                              </Text>
+                            </View>
+                          )}
+                        </>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-down" size={16} color={G600} />
+                  </TouchableOpacity>
+                )}
               </View>
             </ScrollView>
             <View style={s.fsFoot}>
               <TouchableOpacity
                 style={s.resetBtn}
                 onPress={() => {
-                  const blank = BLANK();
+                  const blank = BLANK_FOR(
+                    hasPatrolAssignment,
+                    patrolAssignedBarangays || [],
+                  );
                   onApply(blank);
                   setTimeout(() => onClose(), 50);
                 }}
@@ -1169,7 +1207,7 @@ function SummaryCards({ data }) {
 }
 
 // ─── INDEX CRIME TABLE ────────────────────────────────────────────────────────
-function IndexCrimeTable({ data, sel }) {
+function IndexCrimeTable({ data, sel, dateFrom, dateTo }) {
   const [col, setCol] = useState("total");
   const [dir, setDir] = useState("desc");
   const vis = sel.length > 0 ? data.filter((d) => sel.includes(d.crime)) : data;
@@ -1197,11 +1235,13 @@ function IndexCrimeTable({ data, sel }) {
   return (
     <View style={s.card}>
       <View style={s.cardHdr}>
-        <Text style={s.cardTitle}>Index Crime Summary Table</Text>
-        <Text style={s.cardSub}>
-          {sel.length > 0 ? `${rows.length} of 9` : "All 9"} crimes ·
-          CCE=Cleared/Total · CSE=Solved/Total
-        </Text>
+        <Text style={s.cardTitle}>Crime Summary Table</Text>
+        <View style={s.hDatePill}>
+          <Ionicons name="calendar-outline" size={10} color={NAVY_M} />
+          <Text style={s.hDateTxt}>
+            {fmtDate(dateFrom)} — {fmtDate(dateTo)}
+          </Text>
+        </View>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View>
@@ -1236,9 +1276,6 @@ function IndexCrimeTable({ data, sel }) {
             <Text style={[s.tH, { width: 62, textAlign: "center" }]}>CSE%</Text>
           </View>
           {rows.map((r, i) => {
-            // CCE% = (Cleared + Solved) ÷ Total — matches web formula.
-            // Previously this only used Cleared ÷ Total, which produced a
-            // much lower, incorrect percentage than the web dashboard.
             const cce = parseFloat(pct(r.cleared + r.solved, r.total));
             const cse = parseFloat(pct(r.solved, r.total));
             return (
@@ -2547,9 +2584,13 @@ export default function DashboardScreen({ navigation }) {
   const fetchId = useRef(0);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const [isPatrol, setIsPatrol] = useState(false);
+  const [hasPatrolAssignment, setHasPatrolAssignment] = useState(false);
+  const [patrolAssignedBarangays, setPatrolAssignedBarangays] = useState([]);
+
   useEffect(() => {
     loadUser();
-    doFetch(BLANK());
+    checkPatrolAssignment();
 
     let prevUnread = 0;
     const fetchUnread = async () => {
@@ -2587,6 +2628,55 @@ export default function DashboardScreen({ navigation }) {
       const u = await AsyncStorage.getItem("auth_user");
       if (u) setUser(JSON.parse(u));
     } catch (_) {}
+  };
+
+  const checkPatrolAssignment = async () => {
+    let role = null;
+    try {
+      const u = await AsyncStorage.getItem("auth_user");
+      if (u) role = JSON.parse(u)?.role;
+    } catch (_) {}
+
+    if (role !== "Patrol") {
+      setIsPatrol(false);
+      doFetch(BLANK());
+      return;
+    }
+    setIsPatrol(true);
+
+    try {
+      const token = await AsyncStorage.getItem("auth_token");
+      const res = await fetch(`${BASE_URL}/patrol/my-patrols`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        const today = new Date().toISOString().split("T")[0];
+        const ongoing = data.data.find(
+          (p) => p.start_date <= today && p.end_date >= today,
+        );
+        if (ongoing) {
+          const barangays = [
+            ...new Set(
+              (ongoing.routes || [])
+                .filter((r) => (r.stop_order || 0) <= 0 && r.barangay)
+                .map((r) => r.barangay),
+            ),
+          ];
+          setHasPatrolAssignment(true);
+          setPatrolAssignedBarangays(barangays);
+          const f = BLANK_FOR(true, barangays);
+          setApplied(f);
+          doFetch(f, false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to check patrol assignment:", err);
+    }
+    setHasPatrolAssignment(false);
+    setPatrolAssignedBarangays([]);
+    doFetch(BLANK());
   };
 
   // Re-read the cached profile every time this tab regains focus. The
@@ -2638,25 +2728,28 @@ export default function DashboardScreen({ navigation }) {
   const handleApply = useCallback(
     (f) => {
       const newF = { ...f };
+      if (hasPatrolAssignment && patrolAssignedBarangays.length > 0) {
+        newF.barangays = patrolAssignedBarangays;
+      }
       setApplied(newF);
       // Use setTimeout(0) to ensure state update commits before fetch reads it
       setTimeout(() => doFetch(newF, false), 0);
     },
-    [doFetch],
+    [doFetch, hasPatrolAssignment, patrolAssignedBarangays],
   );
 
   // Refresh: re-fetch SAME applied filters (NOT reset)
   // Refresh header button = RESET all filters + re-fetch defaults
   const handleRefresh = useCallback(() => {
-    const blank = BLANK();
+    const blank = BLANK_FOR(hasPatrolAssignment, patrolAssignedBarangays);
     setApplied(blank);
     doFetch(blank, false);
-  }, [doFetch]);
+  }, [doFetch, hasPatrolAssignment, patrolAssignedBarangays]);
 
   const activeCount =
     (applied.crimeTypes.length > 0 ? 1 : 0) +
     (applied.barangays.length > 0 ? 1 : 0) +
-    (applied.preset !== "this_month" ? 1 : 0);
+    (applied.preset !== DEFAULT_PRESET ? 1 : 0);
   const userName = user?.first_name || "Officer";
   const userPic = user?.profile_picture || null;
   const userRole = user?.role || "";
@@ -2669,92 +2762,82 @@ export default function DashboardScreen({ navigation }) {
       <StatusBar barStyle="light-content" backgroundColor={NAVY} />
 
       {/* HEADER */}
-      <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.hTitle}>Crime Dashboard</Text>
-          <Text style={s.hSub}>Index Crime Statistics · PNP Bacoor</Text>
-          <View style={s.hDatePill}>
-            <Ionicons
-              name="calendar-outline"
-              size={10}
-              color="rgba(255,255,255,0.65)"
-            />
-            <Text style={s.hDateTxt}>
-              {fmtDate(applied.dateFrom)} — {fmtDate(applied.dateTo)}
-            </Text>
-          </View>
-        </View>
+<View style={s.header}>
+  <View style={{ flex: 1 }}>
+    <Text style={s.hTitle}>Crime Dashboard</Text>
+    <Text style={s.hSub}>Index Crime Statistics · PNP Bacoor</Text>
+  </View>
+  <View
+    style={{
+      flexDirection: "row",
+      gap: 8,
+      marginLeft: 10,
+      alignItems: "center",
+    }}
+  >
+    {/* BELL — add this first */}
+    <TouchableOpacity
+      style={[
+        s.hBtn,
+        unreadCount > 0 && { backgroundColor: "rgba(239,68,68,0.2)" },
+      ]}
+      onPress={() => navigation.navigate("Notifications")}
+    >
+      <Ionicons name="notifications-outline" size={18} color={WHITE} />
+      {unreadCount > 0 && (
         <View
           style={{
-            flexDirection: "row",
-            gap: 8,
-            marginLeft: 10,
+            position: "absolute",
+            top: -4,
+            right: -4,
+            backgroundColor: RED,
+            borderRadius: 999,
+            minWidth: 16,
+            height: 16,
             alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 3,
           }}
         >
-          {/* BELL — add this first */}
-          <TouchableOpacity
-            style={[
-              s.hBtn,
-              unreadCount > 0 && { backgroundColor: "rgba(239,68,68,0.2)" },
-            ]}
-            onPress={() => navigation.navigate("Notifications")}
-          >
-            <Ionicons name="notifications-outline" size={18} color={WHITE} />
-            {unreadCount > 0 && (
-              <View
-                style={{
-                  position: "absolute",
-                  top: -4,
-                  right: -4,
-                  backgroundColor: RED,
-                  borderRadius: 999,
-                  minWidth: 16,
-                  height: 16,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingHorizontal: 3,
-                }}
-              >
-                <Text style={{ fontSize: 9, color: WHITE, fontWeight: "700" }}>
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              s.hBtn,
-              activeCount > 0 && {
-                backgroundColor: RED,
-                borderColor: "#8b1a1f",
-              },
-            ]}
-            onPress={() => setFilterV(true)}
-          >
-            <Ionicons name="options-outline" size={18} color={WHITE} />
-            {activeCount > 0 && (
-              <View style={s.hBtnBadge}>
-                <Text style={{ fontSize: 8, color: WHITE, fontWeight: "700" }}>
-                  {activeCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          {/* REFRESH — re-fetches current filters, shows spinner while loading */}
-          <TouchableOpacity
-            style={s.hBtn}
-            onPress={handleRefresh}
-            disabled={refreshing}
-          >
-            {refreshing ? (
-              <ActivityIndicator size="small" color={WHITE} />
-            ) : (
-              <Ionicons name="refresh-outline" size={18} color={WHITE} />
-            )}
-          </TouchableOpacity>
+          <Text style={{ fontSize: 9, color: WHITE, fontWeight: "700" }}>
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </Text>
         </View>
-      </View>
+      )}
+    </TouchableOpacity>
+    <TouchableOpacity
+      style={[
+        s.hBtn,
+        activeCount > 0 && {
+          backgroundColor: RED,
+          borderColor: "#8b1a1f",
+        },
+      ]}
+      onPress={() => setFilterV(true)}
+    >
+      <Ionicons name="options-outline" size={18} color={WHITE} />
+      {activeCount > 0 && (
+        <View style={s.hBtnBadge}>
+          <Text style={{ fontSize: 8, color: WHITE, fontWeight: "700" }}>
+            {activeCount}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+    {/* REFRESH — re-fetches current filters, shows spinner while loading */}
+    <TouchableOpacity
+      style={s.hBtn}
+      onPress={handleRefresh}
+      disabled={refreshing}
+    >
+      {refreshing ? (
+        <ActivityIndicator size="small" color={WHITE} />
+      ) : (
+        <Ionicons name="refresh-outline" size={18} color={WHITE} />
+      )}
+    </TouchableOpacity>
+  </View>
+</View>
 
       {/* WELCOME STRIP */}
       <View style={s.welcome}>
@@ -2786,64 +2869,41 @@ export default function DashboardScreen({ navigation }) {
       </View>
 
       {/* FILTER BAR */}
-      <TouchableOpacity
-        style={s.fBar}
-        onPress={() => setFilterV(true)}
-        activeOpacity={0.85}
-      >
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
-          <Ionicons name="options-outline" size={13} color={NAVY_M} />
-          <Text style={s.fBarTxt} numberOfLines={1}>
-            Filters &amp; Options
-          </Text>
-          {activeCount > 0 && (
-            <View style={s.fActivePill}>
-              <Text style={s.fActiveTxt}>active</Text>
-            </View>
-          )}
-        </View>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-            flexShrink: 0,
-          }}
-        >
-          <View style={s.fChip}>
-            <Text style={s.fChipTxt} numberOfLines={1}>
-              {presetLbl}
-            </Text>
-          </View>
-          {applied.crimeTypes.length === 0 ? (
-            <View style={s.fChip}>
-              <Text style={s.fChipTxt}>All Crimes</Text>
-            </View>
-          ) : (
-            <View style={[s.fChip, { backgroundColor: "#dbeafe" }]}>
-              <Text style={[s.fChipTxt, { color: BLUED }]}>
-                {applied.crimeTypes.length} crime(s)
-              </Text>
-            </View>
-          )}
-          {applied.barangays.length > 0 && (
-            <View style={[s.fChip, { backgroundColor: "#dcfce7" }]}>
-              <Text style={[s.fChipTxt, { color: GREEND }]}>
-                {applied.barangays.length} brgy
-              </Text>
-            </View>
-          )}
-          <Ionicons name="chevron-down" size={12} color={G600} />
-        </View>
-      </TouchableOpacity>
+<TouchableOpacity
+  style={s.fBar}
+  onPress={() => setFilterV(true)}
+  activeOpacity={0.85}
+>
+  <View
+    style={{
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      flex: 1,
+      minWidth: 0,
+    }}
+  >
+    <Ionicons name="options-outline" size={13} color={NAVY_M} />
+    <Text style={s.fBarTxt} numberOfLines={1}>
+      Filters &amp; Options
+    </Text>
+  </View>
+  <View
+    style={{
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      flexShrink: 0,
+    }}
+  >
+    {activeCount > 0 && (
+      <View style={s.fActivePill}>
+        <Text style={s.fActiveTxt}>Filtered</Text>
+      </View>
+    )}
+    <Ionicons name="chevron-down" size={12} color={G600} />
+  </View>
+</TouchableOpacity>
 
       {/* ACTIVE CHIP ROW */}
       {activeCount > 0 && (
@@ -2865,7 +2925,7 @@ export default function DashboardScreen({ navigation }) {
               alignItems: "center",
             }}
           >
-            {applied.preset !== "this_month" && (
+            {applied.preset !== DEFAULT_PRESET && (
               <View style={s.aC}>
                 <Ionicons name="calendar" size={9} color={NAVY_M} />
                 <Text style={s.aCTxt}>{presetLbl}</Text>
@@ -2908,7 +2968,7 @@ export default function DashboardScreen({ navigation }) {
             <TouchableOpacity
               style={[s.aC, { backgroundColor: "#fee2e2" }]}
               onPress={() => {
-                const b = BLANK();
+                const b = BLANK_FOR(hasPatrolAssignment, patrolAssignedBarangays);
                 setApplied(b);
                 doFetch(b, false);
               }}
@@ -2950,7 +3010,12 @@ export default function DashboardScreen({ navigation }) {
           {/* ── OVERVIEW: 2x2 cards + table, NO section header ── */}
           <SummaryCards data={db.summary} />
           <View style={{ height: 10 }} />
-          <IndexCrimeTable data={db.summary} sel={applied.crimeTypes} />
+          <IndexCrimeTable
+            data={db.summary}
+            sel={applied.crimeTypes}
+            dateFrom={applied.dateFrom}
+            dateTo={applied.dateTo}
+          />
 
           {/* ── CASE STATUS — collapsible ── */}
           <View style={{ height: 10 }} />
@@ -3000,6 +3065,9 @@ export default function DashboardScreen({ navigation }) {
         applied={applied}
         onApply={handleApply}
         onClose={() => setFilterV(false)}
+        isPatrol={isPatrol}
+        hasPatrolAssignment={hasPatrolAssignment}
+        patrolAssignedBarangays={patrolAssignedBarangays}
       />
     </SafeAreaView>
   );
@@ -3018,11 +3086,11 @@ const s = StyleSheet.create({
   },
   hTitle: { fontSize: 20, fontWeight: "700", color: WHITE, marginBottom: 2 },
   hSub: { fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 8 },
-  hDatePill: {
+ hDatePill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(30,58,95,0.08)",
     alignSelf: "flex-start",
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -3030,7 +3098,7 @@ const s = StyleSheet.create({
   },
   hDateTxt: {
     fontSize: 10,
-    color: "rgba(255,255,255,0.85)",
+    color: NAVY_M,
     fontWeight: "600",
   },
   hBtn: {
@@ -3699,6 +3767,32 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     gap: 6,
   },
+  dropBtnLocked: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    minHeight: 46,
+    borderWidth: 1.5,
+    borderColor: G200,
+    borderRadius: 8,
+    backgroundColor: G100,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  dropLockedTxt: { fontSize: 13, fontWeight: "600", color: G700, flex: 1 },
+  dropBtnLocked: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    minHeight: 46,
+    borderWidth: 1.5,
+    borderColor: G200,
+    borderRadius: 8,
+    backgroundColor: G100,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  dropLockedTxt: { fontSize: 13, fontWeight: "600", color: G700, flex: 1 },
   dropInner: {
     flex: 1,
     flexDirection: "row",

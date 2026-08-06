@@ -619,6 +619,7 @@ export default function MapScreen({ navigation }) {
   const cameraRef = useRef(null);
   const officerPollRef = useRef(null);
   const isMounted = useRef(true);
+  const lastActiveResumeRef = useRef(0);
 
   // ── Date filter ──────────────────────────────────────────
   const defaultDateFrom = getPHTOneYearAgo();
@@ -860,6 +861,13 @@ const stopTracking = useCallback(async () => {
 }, [callOffDuty]);
 
   const startTracking = useCallback(async () => {
+  // Already tracking — bail before touching permissions/native APIs again.
+  // Repeated calls here (e.g. from rapid AppState flips while the OS
+  // permission/foreground-service dialogs settle) were re-triggering
+  // native location calls, which appears to cause further AppState
+  // churn — a feedback loop.
+  if (watchRef.current) return;
+
   const { status: fg } = await Location.requestForegroundPermissionsAsync();
   if (fg !== "granted") return;
 
@@ -1003,6 +1011,25 @@ const fetchMapData = useCallback(async () => {
   }
 }, []);
 
+  // ── Stable refs so the mount-only AppState listener always calls
+  // the LATEST fetchMapData/startTracking/gpsEnabled, not the stale
+  // versions captured when the listener was created ──────────────
+  const fetchMapDataRef = useRef(fetchMapData);
+  const startTrackingRef = useRef(startTracking);
+  const gpsEnabledRef = useRef(gpsEnabled);
+
+  useEffect(() => {
+    fetchMapDataRef.current = fetchMapData;
+  }, [fetchMapData]);
+
+  useEffect(() => {
+    startTrackingRef.current = startTracking;
+  }, [startTracking]);
+
+  useEffect(() => {
+    gpsEnabledRef.current = gpsEnabled;
+  }, [gpsEnabled]);
+
   // ── Lifecycle ────────────────────────────────────────────
   useEffect(() => {
     isMounted.current = true;
@@ -1020,11 +1047,21 @@ const fetchMapData = useCallback(async () => {
     officerPollRef.current = null;
   }
 } else if (prev.match(/inactive|background/) && next === "active") {
-        fetchMapData();
+        // Debounce — GPS permission prompts / the Android foreground
+        // service notification can flip AppState several times in
+        // quick succession. Without this, each flip re-fetched map
+        // data and caused the loading spinner to churn continuously.
+        const now = Date.now();
+        if (now - lastActiveResumeRef.current < 3000) {
+          return;
+        }
+        lastActiveResumeRef.current = now;
+
+        fetchMapDataRef.current();
         if (!officerPollRef.current)
           officerPollRef.current = setInterval(fetchOfficers, INTERVAL_MS);
         fetchOfficers();
-        if (gpsEnabled) startTracking();
+        if (gpsEnabledRef.current) startTrackingRef.current();
       }
     });
 
@@ -1250,8 +1287,31 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
-              fetchMapData();
-              if (heatmapMode) fetchHeatmap();
+              const from = getPHTOneYearAgo();
+              const to = getPHTToday();
+              const lockedBarangays =
+                isPatrol && hasPatrolAssignment ? patrolAssignedBarangays : [];
+
+              setFilterDateFrom(from);
+              setFilterDateTo(to);
+              setAppliedDateFrom(from);
+              setAppliedDateTo(to);
+              setFilterIncidentTypes([]);
+              setAppliedIncidentTypes([]);
+              setFilterBarangays(lockedBarangays);
+              setAppliedBarangays(lockedBarangays);
+              setBarangaySearch("");
+              setShowDateFilter(false);
+              setShowCrimeTypeFilter(false);
+              setShowBarangayFilter(false);
+
+              if (!(isPatrol && hasPatrolAssignment)) {
+                cameraRef.current?.setCamera({
+                  centerCoordinate: BACOOR_CENTER,
+                  zoomLevel: 12,
+                  animationDuration: 800,
+                });
+              }
             }}
             style={styles.iconBtn}
           >
@@ -1479,7 +1539,7 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
             })
           }
         >
-          <Ionicons name="refresh" size={18} color="#1e3a5f" />
+          <Ionicons name="map" size={18} color="#1e3a5f" />
         </TouchableOpacity>
 
         {/* Risk legend (bottom-left) */}
@@ -2165,7 +2225,7 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0a285c",
+    backgroundColor: "#0d1f3c",
   },
   header: {
     flexDirection: "row",
@@ -2173,7 +2233,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 14,
-    backgroundColor: "#0a285c",
+    backgroundColor: "#0d1f3c",
     borderBottomWidth: 1,
     borderBottomColor: "#1e3a5f",
   },
