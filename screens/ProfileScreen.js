@@ -1933,12 +1933,7 @@ export default function ProfileScreen({ navigation }) {
     disabled,
     error,
   }) => (
-    <View
-      style={[
-        ef.dropdownGroup,
-        { zIndex: showDropdown === id ? ZMAP[id] : 10 },
-      ]}
-    >
+    <View style={ef.dropdownGroup}>
       <Text style={ef.fieldLabelSm}>{label}</Text>
       <TouchableOpacity
         style={[
@@ -1946,11 +1941,7 @@ export default function ProfileScreen({ navigation }) {
           error && ef.dropdownErr,
           disabled && ef.dropdownOff,
         ]}
-        onPress={() =>
-          !disabled &&
-          !isSaving &&
-          setShowDropdown(showDropdown === id ? null : id)
-        }
+        onPress={() => !disabled && !isSaving && setShowDropdown(id)}
       >
         <Ionicons
           name="location-outline"
@@ -1968,47 +1959,77 @@ export default function ProfileScreen({ navigation }) {
           color={disabled ? C.textLight : C.navy}
         />
       </TouchableOpacity>
-      {showDropdown === id && (
-        <View style={ef.ddList}>
-          {dLoad ? (
-            <View style={ef.ddLoader}>
-              <ActivityIndicator size="small" color={C.navy} />
-              <Text style={ef.ddLoaderTxt}>Loading…</Text>
+
+      {/* Modal-based option list — avoids nested ScrollView-in-ScrollView
+          scroll conflicts that made the inline absolute list unscrollable. */}
+      <Modal
+        visible={showDropdown === id}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDropdown(null)}
+      >
+        <TouchableOpacity
+          style={ef.ddModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowDropdown(null)}
+        >
+          <TouchableOpacity activeOpacity={1} style={ef.ddModalSheet}>
+            <View style={ef.ddModalHandle} />
+            <View style={ef.ddModalHeader}>
+              <Text style={ef.ddModalTitle}>{label.replace(" *", "")}</Text>
+              <TouchableOpacity
+                onPress={() => setShowDropdown(null)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color={C.navy} />
+              </TouchableOpacity>
             </View>
-          ) : (
-            <ScrollView
-              style={{ maxHeight: 200 }}
-              nestedScrollEnabled
-              keyboardShouldPersistTaps="handled"
-            >
-              {items.map((item) => (
-                <TouchableOpacity
-                  key={item.code}
-                  style={[ef.ddItem, value === item.code && ef.ddItemOn]}
-                  onPress={() => onSelect(item.code)}
-                >
-                  {value === item.code && (
-                    <Ionicons
-                      name="checkmark"
-                      size={13}
-                      color={C.navy}
-                      style={{ marginRight: 4 }}
-                    />
-                  )}
-                  <Text
+            {dLoad ? (
+              <View style={ef.ddLoader}>
+                <ActivityIndicator size="small" color={C.navy} />
+                <Text style={ef.ddLoaderTxt}>Loading…</Text>
+              </View>
+            ) : items.length === 0 ? (
+              <View style={ef.ddModalEmpty}>
+                <Text style={ef.ddModalEmptyTxt}>No options available</Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={{ maxHeight: 420 }}
+                contentContainerStyle={ef.ddModalList}
+                showsVerticalScrollIndicator={true}
+              >
+                {items.map((item) => (
+                  <TouchableOpacity
+                    key={item.code}
                     style={[
-                      ef.ddItemTxt,
-                      value === item.code && ef.ddItemTxtOn,
+                      ef.ddModalItem,
+                      value === item.code && ef.ddModalItemOn,
                     ]}
+                    onPress={() => {
+                      onSelect(item.code);
+                      setShowDropdown(null);
+                    }}
                   >
-                    {item.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
-        </View>
-      )}
+                    {value === item.code && (
+                      <Ionicons name="checkmark" size={16} color={C.navy} />
+                    )}
+                    <Text
+                      style={[
+                        ef.ddModalItemTxt,
+                        value === item.code && ef.ddModalItemTxtOn,
+                      ]}
+                    >
+                      {item.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       {error ? (
         <View style={ef.ddErrRow}>
           <Ionicons name="alert-circle-outline" size={12} color={C.danger} />
@@ -4245,6 +4266,57 @@ const ef = StyleSheet.create({
     borderColor: C.border,
   },
   cancelBtnTxt: { color: C.textSub, fontSize: 14, fontWeight: "700" },
+
+  // ── Dropdown modal (replaces inline absolute list — fixes nested
+  // ScrollView-inside-ScrollView scroll conflict) ──
+  ddModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(7,29,71,0.5)",
+    justifyContent: "flex-end",
+  },
+  ddModalSheet: {
+    backgroundColor: C.white,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    maxHeight: "70%",
+  },
+  ddModalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: C.border,
+    alignSelf: "center",
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  ddModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  ddModalTitle: { fontSize: 16, fontWeight: "800", color: C.text },
+  ddModalList: { paddingVertical: 4 },
+  ddModalItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    gap: 8,
+  },
+  ddModalItemOn: { backgroundColor: C.navyLight },
+  ddModalItemTxt: { fontSize: 15, color: C.text, fontWeight: "500", flex: 1 },
+  ddModalItemTxtOn: { color: C.navy, fontWeight: "700" },
+  ddModalEmpty: {
+    paddingVertical: 24,
+    alignItems: "center",
+  },
+  ddModalEmptyTxt: { fontSize: 13, color: C.textMuted },
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
