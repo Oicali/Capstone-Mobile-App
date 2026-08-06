@@ -195,30 +195,23 @@ function MainTabs() {
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(null);
 
-  // Hide the Android system navigation bar (bottom gesture/nav bar)
   useEffect(() => {
     if (Platform.OS === "android") {
       NavigationBar.setVisibilityAsync("hidden");
-      NavigationBar.setBehaviorAsync("overlay-swipe");
-      // No listener here — "overlay-swipe" already handles
-      // auto re-hide natively, so we don't need to fight the system
+      NavigationBar.setBehaviorAsync("inset-touch");
+
+      const sub = NavigationBar.addVisibilityListener(({ visibility }) => {
+        if (visibility === "visible") {
+          // Small delay so touches are not blocked
+          setTimeout(() => {
+            NavigationBar.setVisibilityAsync("hidden");
+          }, 300);
+        }
+      });
+
+      return () => sub.remove();
     }
   }, []);
-    //   NavigationBar.setVisibilityAsync("hidden");
-    //   NavigationBar.setBehaviorAsync("overlay-swipe");
-
-    //   // Auto re-hide any time the system nav bar becomes visible again —
-    //   // covers modal dialogs (which open a separate Android window) and
-    //   // any edge-swipe reveal, without needing per-modal onShow handlers.
-    //   const sub = NavigationBar.addVisibilityListener(({ visibility }) => {
-    //     if (visibility === "visible") {
-    //       NavigationBar.setVisibilityAsync("hidden");
-    //     }
-    //   });
-
-    //   return () => sub.remove();
-  //   }
-  // }, []);
 
   useEffect(() => {
     const cleanup = setupNotificationHandlers(); // ← called once on mount
