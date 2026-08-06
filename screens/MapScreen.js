@@ -24,6 +24,7 @@ import {
   Modal,
   ScrollView,
   TextInput,
+  Image,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
@@ -52,6 +53,70 @@ Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN);
 const API = BASE_URL;
 const INTERVAL_MS = 5000;
 const BACOOR_CENTER = [120.964, 14.4341];
+
+// ── Marker collision avoidance ──────────────────────────────
+// If an officer's ping lands very close to "my location" AT A HIGH ZOOM
+// (street level), their avatar fully covers my puck since MarkerViews
+// stack at identical coordinates — nudge them apart so both stay
+// visible/tappable. Only affects rendering; the real coordinate (used
+// for flyTo, distance calcs, etc.) is untouched.
+//
+// The nudge must FADE OUT as the user zooms out. A constant screen-pixel
+// offset looks fine up close, but at city-level zoom it starts to
+// misrepresent real proximity — two officers who are genuinely a few
+// meters apart end up looking like they're blocks apart on the map.
+// So below ZOOM_OFFSET_MIN we apply no offset at all (true positions,
+// which may legitimately overlap — that's accurate), and the offset
+// ramps up smoothly between ZOOM_OFFSET_MIN and ZOOM_OFFSET_MAX.
+const ZOOM_OFFSET_MIN = 14; // below this zoom: no offset, show true position
+const ZOOM_OFFSET_MAX = 17; // at/above this zoom: full offset applied
+const OVERLAP_THRESHOLD_PX = 40; // markers closer than this (on screen) get nudged
+const OVERLAP_OFFSET_PX = 28; // max screen-pixel push, only reached at ZOOM_OFFSET_MAX
+
+// Meters represented by one screen pixel at a given latitude/zoom
+// (standard Web Mercator resolution formula).
+const metersPerPixel = (latDeg, zoom) =>
+  (156543.03392 * Math.cos((latDeg * Math.PI) / 180)) / Math.pow(2, zoom);
+
+const getDisplayCoordinate = (officerCoord, myCoord, seedId, zoom) => {
+  if (!myCoord) return officerCoord;
+  const z = zoom ?? 12;
+
+  // Zoom fade factor: 0 at/below ZOOM_OFFSET_MIN, 1 at/above ZOOM_OFFSET_MAX
+  const zoomFactor = Math.max(
+    0,
+    Math.min(1, (z - ZOOM_OFFSET_MIN) / (ZOOM_OFFSET_MAX - ZOOM_OFFSET_MIN)),
+  );
+  if (zoomFactor === 0) return officerCoord; // zoomed out — show true position
+
+  const [lng, lat] = officerCoord;
+  const [myLng, myLat] = myCoord;
+  const mpp = metersPerPixel(myLat, z);
+
+  const dLngMeters =
+    (lng - myLng) * 111320 * Math.cos((myLat * Math.PI) / 180);
+  const dLatMeters = (lat - myLat) * 110540;
+  const distPx =
+    Math.sqrt(dLngMeters * dLngMeters + dLatMeters * dLatMeters) / mpp;
+
+  if (distPx > OVERLAP_THRESHOLD_PX) {
+    return officerCoord; // far enough apart on screen, no adjustment needed
+  }
+
+  // Stable angle per officer so their offset direction doesn't jitter
+  const seed = String(seedId ?? "0")
+    .split("")
+    .reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const angle = (seed % 360) * (Math.PI / 180);
+
+  const offsetMeters = OVERLAP_OFFSET_PX * zoomFactor * mpp;
+  const offsetLng =
+    (offsetMeters * Math.cos(angle)) /
+    (111320 * Math.cos((myLat * Math.PI) / 180));
+  const offsetLat = (offsetMeters * Math.sin(angle)) / 110540;
+
+  return [lng + offsetLng, lat + offsetLat];
+};
 
 // ── Date helpers ────────────────────────────────────────────
 const getPHTToday = () => {
@@ -608,6 +673,38 @@ function MultiSelect({ visible, title, items, legacy, selected, searchable, onCl
   );
 }
 
+const OfficerAvatar = React.memo(function OfficerAvatar({ officer, onPress }) {
+  const [imgError, setImgError] = useState(false);
+
+  const photoUri = officer.profile_picture
+    ? officer.profile_picture.startsWith("http")
+      ? officer.profile_picture
+      : `${API}${officer.profile_picture}`
+    : null;
+
+  const hasPhoto = !!photoUri && !imgError;
+
+  const initials =
+    ((officer.first_name?.[0] || "") + (officer.last_name?.[0] || "")).toUpperCase() ||
+    "?";
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+      <View style={styles.officerAvatarWrap}>
+        {hasPhoto ? (
+          <Image
+            source={{ uri: photoUri }}
+            style={styles.officerAvatarImg}
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <Text style={styles.officerAvatarInitials}>{initials}</Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export default function MapScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   // Tab bar height = 55 + bottom inset (matches App.js tabBarStyle)
@@ -1047,6 +1144,17 @@ const fetchMapData = useCallback(async () => {
     officerPollRef.current = null;
   }
 } else if (prev.match(/inactive|background/) && next === "active") {
+        // Officer poll always resumes on foreground — cheap, idempotent
+        // (guarded by the null check), and must NOT be gated by the
+        // debounce below. Otherwise rapid AppState flicker (Android
+        // foreground-service notification, permission dialogs) can hit
+        // the early-return before the interval is ever restarted,
+        // permanently freezing the officer list until another resume
+        // happens more than 3s after the last one.
+        if (!officerPollRef.current)
+          officerPollRef.current = setInterval(fetchOfficers, INTERVAL_MS);
+        fetchOfficers();
+
         // Debounce — GPS permission prompts / the Android foreground
         // service notification can flip AppState several times in
         // quick succession. Without this, each flip re-fetched map
@@ -1058,9 +1166,6 @@ const fetchMapData = useCallback(async () => {
         lastActiveResumeRef.current = now;
 
         fetchMapDataRef.current();
-        if (!officerPollRef.current)
-          officerPollRef.current = setInterval(fetchOfficers, INTERVAL_MS);
-        fetchOfficers();
         if (gpsEnabledRef.current) startTrackingRef.current();
       }
     });
@@ -1454,36 +1559,62 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
           </ShapeSource>
           )}
           
-          {/* Officer dots — blue shield dot, tap to see name */}
-          {officers.map((officer) => (
-            <MarkerView
-              key={`officer-${officer.user_id}`}
-              id={`officer-${officer.user_id}`}
-              coordinate={[
-                parseFloat(officer.longitude),
-                parseFloat(officer.latitude),
-              ]}
-              anchor={{ x: 0.5, y: 0.5 }}
-            >
-              <TouchableOpacity
-                onPress={() =>
-                  setSelectedOfficer((prev) =>
-                    prev?.user_id === officer.user_id ? null : officer,
-                  )
-                }
-                activeOpacity={0.8}
+          {/* Officer avatars — profile photo if available, initials otherwise.
+              Nudged apart from "my location" puck when they'd otherwise
+              fully overlap, so both stay visible/tappable. */}
+          {officers.map((officer) => {
+            const rawCoord = [
+              parseFloat(officer.longitude),
+              parseFloat(officer.latitude),
+            ];
+            const displayCoord = getDisplayCoordinate(
+              rawCoord,
+              myLocation,
+              officer.user_id,
+              mapZoom,
+            );
+            return (
+              <MarkerView
+                key={`officer-${officer.user_id}`}
+                id={`officer-${officer.user_id}`}
+                coordinate={displayCoord}
+                anchor={{ x: 0.5, y: 0.5 }}
               >
-                <View style={styles.officerDot} />
-              </TouchableOpacity>
-            </MarkerView>
-          ))}
+                <OfficerAvatar
+                  officer={officer}
+                  onPress={() =>
+                    setSelectedOfficer((prev) =>
+                      prev?.user_id === officer.user_id ? null : officer,
+                    )
+                  }
+                />
+              </MarkerView>
+            );
+          })}
 
           {/* Custom "my location" puck — MarkerView, not native UserLocation.
               Gated on styleReady + keyed on it so it force-remounts cleanly
-              after every style reload (heatmap <-> choropleth switch). */}
+              after every style reload (heatmap <-> choropleth switch).
+              
+              The key ALSO includes the current set of on-duty officer IDs.
+              @rnmapbox/maps MarkerView stacking order is determined by
+              native ADD order, not JSX render order — whoever's marker was
+              most recently added to the map wins the stacking fight. So if
+              an officer's marker gets added after this puck already mounted
+              (e.g. they turn GPS on after you), their avatar can end up on
+              top even though this JSX comes last. Remounting the puck every
+              time officer membership changes forces it to be re-added last,
+              reclaiming the top position — guaranteeing "my" dot always
+              renders above officer avatars, regardless of who enabled GPS
+              first. Sorted so the key is order-independent (only changes on
+              actual join/leave, not on every 5s poll when membership is
+              unchanged) — avoids remounting/flickering every poll cycle. */}
           {styleReady && userRole === "Patrol" && gpsEnabled && myLocation && (
             <MarkerView
-              key={`my-location-puck-${styleReady}`}
+              key={`my-location-puck-${styleReady}-${officers
+                .map((o) => o.user_id)
+                .sort()
+                .join("-")}`}
               id="my-location-puck"
               coordinate={myLocation}
               anchor={{ x: 0.5, y: 0.5 }}
@@ -2300,18 +2431,30 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 
-  officerDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#1d4ed8",
-    borderWidth: 2,
-    borderColor: "#ffffff",
+  officerAvatarWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#dbeafe",
+    borderWidth: 2.5,
+    borderColor: "#1d4ed8",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.25,
-    shadowRadius: 2,
-    elevation: 3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  officerAvatarImg: {
+    width: "100%",
+    height: "100%",
+  },
+  officerAvatarInitials: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1d4ed8",
   },
 
   // Cluster tap target
