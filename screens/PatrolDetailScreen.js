@@ -540,6 +540,17 @@ const currentPatrollers = activeShift === "AM" ? amPatrollers : pmPatrollers;
   </>
 )}
 
+{isAdmin && (
+  <TouchableOpacity
+    style={styles.viewReportsBtn}
+    activeOpacity={0.8}
+    onPress={() => navigation.navigate("AfterPatrolHistory", { patrol, myShift: null })}
+  >
+    <Ionicons name="time-outline" size={16} color="#ffffff" />
+    <Text style={styles.afterReportBtnText}>View After Patrol Reports</Text>
+  </TouchableOpacity>
+)}
+
           {/* Patrollers */}
           <View style={styles.card}>
             <SectionHeader
@@ -1139,6 +1150,16 @@ const styles = StyleSheet.create({
   },
   afterReportBtnDisabled: {
     backgroundColor: "#adb5bd",
+  },
+  viewReportsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#1e3a5f",
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginTop: 4,
   },
   afterReportBtnText: {
     fontSize: 14,

@@ -200,6 +200,9 @@ export default function PatrolSchedulingScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [barangayFilter, setBarangayFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const fetchPatrols = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -227,6 +230,13 @@ export default function PatrolSchedulingScreen({ navigation }) {
     fetchPatrols(true);
   };
 
+  const filtersActive = !!(barangayFilter || dateFrom || dateTo);
+  const resetExtraFilters = () => {
+    setBarangayFilter("");
+    setDateFrom("");
+    setDateTo("");
+  };
+
   // Filter + sort
   const filtered = patrols
     .filter((p) => {
@@ -241,6 +251,17 @@ export default function PatrolSchedulingScreen({ navigation }) {
       )
         return false;
       if (statusFilter !== "all" && getPatrolStatus(p) !== statusFilter)
+        return false;
+      if (barangayFilter) {
+        const bgs = (p.routes || [])
+          .filter((r) => (r.stop_order || 0) <= 0 && r.barangay)
+          .map((r) => r.barangay.toLowerCase());
+        if (!bgs.some((b) => b.includes(barangayFilter.toLowerCase())))
+          return false;
+      }
+      if (dateFrom && parseLocalDate(p.start_date) < parseLocalDate(dateFrom))
+        return false;
+      if (dateTo && parseLocalDate(p.end_date) > parseLocalDate(dateTo))
         return false;
       return true;
     })
@@ -305,6 +326,52 @@ export default function PatrolSchedulingScreen({ navigation }) {
               <Ionicons name="close-circle" size={16} color="#adb5bd" />
             </TouchableOpacity>
           )}
+        </View>
+
+        {/* ── Barangay filter ── */}
+        <View style={styles.extraFilterRow}>
+          <View style={styles.barangayWrap}>
+            <Ionicons name="location-outline" size={14} color="#adb5bd" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Filter by barangay..."
+              placeholderTextColor="#adb5bd"
+              value={barangayFilter}
+              onChangeText={setBarangayFilter}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+            />
+          </View>
+          {filtersActive && (
+            <TouchableOpacity style={styles.resetExtraBtn} onPress={resetExtraFilters}>
+              <Ionicons name="refresh-outline" size={15} color="#6c757d" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* ── Date range filter ── */}
+        <View style={styles.dateRangeRow}>
+          <View style={styles.dateRangeField}>
+            <Text style={styles.dateRangeLabel}>From</Text>
+            <TextInput
+              style={styles.dateRangeInput}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="#adb5bd"
+              value={dateFrom}
+              onChangeText={setDateFrom}
+            />
+          </View>
+          <Ionicons name="arrow-forward" size={14} color="#adb5bd" style={{ marginTop: 16 }} />
+          <View style={styles.dateRangeField}>
+            <Text style={styles.dateRangeLabel}>To</Text>
+            <TextInput
+              style={styles.dateRangeInput}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="#adb5bd"
+              value={dateTo}
+              onChangeText={setDateTo}
+            />
+          </View>
         </View>
 
         {/* ── Filter Pills ── */}
@@ -427,6 +494,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#212529",
     fontFamily: Platform.OS === "ios" ? "System" : "sans-serif",
+  },
+
+  // ── Extra filters (barangay + date range) ──
+  extraFilterRow: {
+    flexDirection: "row", alignItems: "center",
+    marginHorizontal: 16, marginBottom: 8, gap: 8,
+  },
+  barangayWrap: {
+    flex: 1, flexDirection: "row", alignItems: "center",
+    backgroundColor: "#ffffff", borderRadius: 10,
+    borderWidth: 1, borderColor: "#dee2e6",
+    paddingHorizontal: 12, height: 40,
+  },
+  resetExtraBtn: {
+    width: 40, height: 40, borderRadius: 10,
+    borderWidth: 1, borderColor: "#dee2e6", backgroundColor: "#ffffff",
+    alignItems: "center", justifyContent: "center",
+  },
+  dateRangeRow: {
+    flexDirection: "row", alignItems: "center",
+    marginHorizontal: 16, marginBottom: 12, gap: 8,
+  },
+  dateRangeField: { flex: 1, gap: 3 },
+  dateRangeLabel: {
+    fontSize: 10, fontWeight: "700", color: "#adb5bd",
+    textTransform: "uppercase", letterSpacing: 0.5,
+  },
+  dateRangeInput: {
+    borderWidth: 1, borderColor: "#dee2e6", borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 8,
+    fontSize: 13, color: "#212529", backgroundColor: "#ffffff",
   },
 
   // ── Filter Pills ──

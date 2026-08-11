@@ -12,6 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL;
+const HISTORY_SCREEN_NAME = "AfterPatrolHistory"; // ← adjust to match your navigator
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const parseLocalDate = (d) => {
@@ -96,18 +97,22 @@ const DEFAULT_TIMES = {
 
 const token = async () => AsyncStorage.getItem("auth_token");
 
-const getAuth = async () => {
-  const raw = await AsyncStorage.getItem("auth_user");
-  if (!raw) return {};
-  try { return JSON.parse(raw); } catch { return {}; }
+// Defaults to today when today falls within the patrol range, otherwise
+// falls back to the patrol start date — matches web's emptyForm().
+const smartDefaultDate = (patrol) => {
+  const start = parseLocalDate(patrol?.start_date);
+  const end   = parseLocalDate(patrol?.end_date);
+  const today = todayDate();
+  if (start && end && today >= start && today <= end) return toInputDate(today);
+  return toInputDate(patrol?.start_date) || "";
 };
 
-// ── Empty form factory ────────────────────────────────────────────────────────
-const emptyForm = (patrol, shift) => {
+// ── Empty / row-mapping form factories ────────────────────────────────────────
+const emptyForm = (patrol, shift, dateOverride) => {
   const times = (shift && DEFAULT_TIMES[shift]) || { timeFrom: "", timeTo: "" };
   const creditHours = calcCreditHours(times.timeFrom, times.timeTo);
   return {
-    date:           toInputDate(patrol?.start_date) || "",
+    date:           dateOverride || smartDefaultDate(patrol),
     timeFrom:       times.timeFrom,
     timeTo:         times.timeTo,
     preDeployment:  "",
@@ -153,6 +158,21 @@ const dbRowToForm = (row) => ({
   sigOfficer1:    row.sig_officer_1  || "",
   sigOfficer2:    row.sig_officer_2  || "",
   sigSupervisor:  row.sig_supervisor || "",
+});
+
+const shownFlagsFor = (row = {}) => ({
+  preDeployment:  !!(row.pre_deployment),
+  action1:        !!(row.action_pre_deployment),
+  incidents:      !!(row.incidents),
+  action2:        !!(row.action_incidents),
+  safetyConcerns: !!(row.safety_concerns),
+  action3:        !!(row.action_safety),
+  otherServices:  !!(row.other_services),
+  visitedAreas:   !!(row.visited_areas),
+  personsVisited: !!(row.persons_visited),
+  numOfficials:   !!(row.num_officials != null && row.num_officials !== ""),
+  numGovt:        !!(row.num_govt_officials != null && row.num_govt_officials !== ""),
+  mustDos:        !!(row.must_dos),
 });
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -539,44 +559,120 @@ const PhotoGrid = ({
 export default function AfterPatrolScreen({ route, navigation }) {
   const { patrol, myShift, existingReport: initialReport } = route.params;
 
-  const patrolDates   = getPatrolDateRange(patrol?.start_date, patrol?.end_date);
-  const isEditing     = !!initialReport;
+  const patrolDates = getPatrolDateRange(patrol?.start_date, patrol?.end_date);
 
+  // activeReport tracks whichever report is currently loaded for editing —
+  // starts as the report passed in (e.g. from History → Edit), but can change
+  // if the officer picks a different date that already has a submission.
+  const [activeReport, setActiveReport] = useState(initialReport || null);
+
+  // form stays null until a date is actually resolved — either the report
+  // passed in, an auto-picked first-unreported date, or one chosen from the
+  // date pills. This lets us show a "Loading dates…" / empty state instead
+  // of a form that's silently wrong while existing reports are still in flight.
   const [form, setForm] = useState(
-    initialReport ? dbRowToForm(initialReport) : emptyForm(patrol, myShift)
+    initialReport ? dbRowToForm(initialReport) : null
   );
-  const [shown, setShown] = useState(() => {
-    const src = initialReport || {};
-    return {
-      preDeployment:  !!(src.pre_deployment),
-      action1:        !!(src.action_pre_deployment),
-      incidents:      !!(src.incidents),
-      action2:        !!(src.action_incidents),
-      safetyConcerns: !!(src.safety_concerns),
-      action3:        !!(src.action_safety),
-      otherServices:  !!(src.other_services),
-      visitedAreas:   !!(src.visited_areas),
-      personsVisited: !!(src.persons_visited),
-      numOfficials:   !!(src.num_officials != null && src.num_officials !== ""),
-      numGovt:        !!(src.num_govt_officials != null && src.num_govt_officials !== ""),
-      mustDos:        !!(src.must_dos),
-    };
-  });
+
+  const [shown, setShown] = useState(shownFlagsFor(initialReport || {}));
 
   const [images,         setImages]         = useState([]);
   const [existingPhotos, setExistingPhotos] = useState(initialReport?.photo_urls || []);
   const [submitting,     setSubmitting]     = useState(false);
   const [toast,          setToast]          = useState(null);
+  const [showSaveConfirmed, setShowSaveConfirmed] = useState(false); // guards double-fire, not shown in UI directly
 
+  // All of this officer's existing reports for this patrol, keyed by date —
+  // powers the date-pill checkmarks / missed markers and lets tapping a pill
+  // load that date's real report instead of a blank one.
+  const [existingReports,       setExistingReports]       = useState(
+    initialReport ? [initialReport] : []
+  );
+  const [existingReportsLoaded, setExistingReportsLoaded] = useState(!!initialReport === false ? false : false);
+
+  const autoSelectedRef = useRef(false);
   const patrollers = patrol?.patrollers || [];
 
   const showToast = useCallback((message, type = "success") => {
     setToast({ message, type, key: Date.now() });
   }, []);
 
+  const existingByDate = {};
+  existingReports.forEach((rep) => {
+    existingByDate[toInputDate(rep.patrol_date)] = rep;
+  });
+
+  // ── Fetch this officer's existing reports for this patrol ──────────────────
+  const fetchExistingReports = useCallback(async () => {
+    try {
+      const tok = await token();
+      const res  = await fetch(
+        `${API_BASE}/patrol/patrols/${patrol.patrol_id}/after-reports/mine`,
+        { headers: { Authorization: `Bearer ${tok}` } }
+      );
+      const data = await res.json();
+      setExistingReports(data.success ? (data.data || []) : []);
+    } catch {
+      setExistingReports((prev) => prev); // fail silently — form still usable
+    } finally {
+      setExistingReportsLoaded(true);
+    }
+  }, [patrol.patrol_id]);
+
+  useEffect(() => {
+    fetchExistingReports();
+  }, [fetchExistingReports]);
+
+  // ── Auto-select the first unreported allowed date on a fresh open ──────────
+  // (skipped entirely if a specific report was passed in via History → Edit)
+  useEffect(() => {
+    if (initialReport) return;
+    if (!existingReportsLoaded) return;
+    if (autoSelectedRef.current) return;
+    autoSelectedRef.current = true;
+
+    const status = getPatrolStatus(patrol);
+    const allowedDates = patrolDates.filter((key) => {
+      const pillDate = parseLocalDate(key);
+      return !(status === "active" && pillDate > todayDate());
+    });
+
+    const unreportedDate = allowedDates.find((key) => !existingByDate[key]);
+    if (!unreportedDate) return; // every allowed date already has a report
+
+    const blank = emptyForm(patrol, myShift, unreportedDate);
+    setForm(blank);
+    setActiveReport(null);
+    setShown(shownFlagsFor());
+    setExistingPhotos([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingReportsLoaded]);
+
+  // ── Date pill tap: load that date's real report, or start a blank one ──────
+  const handleSelectDate = (key) => {
+    const pillDate = parseLocalDate(key);
+    const isFuture = getPatrolStatus(patrol) === "active" && pillDate > todayDate();
+    if (isFuture) return;
+
+    const existingForDate = existingByDate[key];
+    if (existingForDate) {
+      setActiveReport(existingForDate);
+      setForm(dbRowToForm(existingForDate));
+      setShown(shownFlagsFor(existingForDate));
+      setExistingPhotos(existingForDate.photo_urls || []);
+    } else {
+      setActiveReport(null);
+      setForm(emptyForm(patrol, myShift, key));
+      setShown(shownFlagsFor());
+      setExistingPhotos([]);
+    }
+    setImages([]);
+  };
+
+  const isEditing = !!activeReport;
+
   // ── Form helpers ────────────────────────────────────────────────────────────
   const set    = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
-  const setEv  = (key) => (e)   => setForm((f) => ({ ...f, [key]: e.nativeEvent?.text ?? e }));
   const setTime = (key) => (v)  => {
     setForm((f) => {
       const next = { ...f, [key]: v };
@@ -646,7 +742,7 @@ export default function AfterPatrolScreen({ route, navigation }) {
   const removeNewImage = (id) => setImages((prev) => prev.filter((i) => i.id !== id));
 
   const removeExistingPhoto = async (photoUrl) => {
-    if (!initialReport?.report_id) return;
+    if (!activeReport?.report_id) return;
     Alert.alert("Remove Photo", "Remove this photo? This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
       {
@@ -655,7 +751,7 @@ export default function AfterPatrolScreen({ route, navigation }) {
           try {
             const tok = await token();
             const res = await fetch(
-              `${API_BASE}/patrol/after-reports/${initialReport.report_id}/photos`,
+              `${API_BASE}/patrol/after-reports/${activeReport.report_id}/photos`,
               {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
@@ -679,6 +775,8 @@ export default function AfterPatrolScreen({ route, navigation }) {
 
   // ── Submit ────────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
+    if (!form) return;
+
     // Date validation
     if (!form.date) { showToast("Patrol date is required.", "error"); return; }
     const chosen = parseLocalDate(form.date);
@@ -726,34 +824,45 @@ export default function AfterPatrolScreen({ route, navigation }) {
       return;
     }
 
-    // Check for existing report on same date (new submissions only)
-    if (!isEditing) {
-      try {
-        const tok = await token();
-        const res = await fetch(
-          `${API_BASE}/patrol/patrols/${patrol.patrol_id}/after-reports/mine`,
-          { headers: { Authorization: `Bearer ${tok}` } }
-        );
-        const data = await res.json();
-        if (data.success) {
-          const existing = data.data.find(
-            (r) => toInputDate(r.patrol_date) === form.date &&
-                   (r.shift === myShift || !myShift)
-          );
-          if (existing) {
-            Alert.alert(
-              "Report Already Exists",
-              `A report was already submitted for ${formatDate(form.date)}. Do you want to overwrite it?`,
-              [
-                { text: "Cancel", style: "cancel" },
-                { text: "Overwrite", style: "destructive", onPress: () => doSubmit() },
-              ]
-            );
-            return;
-          }
-        }
-      } catch { /* proceed */ }
+    // Editing an existing report — confirm before saving.
+    if (isEditing) {
+      Alert.alert(
+        "Save Changes",
+        "Do you want to save the changes made to this report?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Save Changes", onPress: () => doSubmit() },
+        ]
+      );
+      return;
     }
+
+    // New report — check for a same-date submission from this shift first.
+    try {
+      const tok = await token();
+      const res = await fetch(
+        `${API_BASE}/patrol/patrols/${patrol.patrol_id}/after-reports/mine`,
+        { headers: { Authorization: `Bearer ${tok}` } }
+      );
+      const data = await res.json();
+      if (data.success) {
+        const existing = data.data.find(
+          (r) => toInputDate(r.patrol_date) === form.date &&
+                 (r.shift === myShift || !myShift)
+        );
+        if (existing) {
+          Alert.alert(
+            "Report Already Exists",
+            `A report was already submitted for ${formatDate(form.date)}. Do you want to overwrite it?`,
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Overwrite", style: "destructive", onPress: () => doSubmit() },
+            ]
+          );
+          return;
+        }
+      }
+    } catch { /* proceed — backend upsert handles deduplication */ }
 
     doSubmit();
   };
@@ -834,6 +943,12 @@ export default function AfterPatrolScreen({ route, navigation }) {
           </Text>
           <Text style={styles.headerAnnex}>ANNEX D · PNPM-DO-DS-3-3-15 (DO)</Text>
         </View>
+        <TouchableOpacity
+          style={styles.historyBtn}
+          onPress={() => navigation.navigate(HISTORY_SCREEN_NAME, { patrol, myShift })}
+        >
+          <Ionicons name="time-outline" size={20} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       {isEditing && (
@@ -893,67 +1008,106 @@ export default function AfterPatrolScreen({ route, navigation }) {
             </Text>
 
             {/* Date pills */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.datePillsRow}
-            >
-              {patrolDates.map((d) => {
-                const isSelected = form.date === d;
-                const pillDate   = parseLocalDate(d);
-                const isFuture   = getPatrolStatus(patrol) === "active" && pillDate > todayDate();
-                return (
-                  <TouchableOpacity
-                    key={d}
-                    style={[
-                      styles.datePill,
-                      isSelected && styles.datePillSelected,
-                      isFuture   && styles.datePillDisabled,
-                    ]}
-                    onPress={() => !isFuture && set("date")(d)}
-                    activeOpacity={isFuture ? 1 : 0.7}
-                    disabled={isFuture}
-                  >
-                    <Text style={[
-                      styles.datePillText,
-                      isSelected && styles.datePillTextSelected,
-                      isFuture   && styles.datePillTextDisabled,
-                    ]}>
-                      {formatDateShort(d)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            {existingReportsLoaded ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.datePillsRow}
+              >
+                {patrolDates.map((d) => {
+                  const isSelected      = form?.date === d;
+                  const pillDate        = parseLocalDate(d);
+                  const isFuture        = getPatrolStatus(patrol) === "active" && pillDate > todayDate();
+                  const existingForDate = existingByDate[d];
+                  const isMissed        = !isFuture && !existingForDate;
 
-            <View style={styles.formRow}>
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>Selected Date</Text>
-                <View style={styles.readOnlyField}>
-                  <Ionicons name="calendar-outline" size={14} color="#1e3a5f" />
-                  <Text style={styles.readOnlyText}>
-                    {form.date ? formatDate(form.date) : "— tap a date above —"}
-                  </Text>
-                </View>
+                  return (
+                    <TouchableOpacity
+                      key={d}
+                      style={[
+                        styles.datePill,
+                        isSelected && styles.datePillSelected,
+                        !isSelected && existingForDate && styles.datePillDone,
+                        !isSelected && isMissed && styles.datePillMissed,
+                        isFuture   && styles.datePillDisabled,
+                      ]}
+                      onPress={() => handleSelectDate(d)}
+                      activeOpacity={isFuture ? 1 : 0.7}
+                      disabled={isFuture}
+                    >
+                      {existingForDate && !isSelected && (
+                        <Ionicons name="checkmark" size={11} color="#15803d" style={{ marginRight: 2 }} />
+                      )}
+                      {isMissed && !isSelected && (
+                        <Text style={styles.datePillMissedMark}>!</Text>
+                      )}
+                      <Text style={[
+                        styles.datePillText,
+                        isSelected && styles.datePillTextSelected,
+                        !isSelected && existingForDate && { color: "#15803d" },
+                        !isSelected && isMissed && { color: "#b91c1c" },
+                        isFuture   && styles.datePillTextDisabled,
+                      ]}>
+                        {formatDateShort(d)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <View style={styles.loadingDatesRow}>
+                <ActivityIndicator size="small" color="#1e3a5f" />
+                <Text style={styles.loadingDatesText}>Loading dates…</Text>
               </View>
-            </View>
+            )}
 
-            <View style={styles.formRow}>
-              <TimeField
-                label="Time From"
-                value={form.timeFrom}
-                onChange={setTime("timeFrom")}
-                disabled={!!myShift && myShift !== "AM & PM"}
-              />
-              <TimeField
-                label="Time To"
-                value={form.timeTo}
-                onChange={setTime("timeTo")}
-                disabled={!!myShift && myShift !== "AM & PM"}
-              />
-            </View>
+            {form && (
+              <>
+                <View style={styles.formRow}>
+                  <View style={[styles.formGroup, { flex: 1 }]}>
+                    <Text style={styles.fieldLabel}>Selected Date</Text>
+                    <View style={styles.readOnlyField}>
+                      <Ionicons name="calendar-outline" size={14} color="#1e3a5f" />
+                      <Text style={styles.readOnlyText}>
+                        {form.date ? formatDate(form.date) : "— tap a date above —"}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.formRow}>
+                  <TimeField
+                    label="Time From"
+                    value={form.timeFrom}
+                    onChange={setTime("timeFrom")}
+                    disabled={!!myShift && myShift !== "AM & PM"}
+                  />
+                  <TimeField
+                    label="Time To"
+                    value={form.timeTo}
+                    onChange={setTime("timeTo")}
+                    disabled={!!myShift && myShift !== "AM & PM"}
+                  />
+                </View>
+              </>
+            )}
           </View>
 
+          {!form ? (
+            existingReportsLoaded && (
+              <View style={styles.emptyStateBox}>
+                <View style={styles.emptyStateIcon}>
+                  <Ionicons name="checkmark-circle-outline" size={26} color="#16a34a" />
+                </View>
+                <Text style={styles.emptyStateTitle}>No reports to do for today</Text>
+                <Text style={styles.emptyStateText}>
+                  All available dates for this patrol already have a submitted report.
+                  Select a date tab above to view or edit it.
+                </Text>
+              </View>
+            )
+          ) : (
+          <>
           {/* ── 2. Patrol Information ──────────────────────────────────────── */}
           <SectionTitle number="2" title="Patrol Information" />
 
@@ -1161,7 +1315,7 @@ export default function AfterPatrolScreen({ route, navigation }) {
             </View>
           </View>
 
-        
+
           {/* ── 9. Photo Documentation ────────────────────────────────────── */}
           <SectionTitle number="9" title="Photo Documentation" />
           <View style={styles.card}>
@@ -1196,6 +1350,8 @@ export default function AfterPatrolScreen({ route, navigation }) {
               </>
             )}
           </TouchableOpacity>
+          </>
+          )}
 
           <View style={{ height: 60 }} />
         </ScrollView>
@@ -1225,6 +1381,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12, gap: 12,
   },
   backBtn: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
+  },
+  historyBtn: {
     width: 36, height: 36, borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.1)",
     alignItems: "center", justifyContent: "center", flexShrink: 0,
@@ -1288,6 +1449,23 @@ const styles = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
   },
+
+  // Empty state
+  emptyStateBox: {
+    alignItems: "center", padding: 28, gap: 8, marginTop: 4,
+    backgroundColor: "rgba(34,197,94,0.05)", borderRadius: 12,
+    borderWidth: 1, borderColor: "#86efac", borderStyle: "dashed",
+  },
+  emptyStateIcon: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: "rgba(34,197,94,0.15)",
+    alignItems: "center", justifyContent: "center",
+  },
+  emptyStateTitle: { fontSize: 14.5, fontWeight: "700", color: "#1e3a5f" },
+  emptyStateText:  { fontSize: 12.5, color: "#6b7280", textAlign: "center", lineHeight: 18 },
+
+  loadingDatesRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
+  loadingDatesText: { fontSize: 12, color: "#9ca3af" },
 
   // Form
   formRow:   { flexDirection: "row", gap: 10 },
@@ -1405,14 +1583,18 @@ const styles = StyleSheet.create({
   },
   datePillsRow: { flexDirection: "row", gap: 6, paddingBottom: 4 },
   datePill: {
+    flexDirection: "row", alignItems: "center",
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
     borderWidth: 1, borderColor: "#93afc9", backgroundColor: "#fff",
   },
   datePillSelected: { backgroundColor: "#1e3a5f", borderColor: "#1e3a5f" },
+  datePillDone:     { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "#86efac" },
+  datePillMissed:   { backgroundColor: "rgba(220,38,38,0.08)", borderColor: "#fca5a5" },
   datePillDisabled: { backgroundColor: "#f3f4f6", borderColor: "#e5e7eb", opacity: 0.5 },
   datePillText:         { fontSize: 12, fontWeight: "700", color: "#1e3a5f" },
   datePillTextSelected: { color: "#fff" },
   datePillTextDisabled: { color: "#d1d5db" },
+  datePillMissedMark:   { fontSize: 11, fontWeight: "900", color: "#b91c1c", marginRight: 3 },
 
   // Shift badge
   shiftBadge: {

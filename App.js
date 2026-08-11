@@ -36,6 +36,7 @@ import ChangePasswordScreen from "./screens/ChangePasswordScreen";
 import PatrolDetailScreen from "./screens/PatrolDetailScreen";
 import RoleBasedPatrolScreen from "./screens/RoleBasedPatrolScreen";
 import AfterPatrolScreen from "./screens/AfterPatrolScreen";
+import AfterPatrolHistoryScreen from "./screens/AfterPatrolHistoryScreen";
 
 // Module-level — runs once before anything mounts
 Notifications.setNotificationHandler({
@@ -299,6 +300,11 @@ export default function App() {
           <Stack.Screen
             name="AfterPatrolReport"
             component={AfterPatrolScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+            name="AfterPatrolHistory"
+            component={AfterPatrolHistoryScreen}
             options={{ animation: "slide_from_right" }}
           />
         </Stack.Navigator>

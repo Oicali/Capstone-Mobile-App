@@ -207,13 +207,14 @@ const OngoingMap = ({ geoJSONData, barangays }) => {
 };
 
 // ── Ongoing Shift Card ────────────────────────────────────────────────────────
-const OngoingShiftCard = ({ patrol, geoJSONData, myShifts }) => {
+const OngoingShiftCard = ({ patrol, geoJSONData, myShifts, isUpcoming }) => {
   const dateRange = generateDateRange(patrol?.start_date, patrol?.end_date);
   const today = todayStr();
   const [activeDate, setActiveDate] = useState(
     dateRange.includes(today) ? today : dateRange[0] || null
   );
   const [activeShift, setActiveShift] = useState(myShifts[0] || "AM");
+  const [showTasks, setShowTasks] = useState(false);
 
   const barangays = [...new Set(
     (patrol?.routes || [])
@@ -247,10 +248,12 @@ const OngoingShiftCard = ({ patrol, geoJSONData, myShifts }) => {
             {myShifts.map((s) => <ShiftPill key={s} shift={s} />)}
           </View>
         </View>
-        {/* <View style={styles.livePill}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveText}>LIVE</Text>
-        </View> */}
+        <View style={[styles.livePill, isUpcoming && styles.upcomingPill]}>
+          <View style={[styles.liveDot, isUpcoming && styles.upcomingDot]} />
+          <Text style={[styles.liveText, isUpcoming && styles.upcomingText]}>
+            {isUpcoming ? "UPCOMING" : "LIVE"}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.ongoingMap}>
@@ -301,27 +304,43 @@ const OngoingShiftCard = ({ patrol, geoJSONData, myShifts }) => {
           ))}
         </View>
 
-        <View style={styles.timetableLabel}>
+        <TouchableOpacity
+          style={styles.timetableLabel}
+          onPress={() => setShowTasks((s) => !s)}
+          activeOpacity={0.7}
+        >
           <Text style={styles.timetableLabelText}>
             {activeShift} SHIFT — {formatTabDate(activeDate)}
           </Text>
-        </View>
+          <View style={styles.timetableToggle}>
+            <Text style={styles.timetableToggleText}>
+              {showTasks ? "Hide Tasks" : `Show Tasks${routesForDateShift.length ? ` (${routesForDateShift.length})` : ""}`}
+            </Text>
+            <Ionicons
+              name={showTasks ? "chevron-up" : "chevron-down"}
+              size={13}
+              color="#1e3a5f"
+            />
+          </View>
+        </TouchableOpacity>
 
-        {routesForDateShift.length === 0 ? (
-          <Text style={styles.emptyNote}>No tasks scheduled for this shift.</Text>
-        ) : (
-          routesForDateShift.map((r, i) => (
-            <View key={r.route_id} style={[styles.routeRow, i === 0 && { borderTopWidth: 0 }]}>
-              <View style={styles.routeTimeCol}>
-                <Text style={styles.routeTimeText}>{formatTime(r.time_start)}</Text>
-                <View style={styles.routeTimeLine} />
-                <Text style={styles.routeTimeText}>{formatTime(r.time_end)}</Text>
+        {showTasks && (
+          routesForDateShift.length === 0 ? (
+            <Text style={styles.emptyNote}>No tasks scheduled for this shift.</Text>
+          ) : (
+            routesForDateShift.map((r, i) => (
+              <View key={r.route_id} style={[styles.routeRow, i === 0 && { borderTopWidth: 0 }]}>
+                <View style={styles.routeTimeCol}>
+                  <Text style={styles.routeTimeText}>{formatTime(r.time_start)}</Text>
+                  <View style={styles.routeTimeLine} />
+                  <Text style={styles.routeTimeText}>{formatTime(r.time_end)}</Text>
+                </View>
+                <Text style={styles.routeTask}>
+                  {r.notes || <Text style={styles.routeNoTask}>No task set</Text>}
+                </Text>
               </View>
-              <Text style={styles.routeTask}>
-                {r.notes || <Text style={styles.routeNoTask}>No task set</Text>}
-              </Text>
-            </View>
-          ))
+            ))
+          )
         )}
       </View>
     </View>
@@ -438,7 +457,15 @@ export default function PatrollerScheduleScreen({ navigation }) {
   const onRefresh = () => { setRefreshing(true); fetchPatrols(true); };
 
   const ongoingPatrol = patrols.find((p) => getPatrolStatus(p) === "active");
-  const myShifts = ongoingPatrol ? getMyShiftsForPatrol(ongoingPatrol, myUserId) : [];
+  const upcomingPatrol = !ongoingPatrol
+    ? patrols
+        .filter((p) => getPatrolStatus(p) === "upcoming")
+        .sort((a, b) => parseLocalDate(a.start_date) - parseLocalDate(b.start_date))[0] || null
+    : null;
+
+  const featuredPatrol = ongoingPatrol || upcomingPatrol;
+  const isUpcoming     = !ongoingPatrol && !!upcomingPatrol;
+  const myShifts = featuredPatrol ? getMyShiftsForPatrol(featuredPatrol, myUserId) : [];
 
   // ── Sorted + filtered patrols ─────────────────────────────────────────────
   const sortedPatrols = [...patrols].sort((a, b) => {
@@ -495,25 +522,30 @@ export default function PatrollerScheduleScreen({ navigation }) {
             />
           }
         >
-          {/* ── ONGOING SHIFT ── */}
+          {/* ── ONGOING / UPCOMING SHIFT ── */}
           <View style={styles.sectionHeader}>
             <View style={styles.sectionAccent} />
-            <Text style={styles.sectionLabel}>ONGOING SHIFT</Text>
+            <Text style={styles.sectionLabel}>
+              {ongoingPatrol ? "ONGOING SHIFT" : upcomingPatrol ? "UPCOMING SHIFT" : "ONGOING SHIFT"}
+            </Text>
           </View>
 
-          {ongoingPatrol && geoJSONData ? (
+          {featuredPatrol && geoJSONData ? (
             <OngoingShiftCard
-              patrol={ongoingPatrol}
+              patrol={featuredPatrol}
               geoJSONData={geoJSONData}
               myShifts={myShifts.length > 0 ? myShifts : ["AM"]}
+              isUpcoming={isUpcoming}
             />
-          ) : ongoingPatrol && !geoJSONData ? (
+          ) : featuredPatrol && !geoJSONData ? (
             <View style={styles.ongoingCard}>
               <View style={styles.ongoingHeader}>
-                <Text style={styles.ongoingName}>{ongoingPatrol.patrol_name}</Text>
-                <View style={styles.livePill}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveText}>LIVE</Text>
+                <Text style={styles.ongoingName}>{featuredPatrol.patrol_name}</Text>
+                <View style={[styles.livePill, isUpcoming && styles.upcomingPill]}>
+                  <View style={[styles.liveDot, isUpcoming && styles.upcomingDot]} />
+                  <Text style={[styles.liveText, isUpcoming && styles.upcomingText]}>
+                    {isUpcoming ? "UPCOMING" : "LIVE"}
+                  </Text>
                 </View>
               </View>
               <View style={styles.mapLoadingBox}>
@@ -525,9 +557,9 @@ export default function PatrollerScheduleScreen({ navigation }) {
             <View style={styles.noOngoingCard}>
               <Ionicons name="shield-outline" size={36} color="#dee2e6" />
               <View>
-                <Text style={styles.noOngoingTitle}>No active patrol today</Text>
+                <Text style={styles.noOngoingTitle}>No active or upcoming patrol</Text>
                 <Text style={styles.noOngoingSub}>
-                  You have no patrol assignment for today's date.
+                  You have no patrol assignment scheduled.
                 </Text>
               </View>
             </View>
@@ -679,6 +711,9 @@ const styles = StyleSheet.create({
   },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#16a34a" },
   liveText: { fontSize: 10, fontWeight: "800", color: "#16a34a", letterSpacing: 1 },
+  upcomingPill: { backgroundColor: "rgba(133,77,14,0.1)", borderColor: "#fde047" },
+  upcomingDot:  { backgroundColor: "#854d0e" },
+  upcomingText: { color: "#854d0e" },
 
   ongoingMap: {
     height: 220, position: "relative",
@@ -724,13 +759,20 @@ const styles = StyleSheet.create({
   shiftTabTextActive: { color: "#1e3a5f" },
 
   timetableLabel: {
-    paddingHorizontal: 16, paddingVertical: 7,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingVertical: 9,
     backgroundColor: "#f8f9fa",
     borderBottomWidth: 1, borderBottomColor: "#f1f3f5",
   },
   timetableLabelText: {
     fontSize: 10, fontWeight: "800", color: "#adb5bd",
     textTransform: "uppercase", letterSpacing: 1,
+  },
+  timetableToggle: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+  },
+  timetableToggleText: {
+    fontSize: 11, fontWeight: "700", color: "#1e3a5f",
   },
   routeRow: {
     flexDirection: "row", paddingHorizontal: 16, paddingVertical: 11,
