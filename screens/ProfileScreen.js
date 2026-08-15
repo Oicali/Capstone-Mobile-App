@@ -3,6 +3,7 @@
 // ================================================================================
 // ProfileScreen.js — BANTAY Mobile (REDESIGN v5 — Data Sync Fixes + Gradient Header)
 // ================================================================================
+
 // FIXES APPLIED IN THIS PASS:
 // 5. silentRefresh() was writing `JSON.stringify(fresh)` to AsyncStorage, but
 //    `fresh` was never defined in that function — it threw a ReferenceError
@@ -165,7 +166,7 @@ function LoadingOverlay({ visible, message = "Please wait…" }) {
       visible
       transparent
       animationType="fade"
-      onShow={() => NavigationBar.setVisibilityAsync("hidden")}
+      
     >
       <View style={lo.overlay}>
         <View style={lo.box}>
@@ -221,7 +222,6 @@ function ConfirmModal({
       visible
       transparent
       animationType="fade"
-      onShow={() => NavigationBar.setVisibilityAsync("hidden")}
     >
       <View style={cm.overlay}>
         <View style={cm.box}>
@@ -590,6 +590,46 @@ export default function ProfileScreen({ navigation }) {
   const [altPhoneChanged, setAltPhoneChanged] = useState(false);
 
   const pollTimer = useRef(null);
+
+  const editScrollRef = useRef(null);
+  const fieldRefs = useRef({});
+
+  const scrollToField = (fieldName) => {
+    const node = fieldRefs.current[fieldName];
+    if (node && editScrollRef.current) {
+      node.measureLayout(
+        editScrollRef.current,
+        (x, y) => {
+          editScrollRef.current.scrollTo({
+            y: Math.max(y - 20, 0),
+            animated: true,
+          });
+        },
+        () => {},
+      );
+    }
+  };
+
+  const scrollToFirstError = (errorsObj) => {
+    const order = [
+      "first_name",
+      "last_name",
+      "middle_name",
+      "suffix",
+      "phone",
+      "alternate_phone",
+      "region_code",
+      "province_code",
+      "municipality_code",
+      "barangay_code",
+      "address_line",
+    ];
+    const firstErrorField = order.find((f) => errorsObj[f]);
+    if (firstErrorField) {
+      setTimeout(() => scrollToField(firstErrorField), 100);
+    }
+  };
+
   const appStateRef = useRef(AppState.currentState);
   const lastEtag = useRef(null);
   const isEditingRef = useRef(false);
@@ -1150,7 +1190,7 @@ export default function ProfileScreen({ navigation }) {
       e.municipality_code = "City / Municipality is required";
     if (!formData.barangay_code) e.barangay_code = "Barangay is required";
     setErrors(e);
-    return Object.keys(e).length === 0;
+    return e;
   };
 
   const onChange = (name, value) => {
@@ -1247,9 +1287,10 @@ export default function ProfileScreen({ navigation }) {
     }
   };
   const cancelEdit = () => {
-    NavigationBar.setVisibilityAsync("visible");
+    
     setFormData(originalFormData);
     setErrors({});
+    setErrorMsg("");
     setPhoneChanged(false);
     setAltPhoneChanged(false);
     setIsEditing(false);
@@ -1257,8 +1298,10 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const onSavePress = () => {
-    if (!validate()) {
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
       setErrorMsg("Please fix the errors before saving.");
+      setTimeout(() => scrollToFirstError(validationErrors), 50);
       return;
     }
     showConfirm(
@@ -1271,7 +1314,6 @@ export default function ProfileScreen({ navigation }) {
       "Yes, Save",
     );
   };
-
   const doSave = async () => {
     setIsSaving(true);
     setSuccessMsg("");
@@ -1359,13 +1401,19 @@ export default function ProfileScreen({ navigation }) {
         }
         // Check for phone-specific message from backend
         const msg = json.message || "Failed to update profile";
-        if (msg.toLowerCase().includes("phone")) {
+        if (msg.toLowerCase().includes("alternate")) {
+          setErrors((prev) => ({ ...prev, alternate_phone: msg }));
+          setTimeout(() => scrollToField("alternate_phone"), 100);
+        } else if (msg.toLowerCase().includes("phone")) {
           setErrors((prev) => ({ ...prev, phone: msg }));
+          setTimeout(() => scrollToField("phone"), 100);
         }
         setErrorMsg(msg);
         setIsSaving(false);
+        scrollToTop();
         return;
       }
+
       await resolveFromArrays(
         fmt.region_code,
         fmt.province_code,
@@ -1377,6 +1425,7 @@ export default function ProfileScreen({ navigation }) {
       await AsyncStorage.setItem("auth_user", JSON.stringify(fresh));
       applyToState(fresh);
       setSuccessMsg("Profile updated successfully!");
+      setErrorMsg("");
       setIsEditing(false);
       setPhoneChanged(false);
       setAltPhoneChanged(false);
@@ -1992,7 +2041,12 @@ export default function ProfileScreen({ navigation }) {
     disabled,
     error,
   }) => (
-    <View style={ef.dropdownGroup}>
+    <View
+      style={ef.dropdownGroup}
+      ref={(el) => {
+        fieldRefs.current[`${id}_code`] = el;
+      }}
+    >
       <Text style={ef.fieldLabelSm}>{label}</Text>
       <TouchableOpacity
         style={[
@@ -2785,7 +2839,7 @@ export default function ProfileScreen({ navigation }) {
         visible={emailModalVisible}
         animationType="slide"
         transparent={false}
-        onShow={() => NavigationBar.setVisibilityAsync("hidden")}
+       
       >
         <SafeAreaView style={em.safe}>
           <View style={em.header}>
@@ -3204,9 +3258,12 @@ export default function ProfileScreen({ navigation }) {
         visible={isEditing}
         animationType="slide"
         transparent={false}
-        onShow={() => NavigationBar.setVisibilityAsync("hidden")}
+     
       >
-        <SafeAreaView style={ef.safe} edges={["top", "left", "right"]}>
+        <SafeAreaView
+          style={ef.safe}
+          edges={["top", "left", "right", "bottom"]}
+        >
           <View style={ef.header}>
             <TouchableOpacity
               onPress={cancelEdit}
@@ -3224,6 +3281,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={{ width: 44 }} />
           </View>
           <ScrollView
+            ref={editScrollRef}
             style={ef.scroll}
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
@@ -3267,6 +3325,9 @@ export default function ProfileScreen({ navigation }) {
                     ef.fieldRow,
                     idx < arr.length - 1 && ef.fieldRowBorder,
                   ]}
+                  ref={(el) => {
+                    fieldRefs.current[f.name] = el;
+                  }}
                 >
                   <View style={ef.fieldIcon}>
                     <Ionicons name={f.icon} size={15} color={C.navy} />
@@ -3373,13 +3434,16 @@ export default function ProfileScreen({ navigation }) {
               Contact Information
             </SectionLabel>
             <View style={ef.card}>
-              <View style={[ef.fieldRow, ef.fieldRowBorder]}>
+              <View
+                style={[ef.fieldRow, ef.fieldRowBorder]}
+                ref={(el) => {
+                  fieldRefs.current["phone"] = el;
+                }}
+              >
                 <View
                   style={[
                     ef.fieldIcon,
-                    {
-                      backgroundColor: phoneChanged ? "#FEF3C7" : C.navyLight,
-                    },
+                    { backgroundColor: phoneChanged ? "#FEF3C7" : C.navyLight },
                   ]}
                 >
                   <Ionicons
@@ -3419,10 +3483,7 @@ export default function ProfileScreen({ navigation }) {
                     <Text
                       style={[
                         ef.fieldHint,
-                        phoneChanged && {
-                          color: "#B45309",
-                          fontWeight: "600",
-                        },
+                        phoneChanged && { color: "#B45309", fontWeight: "600" },
                       ]}
                     >
                       {phoneChanged
@@ -3432,7 +3493,12 @@ export default function ProfileScreen({ navigation }) {
                   )}
                 </View>
               </View>
-              <View style={[ef.fieldRow, ef.fieldRowBorder]}>
+              <View
+                style={[ef.fieldRow, ef.fieldRowBorder]}
+                ref={(el) => {
+                  fieldRefs.current["alternate_phone"] = el;
+                }}
+              >
                 <View
                   style={[
                     ef.fieldIcon,
@@ -3551,6 +3617,9 @@ export default function ProfileScreen({ navigation }) {
                   ef.fieldRow,
                   { borderTopWidth: 1, borderTopColor: C.border },
                 ]}
+                ref={(el) => {
+                  fieldRefs.current["address_line"] = el;
+                }}
               >
                 <View style={[ef.fieldIcon, { backgroundColor: C.navyLight }]}>
                   <Ionicons name="pin-outline" size={15} color={C.navy} />
@@ -3617,7 +3686,7 @@ export default function ProfileScreen({ navigation }) {
         visible={showPhotoModal}
         animationType="slide"
         transparent
-        onShow={() => NavigationBar.setVisibilityAsync("hidden")}
+       
       >
         <View style={st.photoOverlay}>
           <View style={st.photoSheet}>

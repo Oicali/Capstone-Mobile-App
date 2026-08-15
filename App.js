@@ -103,8 +103,8 @@ function MainTabs() {
           // padding — looking cut off. A 16px floor restores breathing
           // room while still respecting a larger inset (e.g. iPhone home
           // indicator) when one is present.
-          height: 55 + Math.max(insets.bottom, 16),
-          paddingBottom: Math.max(insets.bottom, 16),
+          height: 55 + Math.max(insets.bottom, 50),
+          paddingBottom: Math.max(insets.bottom, 50),
           paddingTop: 8,
           backgroundColor: "#FFFFFF",
           borderTopWidth: 1,
@@ -198,19 +198,6 @@ export default function App() {
 
   useEffect(() => {
     if (Platform.OS === "android") {
-      NavigationBar.setVisibilityAsync("hidden");
-      NavigationBar.setBehaviorAsync("inset-touch");
-
-      const sub = NavigationBar.addVisibilityListener(({ visibility }) => {
-        if (visibility === "visible") {
-          // Small delay so touches are not blocked
-          setTimeout(() => {
-            NavigationBar.setVisibilityAsync("hidden");
-          }, 300);
-        }
-      });
-
-      return () => sub.remove();
     }
   }, []);
 
