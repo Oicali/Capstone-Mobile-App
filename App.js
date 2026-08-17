@@ -103,8 +103,8 @@ function MainTabs() {
           // padding — looking cut off. A 16px floor restores breathing
           // room while still respecting a larger inset (e.g. iPhone home
           // indicator) when one is present.
-          height: 55 + Math.max(insets.bottom, 50),
-          paddingBottom: Math.max(insets.bottom, 50),
+          height: 55 + Math.max(insets.bottom, 25),
+          paddingBottom: Math.max(insets.bottom, 25),
           paddingTop: 8,
           backgroundColor: "#FFFFFF",
           borderTopWidth: 1,
