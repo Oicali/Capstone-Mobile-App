@@ -3797,10 +3797,12 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
   const [selected, setSelected] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (visible) {
       setSelected([]);
+      setSearch("");
       (async () => {
         setLoading(true);
         const data = await api("/blotters/patrols");
@@ -3812,6 +3814,13 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
 
   if (!visible) return null;
 
+  const filteredPatrols = patrols.filter((p) => {
+    if (!search.trim()) return true;
+    const q = search.trim().toLowerCase();
+    const fullName = `${p.first_name || ""} ${p.last_name || ""}`.toLowerCase();
+    return fullName.includes(q) || (p.email || "").toLowerCase().includes(q);
+  });
+
   const toggle = (id) =>
     setSelected((p) =>
       p.includes(id) ? p.filter((x) => x !== id) : [...p, id],
@@ -3819,7 +3828,9 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
 
   const toggleAll = () =>
     setSelected(
-      selected.length === patrols.length ? [] : patrols.map((p) => p.user_id),
+      selected.length === filteredPatrols.length
+        ? []
+        : filteredPatrols.map((p) => p.user_id),
     );
 
   const submit = async () => {
@@ -3884,6 +3895,40 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
           </View>
 
           <View style={{ backgroundColor: C.bg, padding: 16 }}>
+            {!loading && patrols.length > 0 && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  backgroundColor: C.white,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 9,
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  marginBottom: 12,
+                }}
+              >
+                <Ionicons name="search-outline" size={15} color={C.muted} />
+                <TextInput
+                  style={{ flex: 1, fontSize: 14, color: C.text }}
+                  placeholder="Search officer name or email…"
+                  placeholderTextColor={C.faint}
+                  value={search}
+                  onChangeText={setSearch}
+                  autoCorrect={false}
+                />
+                {search.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setSearch("")}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close-circle" size={15} color={C.muted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
             {loading ? (
               <View style={{ padding: 30, alignItems: "center" }}>
                 <ActivityIndicator color={C.navyMid} />
@@ -3893,6 +3938,13 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
                 <Ionicons name="people-outline" size={32} color={C.muted} />
                 <Text style={{ color: C.muted, marginTop: 8 }}>
                   No patrol officers found
+                </Text>
+              </View>
+            ) : filteredPatrols.length === 0 ? (
+              <View style={{ padding: 30, alignItems: "center" }}>
+                <Ionicons name="search-outline" size={32} color={C.muted} />
+                <Text style={{ color: C.muted, marginTop: 8 }}>
+                  No officers match "{search}"
                 </Text>
               </View>
             ) : (
@@ -3911,7 +3963,7 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
                 >
                   <Ionicons
                     name={
-                      selected.length === patrols.length
+                      selected.length === filteredPatrols.length
                         ? "checkbox"
                         : "square-outline"
                     }
@@ -3926,7 +3978,7 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
                       color: C.text,
                     }}
                   >
-                    Select All
+                    Select All{search ? ` (${filteredPatrols.length} shown)` : ""}
                   </Text>
                   <Text
                     style={{
@@ -3942,9 +3994,10 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
                   </Text>
                 </TouchableOpacity>
                 <FlatList
-                  data={patrols}
+                  data={filteredPatrols}
                   keyExtractor={(item) => String(item.user_id)}
                   style={{ maxHeight: 320 }}
+                  keyboardShouldPersistTaps="handled"
                   renderItem={({ item }) => {
                     const isSel = selected.includes(item.user_id);
                     return (

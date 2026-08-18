@@ -1314,6 +1314,15 @@ const onToDateChange = useCallback(
 );
 
 const isPatrol = userRole === "Patrol";
+const isBarangayUser = userRole === "Barangay Official";
+const isInvestigator = userRole === "Investigator";
+
+useEffect(() => {
+  if ((isBarangayUser || isInvestigator) && activeTab === "officers") {
+    setActiveTab("legend");
+  }
+}, [isBarangayUser, isInvestigator, activeTab]);
+
 const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
   const dayCount =
     Math.round(
@@ -1890,6 +1899,9 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
                 key: "incidence",
                 label: heatmapMode ? "Clusters" : "Incidence",
               },
+              ...(!isBarangayUser && !isInvestigator
+                ? [{ key: "officers", label: "Patrol" }]
+                : []),
             ].map((tab) => (
               <TouchableOpacity
                 key={tab.key}
@@ -1915,8 +1927,9 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
             style={styles.sidebarBody}
             showsVerticalScrollIndicator={false}
           >
-            {/* ── COMBINED FILTERS ── */}
-
+            {/* ── COMBINED FILTERS (hidden on Patrol tab) ── */}
+            {activeTab !== "officers" && (
+            <>
             {/* Date section */}
             <View style={styles.dateFilterRow}>
               <TouchableOpacity
@@ -2097,6 +2110,8 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
                 <Text style={styles.clearDateBtnText}>Reset All</Text>
               </TouchableOpacity>
             </View>
+            </>
+            )}
 
             {/* ── LEGEND TAB ── */}
             {activeTab === "legend" && (
@@ -2322,6 +2337,83 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
                       </Text>
                     );
                   })()
+                )}
+              </View>
+            )}
+
+            {/* ── PATROL (ONLINE OFFICERS) TAB ── */}
+            {activeTab === "officers" && (
+              <View style={styles.tabContent}>
+                {officers.length === 0 ? (
+                  <Text style={styles.emptyText}>
+                    No officers currently online.
+                  </Text>
+                ) : (
+                  officers.map((officer) => {
+                    const photoUri = officer.profile_picture
+                      ? officer.profile_picture.startsWith("http")
+                        ? officer.profile_picture
+                        : `${API}${officer.profile_picture}`
+                      : null;
+                    const initials =
+                      (
+                        (officer.first_name?.[0] || "") +
+                        (officer.last_name?.[0] || "")
+                      ).toUpperCase() ||
+                      officer.initials ||
+                      "??";
+                    const displayName = officer.abbreviation
+                      ? `${officer.abbreviation}. ${officer.first_name || ""} ${officer.last_name || ""}`.trim()
+                      : `${officer.first_name || ""} ${officer.last_name || ""}`.trim() ||
+                        officer.username;
+
+                    return (
+                      <TouchableOpacity
+                        key={officer.user_id}
+                        style={styles.officerListRow}
+                        onPress={() => {
+                          cameraRef.current?.setCamera({
+                            centerCoordinate: [
+                              parseFloat(officer.longitude),
+                              parseFloat(officer.latitude),
+                            ],
+                            zoomLevel: 16,
+                            animationDuration: 800,
+                          });
+                          setShowSidebar(false);
+                        }}
+                      >
+                        <View style={styles.officerListAvatar}>
+                          {photoUri ? (
+                            <Image
+                              source={{ uri: photoUri }}
+                              style={{ width: "100%", height: "100%" }}
+                            />
+                          ) : (
+                            <Text style={styles.officerListInitials}>
+                              {initials}
+                            </Text>
+                          )}
+                        </View>
+
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={styles.officerListName} numberOfLines={1}>
+                            {displayName || "Officer"}
+                          </Text>
+                          <Text style={styles.officerListRole} numberOfLines={1}>
+                            {officer.role_name}
+                          </Text>
+                        </View>
+
+                        <View style={styles.officerListOnlineBadge}>
+                          <View style={styles.officerListOnlineDot} />
+                          <Text style={styles.officerListOnlineText}>
+                            ONLINE
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })
                 )}
               </View>
             )}
@@ -3007,6 +3099,68 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     fontSize: 13,
     paddingVertical: 24,
+  },
+
+  officerListRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 10,
+    backgroundColor: "rgba(29,78,216,0.04)",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(29,78,216,0.15)",
+    borderLeftWidth: 3,
+    borderLeftColor: "#1d4ed8",
+    marginBottom: 8,
+  },
+  officerListAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: "#1d4ed8",
+    backgroundColor: "#dbeafe",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    flexShrink: 0,
+  },
+  officerListInitials: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1d4ed8",
+  },
+  officerListName: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  officerListRole: {
+    fontSize: 11,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  officerListOnlineBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    flexShrink: 0,
+  },
+  officerListOnlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#22c55e",
+  },
+  officerListOnlineText: {
+    fontSize: 9,
+    color: "#16a34a",
+    fontWeight: "700",
   },
 });
 
