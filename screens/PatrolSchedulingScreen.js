@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL;
 
@@ -39,6 +40,12 @@ const formatDate = (d) => {
     year: "numeric",
   });
 };
+
+const isoDate = (iso) => (iso ? new Date(iso + "T00:00:00") : new Date());
+const fmtISODate = (d) =>
+  d
+    ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+    : "";
 
 const getPatrolStatus = (patrol) => {
   const t = today();
@@ -177,6 +184,140 @@ const FilterPill = ({ label, active, onPress }) => (
     </Text>
   </TouchableOpacity>
 );
+
+// ── Date Picker Button ───────────────────────────────────────────
+const DatePickerBtn = React.memo(function DatePickerBtn({
+  label,
+  value,
+  onChange,
+  minimumDate,
+  maximumDate,
+}) {
+  const [show, setShow] = useState(false);
+  const [temp, setTemp] = useState(new Date());
+  const maxISO = fmtISODate(maximumDate);
+  const minISO = minimumDate ? fmtISODate(minimumDate) : undefined;
+  const disp = value
+    ? (() => {
+        const d = isoDate(value);
+        return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
+      })()
+    : "";
+
+  if (Platform.OS === "web")
+    return (
+      <View style={{ flex: 1 }}>
+        <Text style={dpStyles.lbl}>{label}</Text>
+        <input
+          type="date"
+          value={value || ""}
+          min={minISO}
+          max={maxISO}
+          style={{
+            height: 40,
+            padding: "0 10px",
+            border: "1px solid #dee2e6",
+            borderRadius: 8,
+            fontSize: 13,
+            fontFamily: "inherit",
+            color: "#111827",
+            background: "#ffffff",
+            outline: "none",
+            colorScheme: "light",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
+          onChange={(e) => {
+            if (e.target.value) {
+              const p = e.target.value.split("-");
+              onChange(
+                new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2])),
+              );
+            }
+          }}
+        />
+      </View>
+    );
+
+  if (Platform.OS === "ios")
+    return (
+      <View style={{ flex: 1 }}>
+        <Text style={dpStyles.lbl}>{label}</Text>
+        <TouchableOpacity
+          style={dpStyles.btn}
+          onPress={() => {
+            setTemp(value ? isoDate(value) : new Date());
+            setShow(true);
+          }}
+        >
+          <Text style={[dpStyles.btnTxt, !value && { color: "#adb5bd" }]}>
+            {disp || "Select date"}
+          </Text>
+          <Ionicons name="calendar-outline" size={15} color="#6b7280" />
+        </TouchableOpacity>
+        {show && (
+          <Modal visible transparent animationType="slide">
+            <View style={dpStyles.iosOv}>
+              <View style={dpStyles.iosSh}>
+                <View style={dpStyles.iosHdr}>
+                  <TouchableOpacity onPress={() => setShow(false)}>
+                    <Text style={dpStyles.iosCan}>Cancel</Text>
+                  </TouchableOpacity>
+                  <Text style={dpStyles.iosTit}>{label}</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      onChange(temp);
+                      setShow(false);
+                    }}
+                  >
+                    <Text style={dpStyles.iosDone}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={temp}
+                  mode="date"
+                  display="spinner"
+                  onChange={(_, d) => d && setTemp(d)}
+                  minimumDate={minimumDate}
+                  maximumDate={maximumDate}
+                />
+              </View>
+            </View>
+          </Modal>
+        )}
+      </View>
+    );
+
+  const androidValue = React.useMemo(
+    () => (value ? isoDate(value) : new Date()),
+    [value],
+  );
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={dpStyles.lbl}>{label}</Text>
+      <TouchableOpacity style={dpStyles.btn} onPress={() => setShow(true)}>
+        <Text style={[dpStyles.btnTxt, !value && { color: "#adb5bd" }]}>
+          {disp || "Select date"}
+        </Text>
+        <Ionicons name="calendar-outline" size={15} color="#6b7280" />
+      </TouchableOpacity>
+      {show && (
+        <DateTimePicker
+          value={androidValue}
+          mode="date"
+          display="calendar"
+          onChange={(e, d) => {
+            setShow(false);
+            if (e.type !== "dismissed" && d) onChange(d);
+          }}
+          minimumDate={minimumDate}
+          maximumDate={maximumDate}
+        />
+      )}
+    </View>
+  );
+});
 
 // ── Empty State ───────────────────────────────────────────────────
 const EmptyState = ({ filtered }) => (
@@ -351,27 +492,19 @@ export default function PatrolSchedulingScreen({ navigation }) {
 
         {/* ── Date range filter ── */}
         <View style={styles.dateRangeRow}>
-          <View style={styles.dateRangeField}>
-            <Text style={styles.dateRangeLabel}>From</Text>
-            <TextInput
-              style={styles.dateRangeInput}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#adb5bd"
-              value={dateFrom}
-              onChangeText={setDateFrom}
-            />
-          </View>
-          <Ionicons name="arrow-forward" size={14} color="#adb5bd" style={{ marginTop: 16 }} />
-          <View style={styles.dateRangeField}>
-            <Text style={styles.dateRangeLabel}>To</Text>
-            <TextInput
-              style={styles.dateRangeInput}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#adb5bd"
-              value={dateTo}
-              onChangeText={setDateTo}
-            />
-          </View>
+          <DatePickerBtn
+            label="From"
+            value={dateFrom}
+            onChange={(d) => setDateFrom(fmtISODate(d))}
+            maximumDate={dateTo ? isoDate(dateTo) : undefined}
+          />
+          <Ionicons name="arrow-forward" size={14} color="#adb5bd" style={{ marginTop: 30 }} />
+          <DatePickerBtn
+            label="To"
+            value={dateTo}
+            onChange={(d) => setDateTo(fmtISODate(d))}
+            minimumDate={dateFrom ? isoDate(dateFrom) : undefined}
+          />
         </View>
 
         {/* ── Filter Pills ── */}
@@ -683,4 +816,50 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
+});
+
+const dpStyles = StyleSheet.create({
+  lbl: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#adb5bd",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  btn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    height: 40,
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 10,
+  },
+  btnTxt: { fontSize: 13, color: "#111827", flex: 1 },
+  iosOv: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  iosSh: {
+    backgroundColor: "#ffffff",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 34,
+  },
+  iosHdr: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e9ecef",
+  },
+  iosCan: { fontSize: 15, color: "#6b7280", fontWeight: "600" },
+  iosTit: { fontSize: 15, fontWeight: "700", color: "#0a285c" },
+  iosDone: { fontSize: 15, color: "#1e3a5f", fontWeight: "700" },
 });

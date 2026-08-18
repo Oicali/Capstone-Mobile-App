@@ -1491,15 +1491,15 @@ const styles = StyleSheet.create({
   readOnlyText: { fontSize: 13, color: "#495057", flex: 1 },
 
   // Toggle field
-  toggleWrap: { gap: 5 },
+  toggleWrap: { gap: 5, flex: 1 },
   toggleHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
-  addFieldBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 6, borderWidth: 1, borderStyle: "dashed", borderColor: "#93afc9",
-    backgroundColor: "rgba(30,58,95,0.04)", alignSelf: "flex-start",
-  },
-  addFieldText:   { fontSize: 12, fontWeight: "700", color: "#1e3a5f" },
+addFieldBtn: {
+  flexDirection: "row", alignItems: "center", gap: 6,
+  paddingHorizontal: 12, paddingVertical: 8,
+  borderRadius: 6, borderWidth: 1, borderStyle: "dashed", borderColor: "#93afc9",
+  backgroundColor: "rgba(30,58,95,0.04)", alignSelf: "stretch",
+},
+  addFieldText:   { fontSize: 12, fontWeight: "700", color: "#1e3a5f", flexShrink: 1, flexWrap: "wrap" },
   removeFieldBtn: { fontSize: 11, fontWeight: "600", color: "#dc2626" },
 
   // Time button
