@@ -1812,8 +1812,8 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
 )}
 
       {/* CRIME PIN POPUP */}
-      {!heatmapMode && selectedPin && (
-        <View style={[styles.popup, { bottom: TAB_BAR_HEIGHT }]}>
+     {!heatmapMode && selectedPin && (
+        <View style={[styles.popup, { bottom: TAB_BAR_HEIGHT + 20, maxHeight: '65%' }]}>
           <View
             style={[
               styles.popupHeader,
@@ -1834,7 +1834,7 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
               <Ionicons name="close" size={18} color="#ffffff" />
             </TouchableOpacity>
           </View>
-          <View style={styles.popupBody}>
+          <ScrollView style={styles.popupBody} showsVerticalScrollIndicator={false}>
             {[
               ["Blotter #", selectedPin.blotter_entry_number],
               ["Barangay", selectedPin.place_barangay],
@@ -1863,7 +1863,7 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
                   </Text>
                 </View>
               ))}
-            <TouchableOpacity
+                     <TouchableOpacity
               style={styles.popupToggleBtn}
               onPress={() => setShowMorePopup((v) => !v)}
             >
@@ -1871,7 +1871,7 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
                 {showMorePopup ? "▲ View Less" : "▼ View More"}
               </Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
       )}
 
@@ -2741,7 +2741,7 @@ const styles = StyleSheet.create({
   confirmOkText: { color: "#ffffff", fontWeight: "700", fontSize: 14 },
 
   // Crime/cluster popup (bottom sheet)
-  popup: {
+ popup: {
     position: "absolute",
     bottom: 0,
     left: 0,
@@ -2754,6 +2754,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 10,
+    zIndex: 999,
   },
   popupHeader: {
     flexDirection: "row",
@@ -2771,7 +2772,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  popupBody: { padding: 16, gap: 8 },
+ popupBody: { padding: 16, paddingBottom: 24, gap: 8, flexShrink: 1 },
   popupRow: {
     flexDirection: "row",
     justifyContent: "space-between",
