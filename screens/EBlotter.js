@@ -6768,7 +6768,7 @@ export default function EBlotterScreen() {
         {/* Report Tabs */}
         <View style={ml.tabRow}>
           {[
-            { key: "reports", label: "My Reports" },
+            { key: "reports", label: "Reports" },
             { key: "referred", label: "Referred By:" },
           ].map((tab) => (
             <TouchableOpacity
