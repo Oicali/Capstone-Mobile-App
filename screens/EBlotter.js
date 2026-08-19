@@ -5086,7 +5086,7 @@ const AttachmentPanel = memo(function AttachmentPanel({
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN SCREEN
 ═══════════════════════════════════════════════════════════════════════════ */
-export default function EBlotterScreen() {
+export default function EBlotterScreen({ navigation, route }) {
   const { regions, loadingR, getProvinces, getCities, getBarangays } =
     usePSGC();
 
@@ -5467,6 +5467,15 @@ export default function EBlotterScreen() {
     },
     [api],
   );
+
+  /* ── Deep-link: open a specific blotter's view when navigated here with a param ── */
+  useEffect(() => {
+    const openId = route?.params?.openBlotterId;
+    if (openId) {
+      handleView(openId);
+      navigation.setParams({ openBlotterId: undefined });
+    }
+  }, [route?.params?.openBlotterId]);
 
   /* ── Edit ─────────────────────────────────────────────────────────────── */
   const handleEdit = useCallback(

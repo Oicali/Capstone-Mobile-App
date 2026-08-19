@@ -244,11 +244,24 @@ useFocusEffect(
     fetchNotifs();
   }, [])
 );
-const handleMarkOne = (notif) => {
-    if (notif.is_read) return;
-    setNotifs((prev) => prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n)));
-    setUnread((prev) => Math.max(0, prev - 1));
-    markNotificationRead(notif.id).catch(console.error);
+const LINK_TO_TAB = {
+    "/e-blotter": "Reporting",
+    "/brgy-report": "Reporting",
+    "/case-management": "Dashboard",
+    "/patrol-scheduling": "Assignments",
+  };
+
+  const handleMarkOne = (notif) => {
+    if (!notif.is_read) {
+      setNotifs((prev) => prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n)));
+      setUnread((prev) => Math.max(0, prev - 1));
+      markNotificationRead(notif.id).catch(console.error);
+    }
+
+    const tab = LINK_TO_TAB[notif.link_to];
+    if (tab) {
+      navigation.navigate("Main", { screen: tab });
+    }
   };
 
   const handleMarkAll = () => {

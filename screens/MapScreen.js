@@ -93,8 +93,7 @@ const getDisplayCoordinate = (officerCoord, myCoord, seedId, zoom) => {
   const [myLng, myLat] = myCoord;
   const mpp = metersPerPixel(myLat, z);
 
-  const dLngMeters =
-    (lng - myLng) * 111320 * Math.cos((myLat * Math.PI) / 180);
+  const dLngMeters = (lng - myLng) * 111320 * Math.cos((myLat * Math.PI) / 180);
   const dLatMeters = (lat - myLat) * 110540;
   const distPx =
     Math.sqrt(dLngMeters * dLngMeters + dLatMeters * dLatMeters) / mpp;
@@ -187,7 +186,10 @@ const LEGACY_OPTIONS = [
   { label: "Tabing Dagat (→ Kaingin Pob.)", value: "KAINGIN (POB.)" },
   { label: "Kaingin (→ Kaingin Digman)", value: "KAINGIN DIGMAN" },
   { label: "Digman (→ Kaingin Digman)", value: "KAINGIN DIGMAN" },
-  { label: "Panapaan (→ P.F. Espiritu I)", value: "P.F. ESPIRITU I (PANAPAAN)" },
+  {
+    label: "Panapaan (→ P.F. Espiritu I)",
+    value: "P.F. ESPIRITU I (PANAPAAN)",
+  },
   { label: "Panapaan 2 (→ P.F. Espiritu II)", value: "P.F. ESPIRITU II" },
   { label: "Panapaan 4 (→ P.F. Espiritu IV)", value: "P.F. ESPIRITU IV" },
   { label: "Panapaan 5 (→ P.F. Espiritu V)", value: "P.F. ESPIRITU V" },
@@ -250,7 +252,18 @@ const formatTime = (d) => {
 
 const formatBarangayLabel = (name) => {
   const ROMAN = new Set([
-    "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII",
+    "I",
+    "II",
+    "III",
+    "IV",
+    "V",
+    "VI",
+    "VII",
+    "VIII",
+    "IX",
+    "X",
+    "XI",
+    "XII",
   ]);
   return name.toLowerCase().replace(/\b\w+/g, (word) => {
     const upper = word.toUpperCase();
@@ -269,10 +282,18 @@ const fmtISODate = (d) =>
     ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
     : "";
 
-
 const CRIME_ICONS = {
   MURDER: ({ color, size = 14 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M12 2 L15 8 L12 22 L9 8 Z" fill={color} fillOpacity="0.25" />
       <Line x1="12" y1="2" x2="12" y2="18" />
       <Line x1="7" y1="8" x2="17" y2="8" />
@@ -280,7 +301,16 @@ const CRIME_ICONS = {
     </Svg>
   ),
   HOMICIDE: ({ color, size = 14 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M12 3a7 7 0 0 1 7 7c0 3.5-2 5.5-2.5 7H7.5C7 17.5 5 15.5 5 10a7 7 0 0 1 7-7z" />
       <Line x1="9" y1="21" x2="9" y2="17" />
       <Line x1="15" y1="21" x2="15" y2="17" />
@@ -290,7 +320,16 @@ const CRIME_ICONS = {
     </Svg>
   ),
   "PHYSICAL INJURY": ({ color, size = 14 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Rect x="3" y="3" width="18" height="18" rx="3" />
       <Line x1="12" y1="8" x2="12" y2="16" />
       <Line x1="8" y1="12" x2="16" y2="12" />
@@ -298,27 +337,63 @@ const CRIME_ICONS = {
   ),
   "PHYSICAL INJURIES": (props) => CRIME_ICONS["PHYSICAL INJURY"](props),
   RAPE: ({ color, size = 14 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M12 3L4 6v6c0 5 4 8 8 9 4-1 8-4 8-9V6z" />
       <Line x1="9" y1="9" x2="15" y2="15" />
       <Line x1="15" y1="9" x2="9" y2="15" />
     </Svg>
   ),
   ROBBERY: ({ color, size = 14 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Line x1="12" y1="2" x2="12" y2="22" />
       <Path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
     </Svg>
   ),
   THEFT: ({ color, size = 14 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M6 9V7a6 6 0 0 1 12 0v2" />
       <Rect x="3" y="9" width="18" height="12" rx="3" />
       <Circle cx="12" cy="15" r="2" />
     </Svg>
   ),
   "CARNAPPING - MC": ({ color, size = 14 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Circle cx="5.5" cy="17" r="2.5" />
       <Circle cx="18.5" cy="17" r="2.5" />
       <Path d="M8 17h7" />
@@ -328,7 +403,16 @@ const CRIME_ICONS = {
     </Svg>
   ),
   "CARNAPPING - MV": ({ color, size = 14 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M3 11l2-5h14l2 5" />
       <Rect x="2" y="11" width="20" height="5" rx="1" />
       <Circle cx="6.5" cy="16" r="2" />
@@ -338,7 +422,16 @@ const CRIME_ICONS = {
     </Svg>
   ),
   "SPECIAL COMPLEX CRIME": ({ color, size = 14 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
       <Line x1="12" y1="9" x2="12" y2="13" />
       <Line x1="12" y1="17" x2="12.01" y2="17" />
@@ -483,7 +576,16 @@ const DatePickerBtn = React.memo(function DatePickerBtn({
   );
 });
 
-function MultiSelect({ visible, title, items, legacy, selected, searchable, onClose, onApply }) {
+function MultiSelect({
+  visible,
+  title,
+  items,
+  legacy,
+  selected,
+  searchable,
+  onClose,
+  onApply,
+}) {
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState([]);
   const [search, setSearch] = useState("");
@@ -573,7 +675,10 @@ function MultiSelect({ visible, title, items, legacy, selected, searchable, onCl
             )}
           </View>
 
-          <ScrollView style={msStyles.list} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={msStyles.list}
+            showsVerticalScrollIndicator={false}
+          >
             {filt.map((item, i) => {
               const value = typeof item === "string" ? item : item.value;
               const label = typeof item === "string" ? item : item.label;
@@ -685,8 +790,9 @@ const OfficerAvatar = React.memo(function OfficerAvatar({ officer, onPress }) {
   const hasPhoto = !!photoUri && !imgError;
 
   const initials =
-    ((officer.first_name?.[0] || "") + (officer.last_name?.[0] || "")).toUpperCase() ||
-    "?";
+    (
+      (officer.first_name?.[0] || "") + (officer.last_name?.[0] || "")
+    ).toUpperCase() || "?";
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
@@ -707,8 +813,8 @@ const OfficerAvatar = React.memo(function OfficerAvatar({ officer, onPress }) {
 
 export default function MapScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  // Tab bar height = 55 + bottom inset (matches App.js tabBarStyle)
-  const TAB_BAR_HEIGHT = 55 + insets.bottom;
+  // Tab bar height = 55 + bottom inset, floored at 25 (matches App.js tabBarStyle exactly)
+  const TAB_BAR_HEIGHT = 25 + Math.max(insets.bottom);
   const watchRef = useRef(null);
   const intervalRef = useRef(null);
   const lastCoords = useRef(null);
@@ -722,13 +828,13 @@ export default function MapScreen({ navigation }) {
   const defaultDateFrom = getPHTOneYearAgo();
   const defaultDateTo = getPHTToday();
 
-const [filterDateFrom, setFilterDateFrom] = useState(defaultDateFrom);
+  const [filterDateFrom, setFilterDateFrom] = useState(defaultDateFrom);
   const [filterDateTo, setFilterDateTo] = useState(defaultDateTo);
   const [appliedDateFrom, setAppliedDateFrom] = useState(defaultDateFrom);
   const [appliedDateTo, setAppliedDateTo] = useState(defaultDateTo);
   const [showDateFilter, setShowDateFilter] = useState(false);
 
-// ── Crime type filter ─────────────────────────────────────
+  // ── Crime type filter ─────────────────────────────────────
   const [filterIncidentTypes, setFilterIncidentTypes] = useState([]);
   const [appliedIncidentTypes, setAppliedIncidentTypes] = useState([]);
   const [showCrimeTypeFilter, setShowCrimeTypeFilter] = useState(false);
@@ -743,7 +849,7 @@ const [filterDateFrom, setFilterDateFrom] = useState(defaultDateFrom);
   const [heatmapMode, setHeatmapMode] = useState(false);
   const [heatGeoJSON, setHeatGeoJSON] = useState(null);
   const [clusterGeoJSON, setClusterGeoJSON] = useState(null);
-const [heatLoading, setHeatLoading] = useState(false);
+  const [heatLoading, setHeatLoading] = useState(false);
   const [selectedCluster, setSelectedCluster] = useState(null);
   const [mapZoom, setMapZoom] = useState(12);
   const [selectedOfficer, setSelectedOfficer] = useState(null);
@@ -770,79 +876,79 @@ const [heatLoading, setHeatLoading] = useState(false);
   const [patrolAssignedBarangays, setPatrolAssignedBarangays] = useState([]);
   const [patrolAssignmentLoading, setPatrolAssignmentLoading] = useState(true);
 
-const [styleReady, setStyleReady] = useState(false);
+  const [styleReady, setStyleReady] = useState(false);
 
-// Get user role on mount
-useEffect(() => {
-  const getUserRole = async () => {
-    try {
-      const userStr = await AsyncStorage.getItem("auth_user");
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        setUserRole(user?.role || user?.role_name);
-      } else {
-        setUserRole(""); // no user found — resolve so patrol check doesn't hang forever
-      }
-    } catch (err) {
-      console.warn("[Map] Failed to get user role:", err.message);
-      setUserRole("");
-    }
-  };
-  getUserRole();
-}, []);
-
-// Check today's patrol assignment — mirrors PatrollerScheduleScreen's logic.
-// If the patrol user has an ongoing schedule today, lock the barangay filter
-// to their assigned barangays. Admin/tech-admin/no-schedule → see everything.
-useEffect(() => {
-  if (userRole === null) return; // still resolving role, wait
-  if (userRole !== "Patrol") {
-    setPatrolAssignmentLoading(false);
-    return;
-  }
-
-  const checkPatrolAssignment = async () => {
-    try {
-      const token = await AsyncStorage.getItem("auth_token");
-      const res = await fetch(`${API}/patrol/my-patrols`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        const today = new Date().toISOString().split("T")[0];
-        const ongoingPatrol = data.data.find(
-          (p) => p.start_date <= today && p.end_date >= today,
-        );
-
-        if (ongoingPatrol) {
-          const assignedBarangays = [
-            ...new Set(
-              (ongoingPatrol.routes || [])
-                .filter((r) => (r.stop_order || 0) <= 0 && r.barangay)
-                .map((r) => r.barangay),
-            ),
-          ];
-          setHasPatrolAssignment(true);
-          setPatrolAssignedBarangays(assignedBarangays);
-          setFilterBarangays(assignedBarangays);
-          setAppliedBarangays(assignedBarangays);
+  // Get user role on mount
+  useEffect(() => {
+    const getUserRole = async () => {
+      try {
+        const userStr = await AsyncStorage.getItem("auth_user");
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          setUserRole(user?.role || user?.role_name);
         } else {
-          setHasPatrolAssignment(false);
-          setPatrolAssignedBarangays([]);
+          setUserRole(""); // no user found — resolve so patrol check doesn't hang forever
         }
+      } catch (err) {
+        console.warn("[Map] Failed to get user role:", err.message);
+        setUserRole("");
       }
-    } catch (err) {
-      console.warn("[Map] patrol assignment check failed:", err.message);
-      setHasPatrolAssignment(false);
-      setPatrolAssignedBarangays([]);
-    } finally {
-      setPatrolAssignmentLoading(false);
-    }
-  };
+    };
+    getUserRole();
+  }, []);
 
-  checkPatrolAssignment();
-}, [userRole]);
+  // Check today's patrol assignment — mirrors PatrollerScheduleScreen's logic.
+  // If the patrol user has an ongoing schedule today, lock the barangay filter
+  // to their assigned barangays. Admin/tech-admin/no-schedule → see everything.
+  useEffect(() => {
+    if (userRole === null) return; // still resolving role, wait
+    if (userRole !== "Patrol") {
+      setPatrolAssignmentLoading(false);
+      return;
+    }
+
+    const checkPatrolAssignment = async () => {
+      try {
+        const token = await AsyncStorage.getItem("auth_token");
+        const res = await fetch(`${API}/patrol/my-patrols`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          const today = new Date().toISOString().split("T")[0];
+          const ongoingPatrol = data.data.find(
+            (p) => p.start_date <= today && p.end_date >= today,
+          );
+
+          if (ongoingPatrol) {
+            const assignedBarangays = [
+              ...new Set(
+                (ongoingPatrol.routes || [])
+                  .filter((r) => (r.stop_order || 0) <= 0 && r.barangay)
+                  .map((r) => r.barangay),
+              ),
+            ];
+            setHasPatrolAssignment(true);
+            setPatrolAssignedBarangays(assignedBarangays);
+            setFilterBarangays(assignedBarangays);
+            setAppliedBarangays(assignedBarangays);
+          } else {
+            setHasPatrolAssignment(false);
+            setPatrolAssignedBarangays([]);
+          }
+        }
+      } catch (err) {
+        console.warn("[Map] patrol assignment check failed:", err.message);
+        setHasPatrolAssignment(false);
+        setPatrolAssignedBarangays([]);
+      } finally {
+        setPatrolAssignmentLoading(false);
+      }
+    };
+
+    checkPatrolAssignment();
+  }, [userRole]);
 
   // ── GeoJSON ──────────────────────────────────────────────
   useEffect(() => {
@@ -860,36 +966,36 @@ useEffect(() => {
     })();
   }, []);
 
-useEffect(() => {
-  if (!rawGeoJSON || !boundaries.length) return;
-  const lookup = {};
-  boundaries.forEach((b) => {
-    lookup[b.name_kml] = b.crime_count > 0 ? b.color : "#ffffff";
-  });
-  setGeoJSON({
-    ...rawGeoJSON,
-    features: rawGeoJSON.features.map((f) => {
-      const known = f.properties.name_kml in lookup;
-      const isSelected =
-        !appliedBarangays.length ||
-        appliedBarangays.includes(f.properties.name_db);
-      return {
-        ...f,
-        properties: {
-          ...f.properties,
-          fillColor: heatmapMode
-            ? "rgba(255,255,255,0.0)"
-            : !isSelected
-              ? "#e5e7eb" // faded grey for unselected barangays
-              : known
-                ? lookup[f.properties.name_kml]
-                : "#9ca3af",
-          isSelected,
-        },
-      };
-    }),
-  });
-}, [rawGeoJSON, boundaries, heatmapMode, appliedBarangays]);
+  useEffect(() => {
+    if (!rawGeoJSON || !boundaries.length) return;
+    const lookup = {};
+    boundaries.forEach((b) => {
+      lookup[b.name_kml] = b.crime_count > 0 ? b.color : "#ffffff";
+    });
+    setGeoJSON({
+      ...rawGeoJSON,
+      features: rawGeoJSON.features.map((f) => {
+        const known = f.properties.name_kml in lookup;
+        const isSelected =
+          !appliedBarangays.length ||
+          appliedBarangays.includes(f.properties.name_db);
+        return {
+          ...f,
+          properties: {
+            ...f.properties,
+            fillColor: heatmapMode
+              ? "rgba(255,255,255,0.0)"
+              : !isSelected
+                ? "#e5e7eb" // faded grey for unselected barangays
+                : known
+                  ? lookup[f.properties.name_kml]
+                  : "#9ca3af",
+            isSelected,
+          },
+        };
+      }),
+    });
+  }, [rawGeoJSON, boundaries, heatmapMode, appliedBarangays]);
 
   // ── GPS helpers ───────────────────────────────────────────
   const pushLocation = useCallback(async () => {
@@ -931,109 +1037,111 @@ useEffect(() => {
     }
   }, []);
 
-const stopTracking = useCallback(async () => {
-  //console.log("[GPS] stopTracking called", new Error().stack);   // ← add this line
-  // Stop foreground watcher
-  if (watchRef.current) {
-    watchRef.current.remove();
-    watchRef.current = null;
-  }
-  if (intervalRef.current) {
-    clearInterval(intervalRef.current);
-    intervalRef.current = null;
-  }
-  lastCoords.current = null;
-
-  // Stop background task
-  try {
-    const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
-    if (isRegistered) {
-      await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+  const stopTracking = useCallback(async () => {
+    //console.log("[GPS] stopTracking called", new Error().stack);   // ← add this line
+    // Stop foreground watcher
+    if (watchRef.current) {
+      watchRef.current.remove();
+      watchRef.current = null;
     }
-  } catch (err) {
-    console.warn("[GPS] stopLocationUpdates failed:", err.message);
-  }
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    lastCoords.current = null;
 
-  callOffDuty();
-}, [callOffDuty]);
+    // Stop background task
+    try {
+      const isRegistered =
+        await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+      if (isRegistered) {
+        await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+      }
+    } catch (err) {
+      console.warn("[GPS] stopLocationUpdates failed:", err.message);
+    }
+
+    callOffDuty();
+  }, [callOffDuty]);
 
   const startTracking = useCallback(async () => {
-  // Already tracking — bail before touching permissions/native APIs again.
-  // Repeated calls here (e.g. from rapid AppState flips while the OS
-  // permission/foreground-service dialogs settle) were re-triggering
-  // native location calls, which appears to cause further AppState
-  // churn — a feedback loop.
-  if (watchRef.current) return;
+    // Already tracking — bail before touching permissions/native APIs again.
+    // Repeated calls here (e.g. from rapid AppState flips while the OS
+    // permission/foreground-service dialogs settle) were re-triggering
+    // native location calls, which appears to cause further AppState
+    // churn — a feedback loop.
+    if (watchRef.current) return;
 
-  const { status: fg } = await Location.requestForegroundPermissionsAsync();
-  if (fg !== "granted") return;
+    const { status: fg } = await Location.requestForegroundPermissionsAsync();
+    if (fg !== "granted") return;
 
-  const { status: bg } = await Location.requestBackgroundPermissionsAsync();
-  if (bg !== "granted") {
-    console.warn("[GPS] Background permission denied — foreground only");
-  }
+    const { status: bg } = await Location.requestBackgroundPermissionsAsync();
+    if (bg !== "granted") {
+      console.warn("[GPS] Background permission denied — foreground only");
+    }
 
-  // Get initial position for camera — low accuracy for instant fix,
-  // watchPositionAsync below immediately refines it
-  try {
-    const fast = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Lowest,
-    });
-    if (isMounted.current) {
-      lastCoords.current = fast.coords;
-      setMyLocation([fast.coords.longitude, fast.coords.latitude]);
-      cameraRef.current?.setCamera({
-        centerCoordinate: [fast.coords.longitude, fast.coords.latitude],
-        zoomLevel: 15,
-        animationDuration: 800,
+    // Get initial position for camera — low accuracy for instant fix,
+    // watchPositionAsync below immediately refines it
+    try {
+      const fast = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Lowest,
+      });
+      if (isMounted.current) {
+        lastCoords.current = fast.coords;
+        setMyLocation([fast.coords.longitude, fast.coords.latitude]);
+        cameraRef.current?.setCamera({
+          centerCoordinate: [fast.coords.longitude, fast.coords.latitude],
+          zoomLevel: 15,
+          animationDuration: 800,
+        });
+      }
+    } catch (err) {
+      console.warn("[GPS] Initial fix failed:", err.message);
+    }
+
+    // Start background task only if not already running
+    const isRegistered =
+      await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+    if (!isRegistered) {
+      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+        accuracy: Location.Accuracy.BestForNavigation,
+        timeInterval: 5000,
+        distanceInterval: 0,
+        showsBackgroundLocationIndicator: true,
+        foregroundService: {
+          notificationTitle: "BANTAY GPS Active",
+          notificationBody: "Tap to open.",
+          notificationColor: "#0a285c",
+          killServiceOnDestroy: false,
+          notificationChannelName: "BANTAY Location", // must match above
+          sticky: true,
+        },
+        pausesUpdatesAutomatically: false,
+        activityType: Location.ActivityType.Other,
       });
     }
-  } catch (err) {
-    console.warn("[GPS] Initial fix failed:", err.message);
-  }
 
-  // Start background task only if not already running
-  const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
-if (!isRegistered) {
-  await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-    accuracy: Location.Accuracy.BestForNavigation,
-    timeInterval: 5000,
-    distanceInterval: 0,
-    showsBackgroundLocationIndicator: true,
-    foregroundService: {
-  notificationTitle: "BANTAY GPS Active",
-  notificationBody: "Tap to open.",
-  notificationColor: "#0a285c",
-  killServiceOnDestroy: false,
-  notificationChannelName: "BANTAY Location",  // must match above
-  sticky: true,
-},
-    pausesUpdatesAutomatically: false,
-    activityType: Location.ActivityType.Other,
-  });
-}
-
-  // Foreground watch — only for updating the dot on map while app is open
-  if (!watchRef.current) {
-    watchRef.current = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.BestForNavigation,
-        timeInterval: 2000,
-        distanceInterval: 0,
-      },
-      (loc) => {
-        lastCoords.current = loc.coords;
-        if (isMounted.current)
-          setMyLocation([loc.coords.longitude, loc.coords.latitude]);
-      },
-    );
-  }
-}, []);
+    // Foreground watch — only for updating the dot on map while app is open
+    if (!watchRef.current) {
+      watchRef.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: 2000,
+          distanceInterval: 0,
+        },
+        (loc) => {
+          lastCoords.current = loc.coords;
+          if (isMounted.current)
+            setMyLocation([loc.coords.longitude, loc.coords.latitude]);
+        },
+      );
+    }
+  }, []);
 
   // ── Data fetching ─────────────────────────────────────────
   const getToken = async () => await AsyncStorage.getItem("auth_token");
 
-const fetchMapData = useCallback(async () => {
+  const fetchMapData = useCallback(async () => {
     try {
       if (isMounted.current) setLoading(true);
       const token = await getToken();
@@ -1064,7 +1172,7 @@ const fetchMapData = useCallback(async () => {
     } finally {
       if (isMounted.current) setLoading(false);
     }
-}, [appliedDateFrom, appliedDateTo, appliedIncidentTypes, appliedBarangays]);
+  }, [appliedDateFrom, appliedDateTo, appliedIncidentTypes, appliedBarangays]);
 
   const fetchHeatmap = useCallback(async () => {
     try {
@@ -1094,19 +1202,20 @@ const fetchMapData = useCallback(async () => {
   }, [appliedDateFrom, appliedDateTo, appliedIncidentTypes, appliedBarangays]);
 
   const fetchOfficers = useCallback(async () => {
-  try {
-    const token = await getToken();
-    const res = await fetch(`${API}/gps/officers?platform=mobile`, {  // ← add this
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    if (isMounted.current && data.success) {
-      setOfficers(data.data); // self-exclusion now handled server-side, remove old filter
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/gps/officers?platform=mobile`, {
+        // ← add this
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (isMounted.current && data.success) {
+        setOfficers(data.data); // self-exclusion now handled server-side, remove old filter
+      }
+    } catch (err) {
+      console.warn("[Map] fetchOfficers error:", err.message);
     }
-  } catch (err) {
-    console.warn("[Map] fetchOfficers error:", err.message);
-  }
-}, []);
+  }, []);
 
   // ── Stable refs so the mount-only AppState listener always calls
   // the LATEST fetchMapData/startTracking/gpsEnabled, not the stale
@@ -1138,12 +1247,12 @@ const fetchMapData = useCallback(async () => {
       const prev = appStateRef.current;
       appStateRef.current = next;
       if (prev === "active" && next.match(/inactive|background/)) {
-  // GPS background task keeps running — do NOT stop it here
-  if (officerPollRef.current) {
-    clearInterval(officerPollRef.current);
-    officerPollRef.current = null;
-  }
-} else if (prev.match(/inactive|background/) && next === "active") {
+        // GPS background task keeps running — do NOT stop it here
+        if (officerPollRef.current) {
+          clearInterval(officerPollRef.current);
+          officerPollRef.current = null;
+        }
+      } else if (prev.match(/inactive|background/) && next === "active") {
         // Officer poll always resumes on foreground — cheap, idempotent
         // (guarded by the null check), and must NOT be gated by the
         // debounce below. Otherwise rapid AppState flicker (Android
@@ -1187,12 +1296,12 @@ const fetchMapData = useCallback(async () => {
     }
   }, [gpsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
-useEffect(() => {
+  useEffect(() => {
     fetchMapData();
     if (heatmapMode) fetchHeatmap();
   }, [appliedDateFrom, appliedDateTo, appliedIncidentTypes, appliedBarangays]); // eslint-disable-line react-hooks/exhaustive-deps
 
-// When heatmap mode toggles
+  // When heatmap mode toggles
   useEffect(() => {
     if (heatmapMode) {
       fetchHeatmap(); // always refetch — filters/dates may have changed while in choropleth mode
@@ -1202,7 +1311,7 @@ useEffect(() => {
     setStyleReady(false); // style is about to reload (styleURL changes) — wait for it again
   }, [heatmapMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-// ── Layer styles ─────────────────────────────────────────
+  // ── Layer styles ─────────────────────────────────────────
   const fillLayerStyle = {
     fillColor: ["get", "fillColor"],
     fillOpacity: heatmapMode
@@ -1232,55 +1341,80 @@ useEffect(() => {
       "interpolate",
       ["linear"],
       ["get", "weight"],
-      0, 0,
-      0.1, 0.2,
-      0.2, 0.35,
-      0.3, 0.45,
-      0.5, 0.6,
-      0.7, 0.8,
-      1.0, 1.0,
+      0,
+      0,
+      0.1,
+      0.2,
+      0.2,
+      0.35,
+      0.3,
+      0.45,
+      0.5,
+      0.6,
+      0.7,
+      0.8,
+      1.0,
+      1.0,
     ],
     heatmapRadius: [
       "interpolate",
       ["linear"],
       ["zoom"],
-      10, 10,
-      12, 18,
-      14, 30,
-      16, 45,
+      10,
+      10,
+      12,
+      18,
+      14,
+      30,
+      16,
+      45,
     ],
     heatmapIntensity: [
       "interpolate",
       ["linear"],
       ["zoom"],
-      10, 1.0,
-      13, 1.3,
-      15, 1.8,
+      10,
+      1.0,
+      13,
+      1.3,
+      15,
+      1.8,
     ],
     heatmapColor: [
       "interpolate",
       ["linear"],
       ["heatmap-density"],
-      0, "rgba(0,0,0,0)",
-      0.05, "rgba(255,255,180,0.7)",
-      0.2, "rgba(255,210,80,0.80)",
-      0.4, "rgba(255,140,30,0.88)",
-      0.6, "rgba(220,50,20,0.92)",
-      0.8, "rgba(160,10,10,0.95)",
-      1.0, "rgba(80,0,0,0.97)",
+      0,
+      "rgba(0,0,0,0)",
+      0.05,
+      "rgba(255,255,180,0.7)",
+      0.2,
+      "rgba(255,210,80,0.80)",
+      0.4,
+      "rgba(255,140,30,0.88)",
+      0.6,
+      "rgba(220,50,20,0.92)",
+      0.8,
+      "rgba(160,10,10,0.95)",
+      1.0,
+      "rgba(80,0,0,0.97)",
     ],
     heatmapOpacity: [
       "interpolate",
       ["linear"],
       ["zoom"],
-      11, 0.9,
-      14, 0.85,
-      16, 0.8,
-      18, 0.75,
+      11,
+      0.9,
+      14,
+      0.85,
+      16,
+      0.8,
+      18,
+      0.75,
     ],
   };
 
-// Start can move freely up to today — no dependency on End Date.
+  // Start can move freely up to today — no dependency on End Date.
   // End must be at least (Start + 1 day), capped at today. This makes
   // 28→29 valid but blocks 29→29 (same-day), with the tightest possible
   // pair being Start=today-1, End=today.
@@ -1289,41 +1423,38 @@ useEffect(() => {
   // changes — otherwise the native Android calendar dialog treats a new
   // Date() reference as "bounds changed" and snaps back to the current
   // month mid-swipe.
-const maxFromDate = React.useMemo(() => new Date(), []);
-const minToDate = React.useMemo(
-  () =>
-    filterDateFrom
-      ? (() => {
-          const d = isoDate(filterDateFrom);
-          d.setDate(d.getDate() + 1);
-          return d;
-        })()
-      : undefined,
-  [filterDateFrom],
-);
+  const maxFromDate = React.useMemo(() => new Date(), []);
+  const minToDate = React.useMemo(
+    () =>
+      filterDateFrom
+        ? (() => {
+            const d = isoDate(filterDateFrom);
+            d.setDate(d.getDate() + 1);
+            return d;
+          })()
+        : undefined,
+    [filterDateFrom],
+  );
 
-// Stable references so the officer/GPS polling doesn't force
-// DatePickerBtn to re-render (and reset the open Android calendar).
-const onFromDateChange = useCallback(
-  (d) => setFilterDateFrom(fmtISODate(d)),
-  [],
-);
-const onToDateChange = useCallback(
-  (d) => setFilterDateTo(fmtISODate(d)),
-  [],
-);
+  // Stable references so the officer/GPS polling doesn't force
+  // DatePickerBtn to re-render (and reset the open Android calendar).
+  const onFromDateChange = useCallback(
+    (d) => setFilterDateFrom(fmtISODate(d)),
+    [],
+  );
+  const onToDateChange = useCallback((d) => setFilterDateTo(fmtISODate(d)), []);
 
-const isPatrol = userRole === "Patrol";
-const isBarangayUser = userRole === "Barangay Official";
-const isInvestigator = userRole === "Investigator";
+  const isPatrol = userRole === "Patrol";
+  const isBarangayUser = userRole === "Barangay Official";
+  const isInvestigator = userRole === "Investigator";
 
-useEffect(() => {
-  if ((isBarangayUser || isInvestigator) && activeTab === "officers") {
-    setActiveTab("legend");
-  }
-}, [isBarangayUser, isInvestigator, activeTab]);
+  useEffect(() => {
+    if ((isBarangayUser || isInvestigator) && activeTab === "officers") {
+      setActiveTab("legend");
+    }
+  }, [isBarangayUser, isInvestigator, activeTab]);
 
-const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
+  const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
   const dayCount =
     Math.round(
       (new Date(appliedDateTo) - new Date(appliedDateFrom)) / 86400000,
@@ -1437,24 +1568,24 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
       {/* MAP — marginBottom pushes map above the absolute-positioned tab bar */}
       <View style={styles.mapContainer}>
         <MapView
-  style={[styles.map, { marginBottom: TAB_BAR_HEIGHT }]}
-  styleURL={
-    heatmapMode
-      ? "mapbox://styles/mapbox/dark-v11"
-      : "mapbox://styles/mapbox/light-v11"
-  }
-  onDidFinishLoadingStyle={() => setStyleReady(true)}
-  onPress={() => {
-    setSelectedPin(null);
-    setSelectedCluster(null);
-    setSelectedOfficer(null);
-  }}
-  onRegionDidChange={(feature) => {
-    const z = feature?.properties?.zoomLevel;
-    if (typeof z === "number") setMapZoom(z);
-  }}
-  minZoomLevel={11.5}
->
+          style={[styles.map, { marginBottom: TAB_BAR_HEIGHT }]}
+          styleURL={
+            heatmapMode
+              ? "mapbox://styles/mapbox/dark-v11"
+              : "mapbox://styles/mapbox/light-v11"
+          }
+          onDidFinishLoadingStyle={() => setStyleReady(true)}
+          onPress={() => {
+            setSelectedPin(null);
+            setSelectedCluster(null);
+            setSelectedOfficer(null);
+          }}
+          onRegionDidChange={(feature) => {
+            const z = feature?.properties?.zoomLevel;
+            if (typeof z === "number") setMapZoom(z);
+          }}
+          minZoomLevel={11.5}
+        >
           <Camera
             ref={cameraRef}
             zoomLevel={12}
@@ -1476,12 +1607,12 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
           )}
 
           {styleReady && geoJSON && (
-  <ShapeSource id="barangays" shape={geoJSON}>
-    <FillLayer id="barangay-fill" style={fillLayerStyle} />
-    <LineLayer id="barangay-outline" style={outlineLayerStyle} />
-    <SymbolLayer id="barangay-labels" style={labelLayerStyle} />
-  </ShapeSource>
-)}
+            <ShapeSource id="barangays" shape={geoJSON}>
+              <FillLayer id="barangay-fill" style={fillLayerStyle} />
+              <LineLayer id="barangay-outline" style={outlineLayerStyle} />
+              <SymbolLayer id="barangay-labels" style={labelLayerStyle} />
+            </ShapeSource>
+          )}
 
           {/* Heatmap layer */}
           {styleReady && heatmapMode && heatGeoJSON && (
@@ -1516,58 +1647,62 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
               </MarkerView>
             ))}
 
-{/* Crime pin icons — native SymbolLayer, renders all at once, no mode-switch bugs */}
+          {/* Crime pin icons — native SymbolLayer, renders all at once, no mode-switch bugs */}
           {styleReady && (
-          <Images
-            images={{
-              MURDER: require("../assets/pins/murder.png"),
-              HOMICIDE: require("../assets/pins/homicide.png"),
-              "PHYSICAL INJURY": require("../assets/pins/physical-injury.png"),
-              RAPE: require("../assets/pins/rape.png"),
-              ROBBERY: require("../assets/pins/robbery.png"),
-              THEFT: require("../assets/pins/theft.png"),
-              "CARNAPPING - MC": require("../assets/pins/carnapping-mc.png"),
-              "CARNAPPING - MV": require("../assets/pins/carnapping-mv.png"),
-              "SPECIAL COMPLEX CRIME": require("../assets/pins/special-complex.png"),
-            }}
-          />
+            <Images
+              images={{
+                MURDER: require("../assets/pins/murder.png"),
+                HOMICIDE: require("../assets/pins/homicide.png"),
+                "PHYSICAL INJURY": require("../assets/pins/physical-injury.png"),
+                RAPE: require("../assets/pins/rape.png"),
+                ROBBERY: require("../assets/pins/robbery.png"),
+                THEFT: require("../assets/pins/theft.png"),
+                "CARNAPPING - MC": require("../assets/pins/carnapping-mc.png"),
+                "CARNAPPING - MV": require("../assets/pins/carnapping-mv.png"),
+                "SPECIAL COMPLEX CRIME": require("../assets/pins/special-complex.png"),
+              }}
+            />
           )}
 
           {styleReady && (
-          <ShapeSource
-            id="crime-pins"
-            shape={pinsGeoJSON}
-            onPress={(e) => {
-              const id = e.features?.[0]?.properties?.blotter_id;
-              const found = pins.find((p) => p.blotter_id === id);
-              if (found) {
-                setSelectedPin(found);
-                setShowMorePopup(false);
-              }
-            }}
-          >
-            <SymbolLayer
-              id="crime-pin-icons"
-              aboveLayerID="barangay-labels"
-              style={{
-                iconImage: ["get", "iconKey"],
-                iconSize: [
-                  "interpolate",
-                  ["linear"],
-                  ["zoom"],
-                  12, 0.14,
-                  15, 0.2,
-                  18, 0.28,
-                ],
-                iconAllowOverlap: true,
-                iconIgnorePlacement: true,
-                iconAnchor: "bottom",
-                visibility: !heatmapMode && mapZoom >= 13 ? "visible" : "none",
+            <ShapeSource
+              id="crime-pins"
+              shape={pinsGeoJSON}
+              onPress={(e) => {
+                const id = e.features?.[0]?.properties?.blotter_id;
+                const found = pins.find((p) => p.blotter_id === id);
+                if (found) {
+                  setSelectedPin(found);
+                  setShowMorePopup(false);
+                }
               }}
-            />
-          </ShapeSource>
+            >
+              <SymbolLayer
+                id="crime-pin-icons"
+                aboveLayerID="barangay-labels"
+                style={{
+                  iconImage: ["get", "iconKey"],
+                  iconSize: [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    12,
+                    0.14,
+                    15,
+                    0.2,
+                    18,
+                    0.28,
+                  ],
+                  iconAllowOverlap: true,
+                  iconIgnorePlacement: true,
+                  iconAnchor: "bottom",
+                  visibility:
+                    !heatmapMode && mapZoom >= 13 ? "visible" : "none",
+                }}
+              />
+            </ShapeSource>
           )}
-          
+
           {/* Officer avatars — profile photo if available, initials otherwise.
               Nudged apart from "my location" puck when they'd otherwise
               fully overlap, so both stay visible/tappable. */}
@@ -1634,40 +1769,43 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
         </MapView>
 
         {/* Map overlay buttons */}
-{userRole === "Patrol" && (
-  <TouchableOpacity
-    style={[styles.recenterBtn, !gpsEnabled && { opacity: 0.4 }]}
-    onPress={() =>
-      myLocation &&
-      cameraRef.current?.setCamera({
-        centerCoordinate: myLocation,
-        zoomLevel: 15,
-        animationDuration: 800,
-      })
-    }
-  >
-    <Ionicons name="navigate" size={20} color="#1e3a5f" />
-  </TouchableOpacity>
-)}
+        {userRole === "Patrol" && (
+          <TouchableOpacity
+            style={[styles.recenterBtn, !gpsEnabled && { opacity: 0.4 }]}
+            onPress={() =>
+              myLocation &&
+              cameraRef.current?.setCamera({
+                centerCoordinate: myLocation,
+                zoomLevel: 15,
+                animationDuration: 800,
+              })
+            }
+          >
+            <Ionicons name="navigate" size={20} color="#1e3a5f" />
+          </TouchableOpacity>
+        )}
 
-{userRole === "Patrol" && (
-  <TouchableOpacity
-    style={[styles.gpsToggleBtn, gpsEnabled && styles.gpsToggleBtnActive]}
-    onPress={() => {
-      if (gpsEnabled) {
-        setGpsEnabled(false);
-      } else {
-        setShowGpsConfirm(true);
-      }
-    }}
-  >
-    <Ionicons
-      name={gpsEnabled ? "location" : "location-outline"}
-      size={20}
-      color={gpsEnabled ? "#ffffff" : "#1e3a5f"}
-    />
-  </TouchableOpacity>
-)}
+        {userRole === "Patrol" && (
+          <TouchableOpacity
+            style={[
+              styles.gpsToggleBtn,
+              gpsEnabled && styles.gpsToggleBtnActive,
+            ]}
+            onPress={() => {
+              if (gpsEnabled) {
+                setGpsEnabled(false);
+              } else {
+                setShowGpsConfirm(true);
+              }
+            }}
+          >
+            <Ionicons
+              name={gpsEnabled ? "location" : "location-outline"}
+              size={20}
+              color={gpsEnabled ? "#ffffff" : "#1e3a5f"}
+            />
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={styles.resetBtn}
@@ -1684,23 +1822,26 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
 
         {/* Risk legend (bottom-left) */}
         {!heatmapMode && (
-  <View style={styles.riskLegend}>
-    {[
-      { color: "#b91c1c", label: `High (${thresholds.medMax + 1}+)` },
-      {
-        color: "#f97316",
-        label: `Med (${thresholds.lowMax + 1}–${thresholds.medMax})`,
-      },
-      { color: "#eab308", label: `Low (1${thresholds.lowMax > 1 ? `–${thresholds.lowMax}` : ""})` },
-      { color: "#ffffff", label: "None" },
-    ].map((r) => (
-      <View key={r.label} style={styles.riskRow}>
-        <View style={[styles.riskDot, { backgroundColor: r.color }]} />
-        <Text style={styles.riskLabel}>{r.label}</Text>
-      </View>
-    ))}
-  </View>
-)}
+          <View style={styles.riskLegend}>
+            {[
+              { color: "#b91c1c", label: `High (${thresholds.medMax + 1}+)` },
+              {
+                color: "#f97316",
+                label: `Med (${thresholds.lowMax + 1}–${thresholds.medMax})`,
+              },
+              {
+                color: "#eab308",
+                label: `Low (1${thresholds.lowMax > 1 ? `–${thresholds.lowMax}` : ""})`,
+              },
+              { color: "#ffffff", label: "None" },
+            ].map((r) => (
+              <View key={r.label} style={styles.riskRow}>
+                <View style={[styles.riskDot, { backgroundColor: r.color }]} />
+                <Text style={styles.riskLabel}>{r.label}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Officers online badge
         <View style={styles.officersBadge}>
@@ -1712,26 +1853,30 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
 
         {/* GPS status pill */}
         {userRole === "Patrol" && gpsEnabled && (
-  <View
-    style={[
-      styles.gpsStatus,
-      {
-        backgroundColor: myLocation
-          ? "rgba(34,197,94,0.88)"
-          : "rgba(239,68,68,0.88)",
-      },
-    ]}
-  >
-    {!myLocation ? (
-      <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 2 }} />
-    ) : (
-      <View style={styles.gpsStatusDot} />
-    )}
-    <Text style={styles.gpsStatusText}>
-      {myLocation ? "GPS Active" : "Acquiring GPS..."}
-    </Text>
-  </View>
-)}
+          <View
+            style={[
+              styles.gpsStatus,
+              {
+                backgroundColor: myLocation
+                  ? "rgba(34,197,94,0.88)"
+                  : "rgba(239,68,68,0.88)",
+              },
+            ]}
+          >
+            {!myLocation ? (
+              <ActivityIndicator
+                size="small"
+                color="#ffffff"
+                style={{ marginRight: 2 }}
+              />
+            ) : (
+              <View style={styles.gpsStatusDot} />
+            )}
+            <Text style={styles.gpsStatusText}>
+              {myLocation ? "GPS Active" : "Acquiring GPS..."}
+            </Text>
+          </View>
+        )}
 
         {/* Officer name tooltip */}
         {selectedOfficer && (
@@ -1778,42 +1923,55 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
 
       {/* GPS CONFIRMATION MODAL */}
       {userRole === "Patrol" && (
-  <Modal
-    visible={showGpsConfirm}
-    transparent
-    animationType="fade"
-    onRequestClose={() => setShowGpsConfirm(false)}
-  >
-    <View style={styles.confirmBackdrop}>
-      <View style={styles.confirmBox}>
-        <Ionicons name="location" size={32} color="#1e3a5f" style={{ marginBottom: 10 }} />
-        <Text style={styles.confirmTitle}>Enable GPS Tracking</Text>
-        <Text style={styles.confirmMsg}>
-          Your location will be shared with the system and visible to
-          dispatchers while GPS is active.
-        </Text>
-        <View style={styles.confirmBtns}>
-          <TouchableOpacity style={styles.confirmCancel} onPress={() => setShowGpsConfirm(false)}>
-            <Text style={styles.confirmCancelText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.confirmOk}
-            onPress={() => {
-              setShowGpsConfirm(false);
-              setGpsEnabled(true);
-            }}
-          >
-            <Text style={styles.confirmOkText}>Enable</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  </Modal>
-)}
+        <Modal
+          visible={showGpsConfirm}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowGpsConfirm(false)}
+        >
+          <View style={styles.confirmBackdrop}>
+            <View style={styles.confirmBox}>
+              <Ionicons
+                name="location"
+                size={32}
+                color="#1e3a5f"
+                style={{ marginBottom: 10 }}
+              />
+              <Text style={styles.confirmTitle}>Enable GPS Tracking</Text>
+              <Text style={styles.confirmMsg}>
+                Your location will be shared with the system and visible to
+                dispatchers while GPS is active.
+              </Text>
+              <View style={styles.confirmBtns}>
+                <TouchableOpacity
+                  style={styles.confirmCancel}
+                  onPress={() => setShowGpsConfirm(false)}
+                >
+                  <Text style={styles.confirmCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.confirmOk}
+                  onPress={() => {
+                    setShowGpsConfirm(false);
+                    setGpsEnabled(true);
+                  }}
+                >
+                  <Text style={styles.confirmOkText}>Enable</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {/* CRIME PIN POPUP */}
-     {!heatmapMode && selectedPin && (
-        <View style={[styles.popup, { bottom: TAB_BAR_HEIGHT + 20, maxHeight: '65%' }]}>
+      {!heatmapMode && selectedPin && (
+        <View
+          style={[
+            styles.popup,
+            { bottom: TAB_BAR_HEIGHT + 20, maxHeight: "65%" },
+          ]}
+        >
           <View
             style={[
               styles.popupHeader,
@@ -1834,7 +1992,10 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
               <Ionicons name="close" size={18} color="#ffffff" />
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.popupBody} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.popupBody}
+            showsVerticalScrollIndicator={false}
+          >
             {[
               ["Blotter #", selectedPin.blotter_entry_number],
               ["Barangay", selectedPin.place_barangay],
@@ -1863,13 +2024,26 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
                   </Text>
                 </View>
               ))}
-                     <TouchableOpacity
+                       <TouchableOpacity
               style={styles.popupToggleBtn}
               onPress={() => setShowMorePopup((v) => !v)}
             >
               <Text style={styles.popupToggleText}>
                 {showMorePopup ? "▲ View Less" : "▼ View More"}
               </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.popupViewFullBtn}
+              onPress={() => {
+                const id = selectedPin.blotter_id;
+                setSelectedPin(null);
+                setShowMorePopup(false);
+                navigation.navigate("Reporting", { openBlotterId: id });
+              }}
+            >
+              <Ionicons name="document-text-outline" size={14} color="#ffffff" />
+              <Text style={styles.popupViewFullText}>View Full Case</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -1929,275 +2103,319 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
           >
             {/* ── COMBINED FILTERS (hidden on Patrol tab) ── */}
             {activeTab !== "officers" && (
-            <>
-            {/* Date section */}
-            <View style={styles.dateFilterRow}>
-              <TouchableOpacity
-                style={styles.dateFilterBtn}
-                onPress={() => setShowDateFilter((v) => !v)}
-              >
-                <Ionicons name="calendar-outline" size={14} color="#1e3a5f" />
-                <Text style={styles.dateFilterBtnText}>
-                  {appliedDateFrom} — {appliedDateTo}
-                </Text>
-                <Ionicons
-                  name={showDateFilter ? "chevron-up" : "chevron-down"}
-                  size={12}
-                  color="#6b7280"
-                />
-              </TouchableOpacity>
-            </View>
-
-            {showDateFilter && (
-              <View style={styles.dateFilterPanel}>
-                <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-                  
-<DatePickerBtn
-  label="Start Date"
-  value={filterDateFrom}
-  onChange={onFromDateChange}
-  maximumDate={maxFromDate}
-/>
-<View style={{ paddingTop: 30, paddingHorizontal: 2 }}>
-  <Text style={{ color: "#adb5bd", fontSize: 16 }}>→</Text>
-</View>
-<DatePickerBtn
-  label="End Date"
-  value={filterDateTo}
-  onChange={onToDateChange}
-  minimumDate={minToDate}
-  maximumDate={maxFromDate}
-/>
+              <>
+                {/* Date section */}
+                <View style={styles.dateFilterRow}>
+                  <TouchableOpacity
+                    style={styles.dateFilterBtn}
+                    onPress={() => setShowDateFilter((v) => !v)}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={14}
+                      color="#1e3a5f"
+                    />
+                    <Text style={styles.dateFilterBtnText}>
+                      {appliedDateFrom} — {appliedDateTo}
+                    </Text>
+                    <Ionicons
+                      name={showDateFilter ? "chevron-up" : "chevron-down"}
+                      size={12}
+                      color="#6b7280"
+                    />
+                  </TouchableOpacity>
                 </View>
+
+                {showDateFilter && (
+                  <View style={styles.dateFilterPanel}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "flex-start",
+                        gap: 8,
+                      }}
+                    >
+                      <DatePickerBtn
+                        label="Start Date"
+                        value={filterDateFrom}
+                        onChange={onFromDateChange}
+                        maximumDate={maxFromDate}
+                      />
+                      <View style={{ paddingTop: 30, paddingHorizontal: 2 }}>
+                        <Text style={{ color: "#adb5bd", fontSize: 16 }}>
+                          →
+                        </Text>
+                      </View>
+                      <DatePickerBtn
+                        label="End Date"
+                        value={filterDateTo}
+                        onChange={onToDateChange}
+                        minimumDate={minToDate}
+                        maximumDate={maxFromDate}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Crime type section */}
+                <View style={styles.dateFilterRow}>
+                  <TouchableOpacity
+                    style={styles.dateFilterBtn}
+                    onPress={() => setShowCrimeTypeFilter(true)}
+                  >
+                    <Ionicons name="flag-outline" size={14} color="#1e3a5f" />
+                    <Text style={styles.dateFilterBtnText}>
+                      {filterIncidentTypes.length === 0
+                        ? "All Crime Types"
+                        : `${filterIncidentTypes.length} Crime Type${filterIncidentTypes.length > 1 ? "s" : ""} Selected`}
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={12}
+                      color="#6b7280"
+                    />
+                  </TouchableOpacity>
                 </View>
-            )}
 
-            {/* Crime type section */}
-            <View style={styles.dateFilterRow}>
-              <TouchableOpacity
-                style={styles.dateFilterBtn}
-                onPress={() => setShowCrimeTypeFilter(true)}
-              >
-                <Ionicons name="flag-outline" size={14} color="#1e3a5f" />
-                <Text style={styles.dateFilterBtnText}>
-                  {filterIncidentTypes.length === 0
-                    ? "All Crime Types"
-                    : `${filterIncidentTypes.length} Crime Type${filterIncidentTypes.length > 1 ? "s" : ""} Selected`}
-                </Text>
-                <Ionicons name="chevron-forward" size={12} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
+                {/* Barangay section — locked for patrol users with an ongoing schedule */}
+                {isPatrol && hasPatrolAssignment ? (
+                  <View style={styles.dateFilterRow}>
+                    <View style={styles.lockedFilterBox}>
+                      <Ionicons
+                        name="lock-closed-outline"
+                        size={14}
+                        color="#6b7280"
+                      />
+                      <Text style={styles.lockedFilterText}>
+                        {patrolAssignedBarangays.length} Assigned Barangay
+                        {patrolAssignedBarangays.length !== 1 ? "s" : ""}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.dateFilterRow}>
+                    <TouchableOpacity
+                      style={styles.dateFilterBtn}
+                      onPress={() => setShowBarangayFilter(true)}
+                    >
+                      <Ionicons
+                        name="location-outline"
+                        size={14}
+                        color="#1e3a5f"
+                      />
+                      <Text style={styles.dateFilterBtnText}>
+                        {filterBarangays.length === 0
+                          ? "All Barangays"
+                          : `${filterBarangays.length} Barangay${filterBarangays.length > 1 ? "s" : ""} Selected`}
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={12}
+                        color="#6b7280"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
 
-            {/* Barangay section — locked for patrol users with an ongoing schedule */}
-            {isPatrol && hasPatrolAssignment ? (
-              <View style={styles.dateFilterRow}>
-                <View style={styles.lockedFilterBox}>
-                  <Ionicons name="lock-closed-outline" size={14} color="#6b7280" />
-                  <Text style={styles.lockedFilterText}>
-                    {patrolAssignedBarangays.length} Assigned Barangay
-                    {patrolAssignedBarangays.length !== 1 ? "s" : ""}
-                  </Text>
+                {/* ── SINGLE APPLY / RESET ROW ── */}
+                <View style={styles.filterActionsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.applyDateBtn,
+                      { flex: 1 },
+                      (!isValidDate(filterDateFrom) ||
+                        !isValidDate(filterDateTo) ||
+                        filterDateFrom >= filterDateTo) && { opacity: 0.5 },
+                    ]}
+                    onPress={() => {
+                      if (
+                        !isValidDate(filterDateFrom) ||
+                        !isValidDate(filterDateTo) ||
+                        filterDateFrom >= filterDateTo
+                      )
+                        return;
+
+                      setAppliedDateFrom(filterDateFrom);
+                      setAppliedDateTo(filterDateTo);
+                      setAppliedIncidentTypes(filterIncidentTypes);
+                      setAppliedBarangays(filterBarangays);
+                      setShowDateFilter(false);
+                      setShowCrimeTypeFilter(false);
+                      setShowBarangayFilter(false);
+
+                      if (filterBarangays.length > 0 && rawGeoJSON) {
+                        const allCoords = [];
+                        filterBarangays.forEach((name) => {
+                          const feature = rawGeoJSON.features.find(
+                            (f) => f.properties.name_db === name,
+                          );
+                          if (!feature) return;
+                          const coords =
+                            feature.geometry.type === "Polygon"
+                              ? feature.geometry.coordinates[0]
+                              : feature.geometry.coordinates[0][0];
+                          allCoords.push(...coords);
+                        });
+                        if (allCoords.length > 0) {
+                          const lngs = allCoords.map((c) => c[0]);
+                          const lats = allCoords.map((c) => c[1]);
+                          cameraRef.current?.fitBounds(
+                            [Math.max(...lngs), Math.max(...lats)],
+                            [Math.min(...lngs), Math.min(...lats)],
+                            40,
+                            800,
+                          );
+                        }
+                      } else if (filterBarangays.length === 0) {
+                        cameraRef.current?.setCamera({
+                          centerCoordinate: BACOOR_CENTER,
+                          zoomLevel: 12,
+                          animationDuration: 800,
+                        });
+                      }
+                    }}
+                  >
+                    <Text style={styles.applyDateBtnText}>Apply Filters</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.clearDateBtn, { flex: 1 }]}
+                    onPress={() => {
+                      const from = getPHTOneYearAgo();
+                      const to = getPHTToday();
+                      const lockedBarangays =
+                        isPatrol && hasPatrolAssignment
+                          ? patrolAssignedBarangays
+                          : [];
+
+                      setFilterDateFrom(from);
+                      setFilterDateTo(to);
+                      setAppliedDateFrom(from);
+                      setAppliedDateTo(to);
+                      setFilterIncidentTypes([]);
+                      setAppliedIncidentTypes([]);
+                      setFilterBarangays(lockedBarangays);
+                      setAppliedBarangays(lockedBarangays);
+                      setBarangaySearch("");
+                      setShowDateFilter(false);
+                      setShowCrimeTypeFilter(false);
+                      setShowBarangayFilter(false);
+
+                      if (!(isPatrol && hasPatrolAssignment)) {
+                        cameraRef.current?.setCamera({
+                          centerCoordinate: BACOOR_CENTER,
+                          zoomLevel: 12,
+                          animationDuration: 800,
+                        });
+                      }
+                    }}
+                  >
+                    <Text style={styles.clearDateBtnText}>Reset All</Text>
+                  </TouchableOpacity>
                 </View>
-              </View>
-            ) : (
-              <View style={styles.dateFilterRow}>
-                <TouchableOpacity
-                  style={styles.dateFilterBtn}
-                  onPress={() => setShowBarangayFilter(true)}
-                >
-                  <Ionicons name="location-outline" size={14} color="#1e3a5f" />
-                  <Text style={styles.dateFilterBtnText}>
-                    {filterBarangays.length === 0
-                      ? "All Barangays"
-                      : `${filterBarangays.length} Barangay${filterBarangays.length > 1 ? "s" : ""} Selected`}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={12} color="#6b7280" />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* ── SINGLE APPLY / RESET ROW ── */}
-            <View style={styles.filterActionsRow}>
-              <TouchableOpacity
-                style={[
-                  styles.applyDateBtn,
-                  { flex: 1 },
-                  (!isValidDate(filterDateFrom) ||
-                    !isValidDate(filterDateTo) ||
-                    filterDateFrom >= filterDateTo) && { opacity: 0.5 },
-                ]}
-                onPress={() => {
-                  if (
-                    !isValidDate(filterDateFrom) ||
-                    !isValidDate(filterDateTo) ||
-                    filterDateFrom >= filterDateTo
-                  )
-                    return;
-
-                  setAppliedDateFrom(filterDateFrom);
-                  setAppliedDateTo(filterDateTo);
-                  setAppliedIncidentTypes(filterIncidentTypes);
-                  setAppliedBarangays(filterBarangays);
-                  setShowDateFilter(false);
-                  setShowCrimeTypeFilter(false);
-                  setShowBarangayFilter(false);
-
-                  if (filterBarangays.length > 0 && rawGeoJSON) {
-                    const allCoords = [];
-                    filterBarangays.forEach((name) => {
-                      const feature = rawGeoJSON.features.find(
-                        (f) => f.properties.name_db === name,
-                      );
-                      if (!feature) return;
-                      const coords =
-                        feature.geometry.type === "Polygon"
-                          ? feature.geometry.coordinates[0]
-                          : feature.geometry.coordinates[0][0];
-                      allCoords.push(...coords);
-                    });
-                    if (allCoords.length > 0) {
-                      const lngs = allCoords.map((c) => c[0]);
-                      const lats = allCoords.map((c) => c[1]);
-                      cameraRef.current?.fitBounds(
-                        [Math.max(...lngs), Math.max(...lats)],
-                        [Math.min(...lngs), Math.min(...lats)],
-                        40,
-                        800,
-                      );
-                    }
-                  } else if (filterBarangays.length === 0) {
-                    cameraRef.current?.setCamera({
-                      centerCoordinate: BACOOR_CENTER,
-                      zoomLevel: 12,
-                      animationDuration: 800,
-                    });
-                  }
-                }}
-              >
-                <Text style={styles.applyDateBtnText}>Apply Filters</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.clearDateBtn, { flex: 1 }]}
-                onPress={() => {
-                  const from = getPHTOneYearAgo();
-                  const to = getPHTToday();
-                  const lockedBarangays =
-                    isPatrol && hasPatrolAssignment ? patrolAssignedBarangays : [];
-
-                  setFilterDateFrom(from);
-                  setFilterDateTo(to);
-                  setAppliedDateFrom(from);
-                  setAppliedDateTo(to);
-                  setFilterIncidentTypes([]);
-                  setAppliedIncidentTypes([]);
-                  setFilterBarangays(lockedBarangays);
-                  setAppliedBarangays(lockedBarangays);
-                  setBarangaySearch("");
-                  setShowDateFilter(false);
-                  setShowCrimeTypeFilter(false);
-                  setShowBarangayFilter(false);
-
-                  if (!(isPatrol && hasPatrolAssignment)) {
-                    cameraRef.current?.setCamera({
-                      centerCoordinate: BACOOR_CENTER,
-                      zoomLevel: 12,
-                      animationDuration: 800,
-                    });
-                  }
-                }}
-              >
-                <Text style={styles.clearDateBtnText}>Reset All</Text>
-              </TouchableOpacity>
-            </View>
-            </>
+              </>
             )}
 
             {/* ── LEGEND TAB ── */}
             {activeTab === "legend" && (
               <View style={styles.tabContent}>
-                
-<Text style={styles.sectionLabel}>Crime Types</Text>
-{(() => {
-  const maxCount = Math.max(
-    ...(stats?.by_incident_type || []).map(
-      (i) => parseInt(i.count) || 0,
-    ),
-    1,
-  );
-  return INDEX_CRIMES.map((crimeKey) => {
-    const item = stats?.by_incident_type?.find(
-      (i) => i.incident_type?.toUpperCase() === crimeKey,
-    );
-    const color = INCIDENT_COLORS[crimeKey] || "#6b7280";
-    const count = parseInt(item?.count) || 0;
-    const pct = Math.round((count / maxCount) * 100);
-    return (
-      <View key={crimeKey} style={styles.legendRow}>
-        <View style={styles.legendTop}>
-          <View style={styles.legendLeft}>
-            <View style={styles.legendPinWrap}>
-              <View
-                style={[styles.legendPinBody, { backgroundColor: color }]}
-              >
-                <View style={styles.legendPinInner} />
-              </View>
-              <View
-                style={[styles.legendPinTip, { borderTopColor: color }]}
-              />
-            </View>
-            <Text style={styles.legendName}>
-              {CRIME_DISPLAY[crimeKey] || crimeKey}
-            </Text>
-          </View>
-          <Text style={styles.legendCount}>{count}</Text>
-        </View>
-        <View style={styles.barBg}>
-          <View
-            style={[
-              styles.barFill,
-              { width: `${pct}%`, backgroundColor: color },
-            ]}
-          />
-        </View>
-      </View>
-    );
-  });
-})()}
-{!heatmapMode && (
-  <>
-    <Text style={[styles.sectionLabel, { marginTop: 20 }]}>
-      Barangay Crime Incidence
-    </Text>
-    <Text style={styles.dateRangeNote}>
-      {`Thresholds for ${dayCount}-day range`}
-    </Text>
-    {[
-      { color: "#ffffff", label: "No crimes", range: "0" },
-      {
-        color: "#eab308",
-        label: "Low Incidence",
-        range: thresholds.lowMax === 1 ? "1" : `1–${thresholds.lowMax}`,
-      },
-      {
-        color: "#f97316",
-        label: "Medium Incidence",
-        range: `${thresholds.lowMax + 1}–${thresholds.medMax}`,
-      },
-      {
-        color: "#b91c1c",
-        label: "High Incidence",
-        range: `${thresholds.medMax + 1}+`,
-      },
-    ].map((r) => (
-      <View key={r.label} style={styles.riskLegendRow}>
-        <View style={[styles.riskLegendDot, { backgroundColor: r.color }]} />
-        <Text style={styles.riskLegendLabel}>{r.label}</Text>
-        <Text style={styles.riskLegendRange}>{r.range} crimes</Text>
-      </View>
-    ))}
-  </>
-)}
+                <Text style={styles.sectionLabel}>Crime Types</Text>
+                {(() => {
+                  const maxCount = Math.max(
+                    ...(stats?.by_incident_type || []).map(
+                      (i) => parseInt(i.count) || 0,
+                    ),
+                    1,
+                  );
+                  return INDEX_CRIMES.map((crimeKey) => {
+                    const item = stats?.by_incident_type?.find(
+                      (i) => i.incident_type?.toUpperCase() === crimeKey,
+                    );
+                    const color = INCIDENT_COLORS[crimeKey] || "#6b7280";
+                    const count = parseInt(item?.count) || 0;
+                    const pct = Math.round((count / maxCount) * 100);
+                    return (
+                      <View key={crimeKey} style={styles.legendRow}>
+                        <View style={styles.legendTop}>
+                          <View style={styles.legendLeft}>
+                            <View style={styles.legendPinWrap}>
+                              <View
+                                style={[
+                                  styles.legendPinBody,
+                                  { backgroundColor: color },
+                                ]}
+                              >
+                                <View style={styles.legendPinInner} />
+                              </View>
+                              <View
+                                style={[
+                                  styles.legendPinTip,
+                                  { borderTopColor: color },
+                                ]}
+                              />
+                            </View>
+                            <Text style={styles.legendName}>
+                              {CRIME_DISPLAY[crimeKey] || crimeKey}
+                            </Text>
+                          </View>
+                          <Text style={styles.legendCount}>{count}</Text>
+                        </View>
+                        <View style={styles.barBg}>
+                          <View
+                            style={[
+                              styles.barFill,
+                              { width: `${pct}%`, backgroundColor: color },
+                            ]}
+                          />
+                        </View>
+                      </View>
+                    );
+                  });
+                })()}
+                {!heatmapMode && (
+                  <>
+                    <Text style={[styles.sectionLabel, { marginTop: 20 }]}>
+                      Barangay Crime Incidence
+                    </Text>
+                    <Text style={styles.dateRangeNote}>
+                      {`Thresholds for ${dayCount}-day range`}
+                    </Text>
+                    {[
+                      { color: "#ffffff", label: "No crimes", range: "0" },
+                      {
+                        color: "#eab308",
+                        label: "Low Incidence",
+                        range:
+                          thresholds.lowMax === 1
+                            ? "1"
+                            : `1–${thresholds.lowMax}`,
+                      },
+                      {
+                        color: "#f97316",
+                        label: "Medium Incidence",
+                        range: `${thresholds.lowMax + 1}–${thresholds.medMax}`,
+                      },
+                      {
+                        color: "#b91c1c",
+                        label: "High Incidence",
+                        range: `${thresholds.medMax + 1}+`,
+                      },
+                    ].map((r) => (
+                      <View key={r.label} style={styles.riskLegendRow}>
+                        <View
+                          style={[
+                            styles.riskLegendDot,
+                            { backgroundColor: r.color },
+                          ]}
+                        />
+                        <Text style={styles.riskLegendLabel}>{r.label}</Text>
+                        <Text style={styles.riskLegendRange}>
+                          {r.range} crimes
+                        </Text>
+                      </View>
+                    ))}
+                  </>
+                )}
               </View>
             )}
 
@@ -2397,10 +2615,16 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
                         </View>
 
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text style={styles.officerListName} numberOfLines={1}>
+                          <Text
+                            style={styles.officerListName}
+                            numberOfLines={1}
+                          >
                             {displayName || "Officer"}
                           </Text>
-                          <Text style={styles.officerListRole} numberOfLines={1}>
+                          <Text
+                            style={styles.officerListRole}
+                            numberOfLines={1}
+                          >
                             {officer.role_name}
                           </Text>
                         </View>
@@ -2434,7 +2658,10 @@ const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
       <MultiSelect
         visible={showBarangayFilter}
         title="Barangay"
-        items={allBarangays.map((b) => ({ label: formatBarangayLabel(b), value: b }))}
+        items={allBarangays.map((b) => ({
+          label: formatBarangayLabel(b),
+          value: b,
+        }))}
         legacy={LEGACY_OPTIONS}
         selected={filterBarangays}
         searchable={true}
@@ -2477,7 +2704,7 @@ const styles = StyleSheet.create({
   // Map container — flex:1 fills space between header and tab bar
   mapContainer: { flex: 1, position: "relative" },
   map: { flex: 1 },
-  
+
   // ── Legend teardrop icon (smaller) ────────────────────────
   legendPinWrap: {
     alignItems: "center",
@@ -2741,7 +2968,7 @@ const styles = StyleSheet.create({
   confirmOkText: { color: "#ffffff", fontWeight: "700", fontSize: 14 },
 
   // Crime/cluster popup (bottom sheet)
- popup: {
+  popup: {
     position: "absolute",
     bottom: 0,
     left: 0,
@@ -2772,7 +2999,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
- popupBody: { padding: 16, paddingBottom: 24, gap: 8, flexShrink: 1 },
+  popupBody: { padding: 16, paddingBottom: 24, gap: 8, flexShrink: 1 },
   popupRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -2796,6 +3023,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   popupToggleText: { fontSize: 12, fontWeight: "600", color: "#1e3a5f" },
+  popupViewFullBtn: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#1e3a5f",
+    borderRadius: 6,
+    paddingVertical: 10,
+  },
+  popupViewFullText: { fontSize: 12, fontWeight: "700", color: "#ffffff" },
 
   // Sidebar
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.3)" },
@@ -3212,7 +3450,11 @@ const dpStyles = StyleSheet.create({
 });
 
 const msStyles = StyleSheet.create({
-  ov: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  ov: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
   sh: {
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 20,
