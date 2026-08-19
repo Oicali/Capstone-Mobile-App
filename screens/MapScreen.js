@@ -2999,7 +2999,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  popupBody: { padding: 16, paddingBottom: 24, gap: 8, flexShrink: 1 },
+  popupBody: { padding: 16, paddingBottom: 40, gap: 8, flexShrink: 1 },
   popupRow: {
     flexDirection: "row",
     justifyContent: "space-between",
