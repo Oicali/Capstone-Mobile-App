@@ -58,6 +58,20 @@ module.exports = {
       enabled: false,
     },
     plugins: [
+      [
+    "expo-build-properties",
+    {
+      ios: {
+        extraPods: [
+          { name: "GoogleUtilities", modular_headers: true },
+          { name: "FirebaseCoreInternal", modular_headers: true },
+          { name: "FirebaseCore", modular_headers: true },
+          { name: "FirebaseInstallations", modular_headers: true },
+          { name: "FirebaseMessaging", modular_headers: true }
+        ]
+      }
+    }
+  ],
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
 
@@ -142,5 +156,8 @@ module.exports = {
         projectId: "530d6325-6acc-4b87-b517-85fa25600c86",
       },
     },
+    
   },
+
+  
 };
