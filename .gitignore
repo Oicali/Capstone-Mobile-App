@@ -42,3 +42,5 @@ yarn-error.*
 .env
 android/gradle.properties
 android/gradle.properties
+
+GoogleService-Info.plist
