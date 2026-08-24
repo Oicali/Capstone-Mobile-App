@@ -258,9 +258,12 @@ const LINK_TO_TAB = {
       markNotificationRead(notif.id).catch(console.error);
     }
 
-    const tab = LINK_TO_TAB[notif.link_to];
-    if (tab) {
-      navigation.navigate("Main", { screen: tab });
+    if (notif.link_to) {
+      const basePath = notif.link_to.split("?")[0];
+      const tab = LINK_TO_TAB[basePath];
+      if (tab) {
+        navigation.navigate("Main", { screen: tab });
+      }
     }
   };
 
