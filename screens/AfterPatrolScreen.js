@@ -928,9 +928,25 @@ export default function AfterPatrolScreen({ route, navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
+        <TouchableOpacity
+  style={styles.backBtn}
+  onPress={() => {
+    if (form && !submitting) {
+      Alert.alert(
+        "Leave Report?",
+        "Any unsaved changes will be lost.",
+        [
+          { text: "Stay", style: "cancel" },
+          { text: "Leave", style: "destructive", onPress: () => navigation.goBack() },
+        ]
+      );
+    } else {
+      navigation.goBack();
+    }
+  }}
+>
+  <Ionicons name="arrow-back" size={22} color="#fff" />
+</TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={styles.headerTitleRow}>
             <Text style={styles.headerTitle} numberOfLines={1}>

@@ -70,34 +70,17 @@ export default function SplashScreen({ navigation, route }) {
         end={{ x: 1, y: 1 }}
         style={styles.container}
       >
-        {/* Soft gradient glow behind the icon */}
-        <LinearGradient
-          colors={["rgba(59, 130, 246, 0.14)", "rgba(59, 130, 246, 0.02)"]}
-          start={{ x: 0.2, y: 0 }}
-          end={{ x: 0.8, y: 1 }}
-          style={styles.iconGlow}
-        >
-          <Image
-            source={require("../assets/Bantay-logo.png")}
-            style={styles.bIcon}
-            resizeMode="contain"
-          />
-        </LinearGradient>
+      
 
         {/* Wordmark card — matches web .bantay-logo-box
             (linear-gradient(135deg, rgba(59,130,246,0.05), rgba(220,38,38,0.05))) */}
-        <LinearGradient
-          colors={["rgba(59, 130, 246, 0.06)", "rgba(220, 38, 38, 0.04)"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.wordmarkCard}
-        >
-          <Image
-            source={require("../assets/Long-logo.png")}
-            style={styles.wordmarkImage}
-            resizeMode="contain"
-          />
-        </LinearGradient>
+        <View style={styles.iconGlow}>
+  <Image
+    source={require("../assets/Bantay-logo.png")}
+    style={styles.bIcon}
+    resizeMode="contain"
+  />
+</View>
 
         {/* Full title — matches web .main-title (this IS the only title, no separate line) */}
         <Text style={styles.mainTitle}>
@@ -134,21 +117,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
 
-  // Soft circular gradient glow behind the icon
-  iconGlow: {
-    width: 156,
-    height: 156,
-    borderRadius: 78,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 24,
-  },
-
-  // Bantay-logo.png is a perfect 360x360 square — no distortion at any size
-  bIcon: {
-    width: 108,
-    height: 108,
-  },
+ iconGlow: {
+  width: 180,
+  height: 180,
+  alignItems: "center",
+  justifyContent: "center",
+  marginBottom: 24,
+},
+bIcon: {
+  width: 150,
+  height: 150,
+},
 
   // web .bantay-logo-box — real gradient now, plus a thin border. Kept the
   // shadow iOS-only (Android's `elevation` renders a flat gray halo instead

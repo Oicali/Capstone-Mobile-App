@@ -519,28 +519,35 @@ const ConfirmModal = memo(function ConfirmModal({
 }) {
   if (!visible) return null;
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={cm.overlay}>
-        <View style={cm.box}>
-          <Text style={cm.title}>{title}</Text>
-          <Text style={cm.msg}>{message}</Text>
-          <View style={cm.row}>
-            <TouchableOpacity style={cm.cancelBtn} onPress={onCancel}>
-              <Text style={cm.cancelTxt}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                cm.confirmBtn,
-                { backgroundColor: confirmColor || C.red },
-              ]}
-              onPress={onConfirm}
-            >
-              <Text style={cm.confirmTxt}>{confirmText || "Confirm"}</Text>
-            </TouchableOpacity>
-          </View>
+    <View style={[cm.overlay, {
+      position: "absolute",
+      top: 0, left: 0, right: 0, bottom: 0,
+      zIndex: 9999,
+    }]}>
+      <TouchableOpacity
+        style={StyleSheet.absoluteFill}
+        activeOpacity={1}
+        onPress={onCancel}
+      />
+      <View style={cm.box}>
+        <Text style={cm.title}>{title}</Text>
+        <Text style={cm.msg}>{message}</Text>
+        <View style={cm.row}>
+          <TouchableOpacity style={cm.cancelBtn} onPress={onCancel}>
+            <Text style={cm.cancelTxt}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              cm.confirmBtn,
+              { backgroundColor: confirmColor || C.red },
+            ]}
+            onPress={onConfirm}
+          >
+            <Text style={cm.confirmTxt}>{confirmText || "Confirm"}</Text>
+          </TouchableOpacity>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 });
 const cm = StyleSheet.create({
@@ -718,6 +725,83 @@ function DatePickerBtn({ label, value, onChange, maximumDate, fieldKey }) {
       ? `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`
       : "";
 
+  const maxDate = maximumDate || new Date();
+
+  if (Platform.OS === "ios") {
+    return (
+      <View>
+        <TouchableOpacity
+          style={[
+            inp.base,
+            {
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            },
+          ]}
+          onPress={() => {
+            setTemp(value || new Date());
+            setShow(true);
+          }}
+        >
+          <Text
+            style={{ fontSize: 14, color: value ? C.text : C.faint, flex: 1 }}
+          >
+            {fmtDisplay(value) || "mm/dd/yyyy"}
+          </Text>
+          <Ionicons name="calendar-outline" size={16} color={C.muted} />
+        </TouchableOpacity>
+
+        <Modal visible={show} transparent animationType="slide">
+          <View style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            justifyContent: "flex-end",
+          }}>
+            <View style={{
+              backgroundColor: C.white,
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              paddingBottom: 34,
+            }}>
+              <View style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                paddingHorizontal: 20,
+                paddingVertical: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: C.border,
+              }}>
+                <TouchableOpacity onPress={() => setShow(false)}>
+                  <Text style={{ fontSize: 15, color: C.sub, fontWeight: "600" }}>Cancel</Text>
+                </TouchableOpacity>
+                <Text style={{ fontSize: 15, fontWeight: "700", color: C.navy }}>
+                  {label || "Select Date"}
+                </Text>
+                <TouchableOpacity onPress={() => {
+                  // Validate max date
+                  const selected = temp > maxDate ? maxDate : temp;
+                  onChange(selected);
+                  setShow(false);
+                }}>
+                  <Text style={{ fontSize: 15, color: C.navyMid, fontWeight: "700" }}>Done</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={temp > maxDate ? maxDate : temp}
+                mode="date"
+                display="spinner"
+                onChange={(_, d) => d && setTemp(d > maxDate ? maxDate : d)}
+                maximumDate={maxDate}
+              />
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
+
   return (
     <View>
       <TouchableOpacity
@@ -744,14 +828,16 @@ function DatePickerBtn({ label, value, onChange, maximumDate, fieldKey }) {
 
       {show && (
         <DateTimePicker
-          value={temp}
+          value={temp > maxDate ? maxDate : temp}
           mode="date"
           display="calendar"
           onChange={(evt, d) => {
             setShow(false);
-            if (evt.type !== "dismissed" && d) onChange(d);
+            if (evt.type !== "dismissed" && d) {
+              onChange(d > maxDate ? maxDate : d);
+            }
           }}
-          maximumDate={maximumDate || new Date()}
+          maximumDate={maxDate}
         />
       )}
     </View>
@@ -2605,58 +2691,60 @@ const Step3 = memo(function Step3({
           onClose={() => setActivePick(null)}
         />
 
-        <FField label="Street" required error={formErr.str}>
-          <TouchableOpacity
-            style={[
-              inp.base,
-              {
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-              },
-              formErr.str && inp.err,
-              !caseD.place_barangay && inp.dis,
-            ]}
-            onPress={() => {
-              if (!caseD.place_barangay) return;
-              setStreetQuery(caseD.place_street || "");
-              setShowStreetModal(true);
-            }}
-            disabled={!caseD.place_barangay}
-          >
-            <Text
-              style={{
-                fontSize: 14,
-                color: caseD.place_street ? C.text : C.faint,
-                flex: 1,
-              }}
-              numberOfLines={1}
-            >
-              {caseD.place_street ||
-                (caseD.place_barangay
-                  ? "Type to search street..."
-                  : "Select barangay first")}
-            </Text>
-            {caseD.place_street && (
-              <TouchableOpacity
-                onPress={() => {
-                  uCase("place_street", "");
-                  uCase("lat", "");
-                  uCase("lng", "");
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons
-                  name="close-circle"
-                  size={18}
-                  color={C.muted}
-                  style={{ marginRight: 6 }}
-                />
-              </TouchableOpacity>
-            )}
-            <Ionicons name="search-outline" size={16} color={C.muted} />
-          </TouchableOpacity>
-        </FField>
+       <FField label="Street / Specific Place" required error={formErr.str}
+  hint="Type your address or use the search button to auto-pin">
+  <View style={{ flexDirection: "row", gap: 8 }}>
+    <TextInput
+      style={[
+        inp.base,
+        { flex: 1 },
+        formErr.str && inp.err,
+        !caseD.place_barangay && inp.dis,
+      ]}
+      value={caseD.place_street}
+      onChangeText={(v) => {
+        uCase("place_street", v);
+        if (_formErrRef.setter)
+          _formErrRef.setter((prev) => {
+            const n = { ...prev };
+            delete n.str;
+            return n;
+          });
+      }}
+      placeholder={
+        caseD.place_barangay
+          ? "e.g. 123 Rizal St., near market"
+          : "Select barangay first"
+      }
+      placeholderTextColor={C.faint}
+      editable={!!caseD.place_barangay}
+      autoCorrect={false}
+    />
+    <TouchableOpacity
+      style={{
+        width: 44,
+        borderRadius: 12,
+        backgroundColor: caseD.place_barangay ? C.navyMid : C.border,
+        alignItems: "center",
+        justifyContent: "center",
+        borderWidth: 1.5,
+        borderColor: caseD.place_barangay ? C.navyMid : C.border,
+      }}
+      onPress={() => {
+        if (!caseD.place_barangay) return;
+        setStreetQuery(caseD.place_street || "");
+        setShowStreetModal(true);
+      }}
+      disabled={!caseD.place_barangay}
+    >
+      <Ionicons
+        name="search-outline"
+        size={18}
+        color={caseD.place_barangay ? C.white : C.muted}
+      />
+    </TouchableOpacity>
+  </View>
+</FField>
 
         {/* Street Search Modal */}
         <Modal
@@ -5409,10 +5497,8 @@ export default function EBlotterScreen({ navigation, route }) {
     reset();
   };
   const closeSuccessModal = () => {
-    setSuccessModal({ show: false, reportId: "", message: "" });
-    closeModal();
-    load(filters, activeReportTab);
-  };
+  setSuccessModal({ show: false, reportId: "", message: "" });
+};
   const askClose = () => {
     if (viewMode) {
       closeModal();
@@ -6242,12 +6328,17 @@ export default function EBlotterScreen({ navigation, route }) {
                 await uploadAttachment(newId, file);
               }
             }
-            setSaving(false);
-            setSuccessModal({
-              show: true,
-              reportId: data.data.blotter_entry_number,
-              message: "Report Entry Created Successfully!",
-            });
+           setSaving(false);
+setModal(false); // close form modal FIRST
+setTimeout(() => {
+  setSuccessModal({
+    show: true,
+    reportId: data.data.blotter_entry_number,
+    message: "Report Entry Created Successfully!",
+  });
+  load(filters, activeReportTab);
+}, 350); // wait for modal close animation
+reset();
           }
         } else {
           setSaving(false);
@@ -6355,15 +6446,19 @@ export default function EBlotterScreen({ navigation, route }) {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        showConfirm(
-          "Permission Denied",
-          "Location permission is required to use this feature.",
-          "OK",
-          C.navyMid,
-          hideConfirm,
-        );
-        return;
-      }
+  setShowGpsForPin(false); // close GPS overlay first
+  setGpsLoading(false);
+  setTimeout(() => {
+    showConfirm(
+      "Permission Denied",
+      "Location permission is required to use this feature.",
+      "OK",
+      C.navyMid,
+      hideConfirm,
+    );
+  }, 300);
+  return;
+}
       const loc = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
@@ -6396,15 +6491,19 @@ export default function EBlotterScreen({ navigation, route }) {
             }
           }
           if (!inside) {
-            showConfirm(
-              "Outside Barangay",
-              `Your current location is outside ${caseD.place_barangay}. Please drop the pin manually on the map instead.`,
-              "OK",
-              C.navyMid,
-              hideConfirm,
-            );
-            return;
-          }
+  setShowGpsForPin(false);
+  setGpsLoading(false);
+  setTimeout(() => {
+    showConfirm(
+      "Outside Barangay",
+      `Your current location is outside ${caseD.place_barangay}. Please drop the pin manually on the map instead.`,
+      "OK",
+      C.navyMid,
+      hideConfirm,
+    );
+  }, 300);
+  return;
+}
         }
       }
 
@@ -6732,15 +6831,6 @@ export default function EBlotterScreen({ navigation, route }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
       <StatusBar barStyle="light-content" backgroundColor={C.navy} />
 
-      <ConfirmModal
-        visible={confirm.visible}
-        title={confirm.title}
-        message={confirm.message}
-        confirmText={confirm.confirmText}
-        confirmColor={confirm.confirmColor}
-        onConfirm={confirm.onConfirm}
-        onCancel={hideConfirm}
-      />
 
       {/* Header */}
       <View style={ml.header}>
@@ -7210,6 +7300,120 @@ export default function EBlotterScreen({ navigation, route }) {
       <Modal visible={modal} animationType="slide" onRequestClose={askClose}>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
           <StatusBar barStyle="light-content" backgroundColor={C.navy} />
+
+             <ConfirmModal
+        visible={confirm.visible}
+        title={confirm.title}
+        message={confirm.message}
+        confirmText={confirm.confirmText}
+        confirmColor={confirm.confirmColor}
+        onConfirm={confirm.onConfirm}
+        onCancel={hideConfirm}
+      />
+
+       {/* ═══ SAVING OVERLAY ═══ */}
+    {saving && (
+  <View style={{
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "rgba(11,36,71,0.7)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 20,
+    zIndex: 9999,
+  }}>
+    <View style={{
+      backgroundColor: C.white,
+      borderRadius: 20,
+      padding: 32,
+      alignItems: "center",
+      gap: 16,
+      width: "75%",
+    }}>
+      <ActivityIndicator size="large" color={C.navyMid} />
+      <Text style={{
+        fontSize: 15,
+        fontWeight: "800",
+        color: C.navy,
+        textAlign: "center",
+      }}>
+        {acceptMode
+          ? "Accepting Referral…"
+          : editMode
+            ? "Updating Report…"
+            : "Creating Report…"}
+      </Text>
+      {pendingFiles.length > 0 && (
+        <>
+          <Text style={{ fontSize: 13, color: C.sub, textAlign: "center" }}>
+            Uploading {pendingFiles.length} file
+            {pendingFiles.length > 1 ? "s" : ""}…
+          </Text>
+          <Text style={{
+            fontSize: 11,
+            color: C.muted,
+            textAlign: "center",
+            paddingHorizontal: 10,
+          }}>
+            Large videos may take a moment. Please keep the app open.
+          </Text>
+        </>
+      )}
+    </View>
+  </View>
+)}
+
+      {showGpsForPin && (
+  <View style={{
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+  }}>
+    <View style={{
+      backgroundColor: C.white,
+      borderRadius: 16,
+      padding: 24,
+      width: "80%",
+      alignItems: "center",
+      gap: 10,
+    }}>
+      <Text style={{ fontSize: 16, fontWeight: "800", color: C.navy, textAlign: "center" }}>
+        Set Pin to My Location
+      </Text>
+      <Text style={{ fontSize: 13, color: C.sub, textAlign: "center", lineHeight: 20 }}>
+        This will use your current GPS coordinates as the crime incident pin location.
+      </Text>
+      <View style={{ flexDirection: "row", gap: 10, width: "100%", marginTop: 8 }}>
+        <TouchableOpacity
+          style={{
+            flex: 1, paddingVertical: 12, borderRadius: 10,
+            borderWidth: 1.5, borderColor: C.border, alignItems: "center",
+          }}
+          onPress={() => setShowGpsForPin(false)}
+        >
+          <Text style={{ fontWeight: "600", color: C.sub }}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{
+            flex: 1, paddingVertical: 12, borderRadius: 10,
+            backgroundColor: C.navyMid, alignItems: "center",
+            flexDirection: "row", justifyContent: "center", gap: 6,
+          }}
+          onPress={useMyLocationAsPin}
+        >
+          {gpsLoading
+            ? <ActivityIndicator size="small" color={C.white} />
+            : <Text style={{ fontWeight: "600", color: C.white }}>Use My Location</Text>
+          }
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+)}
+
           {/* Modal Header */}
           <View style={ml.modalHeader}>
             <TouchableOpacity
@@ -7599,311 +7803,70 @@ export default function EBlotterScreen({ navigation, route }) {
         </SafeAreaView>
       </Modal>
 
-      {/* ═══ SUCCESS MODAL ═══ */}
-      {successModal.show && (
-        <Modal transparent animationType="fade" visible={successModal.show}>
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: "rgba(0,0,0,0.5)",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: 20,
-            }}
-          >
-            <View
-              style={{
-                backgroundColor: "white",
-                borderRadius: 16,
-                padding: 0,
-                width: "100%",
-                maxWidth: 400,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 8,
-                overflow: "hidden",
-              }}
-            >
-              {/* Header */}
-              <View
-                style={{
-                  backgroundColor: "#16a34a",
-                  padding: 24,
-                  alignItems: "center",
-                }}
-              >
-                <View
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    backgroundColor: "rgba(255,255,255,0.2)",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  <Ionicons name="checkmark-circle" size={48} color="white" />
-                </View>
-                <Text
-                  style={{
-                    color: "white",
-                    fontSize: 20,
-                    fontWeight: "700",
-                    textAlign: "center",
-                  }}
-                >
-                  {successModal.message}
-                </Text>
-              </View>
-
-              {/* Body */}
-              <View style={{ padding: 24 }}>
-                <View
-                  style={{
-                    backgroundColor: "#f0fdf4",
-                    borderRadius: 8,
-                    padding: 16,
-                    borderWidth: 1,
-                    borderColor: "#86efac",
-                    marginBottom: 20,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: "600",
-                      color: "#166534",
-                      marginBottom: 8,
-                      textTransform: "uppercase",
-                      letterSpacing: 0.5,
-                    }}
-                  >
-                    Report ID
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "700",
-                      color: "#15803d",
-                      fontFamily:
-                        Platform.OS === "ios" ? "Courier" : "monospace",
-                    }}
-                  >
-                    {successModal.reportId}
-                  </Text>
-                </View>
-
-                <View
-                  style={{
-                    backgroundColor: "#f8fafc",
-                    borderRadius: 8,
-                    padding: 16,
-                    borderLeftWidth: 3,
-                    borderLeftColor: "#3b82f6",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: "#64748b",
-                      lineHeight: 20,
-                      textAlign: "center",
-                    }}
-                  >
-                    Your report has been successfully recorded. The report ID
-                    has been generated and can be used for tracking purposes.
-                  </Text>
-                </View>
-              </View>
-
-              {/* Footer */}
-              <View
-                style={{
-                  padding: 16,
-                  borderTopWidth: 1,
-                  borderTopColor: "#e5e7eb",
-                  backgroundColor: "#f8fafc",
-                }}
-              >
-                <TouchableOpacity
-                  onPress={closeSuccessModal}
-                  style={{
-                    backgroundColor: "#16a34a",
-                    paddingVertical: 14,
-                    borderRadius: 8,
-                    alignItems: "center",
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "white",
-                      fontSize: 15,
-                      fontWeight: "700",
-                      letterSpacing: 0.3,
-                    }}
-                  >
-                    Done
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-      )}
-      {/* ═══ SAVING OVERLAY ═══ */}
-      <Modal visible={saving} transparent animationType="fade">
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(11,36,71,0.7)",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 20,
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: C.white,
-              borderRadius: 20,
-              padding: 32,
-              alignItems: "center",
-              gap: 16,
-              width: "75%",
-            }}
-          >
-            <ActivityIndicator size="large" color={C.navyMid} />
-            <Text
-              style={{
-                fontSize: 15,
-                fontWeight: "800",
-                color: C.navy,
-                textAlign: "center",
-              }}
-            >
-              {acceptMode
-                ? "Accepting Referral…"
-                : editMode
-                  ? "Updating Report…"
-                  : "Creating Report…"}
-            </Text>
-            {pendingFiles.length > 0 && (
-              <>
-                <Text
-                  style={{ fontSize: 13, color: C.sub, textAlign: "center" }}
-                >
-                  Uploading {pendingFiles.length} file
-                  {pendingFiles.length > 1 ? "s" : ""}…
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: C.muted,
-                    textAlign: "center",
-                    paddingHorizontal: 10,
-                  }}
-                >
-                  Large videos may take a moment. Please keep the app open.
-                </Text>
-              </>
-            )}
-          </View>
+{/* ═══ SUCCESS MODAL ═══ */}
+<Modal
+  visible={successModal.show}
+  transparent
+  animationType="fade"
+  onRequestClose={closeSuccessModal}
+>
+  <View style={{
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  }}>
+    <View style={{
+      backgroundColor: "white",
+      borderRadius: 16,
+      width: "100%",
+      maxWidth: 400,
+      overflow: "hidden",
+    }}>
+      <View style={{ backgroundColor: "#16a34a", padding: 24, alignItems: "center" }}>
+        <View style={{
+          width: 64, height: 64, borderRadius: 32,
+          backgroundColor: "rgba(255,255,255,0.2)",
+          alignItems: "center", justifyContent: "center", marginBottom: 12,
+        }}>
+          <Ionicons name="checkmark-circle" size={48} color="white" />
         </View>
-      </Modal>
-
-      <Modal
-        visible={showGpsForPin}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowGpsForPin(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.45)",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: C.white,
-              borderRadius: 16,
-              padding: 24,
-              width: "80%",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "800",
-                color: C.navy,
-                textAlign: "center",
-              }}
-            >
-              Set Pin to My Location
-            </Text>
-            <Text
-              style={{
-                fontSize: 13,
-                color: C.sub,
-                textAlign: "center",
-                lineHeight: 20,
-              }}
-            >
-              This will use your current GPS coordinates as the crime incident
-              pin location.
-            </Text>
-            <View
-              style={{
-                flexDirection: "row",
-                gap: 10,
-                width: "100%",
-                marginTop: 8,
-              }}
-            >
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: 10,
-                  borderWidth: 1.5,
-                  borderColor: C.border,
-                  alignItems: "center",
-                }}
-                onPress={() => setShowGpsForPin(false)}
-              >
-                <Text style={{ fontWeight: "600", color: C.sub }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: 10,
-                  backgroundColor: C.navyMid,
-                  alignItems: "center",
-                  flexDirection: "row",
-                  justifyContent: "center",
-                  gap: 6,
-                }}
-                onPress={useMyLocationAsPin}
-              >
-                {gpsLoading ? (
-                  <ActivityIndicator size="small" color={C.white} />
-                ) : (
-                  <Text style={{ fontWeight: "600", color: C.white }}>
-                    Use My Location
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
+        <Text style={{ color: "white", fontSize: 20, fontWeight: "700", textAlign: "center" }}>
+          {successModal.message}
+        </Text>
+      </View>
+      <View style={{ padding: 24 }}>
+        <View style={{
+          backgroundColor: "#f0fdf4", borderRadius: 8, padding: 16,
+          borderWidth: 1, borderColor: "#86efac", marginBottom: 20,
+        }}>
+          <Text style={{ fontSize: 12, fontWeight: "600", color: "#166534", marginBottom: 8, textTransform: "uppercase" }}>
+            Report ID
+          </Text>
+          <Text style={{
+            fontSize: 18, fontWeight: "700", color: "#15803d",
+            fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+          }}>
+            {successModal.reportId}
+          </Text>
         </View>
-      </Modal>
+        <Text style={{ fontSize: 13, color: "#64748b", lineHeight: 20, textAlign: "center" }}>
+          Your report has been successfully recorded.
+        </Text>
+      </View>
+      <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: "#e5e7eb", backgroundColor: "#f8fafc" }}>
+        <TouchableOpacity
+          onPress={closeSuccessModal}
+          style={{ backgroundColor: "#16a34a", paddingVertical: 14, borderRadius: 8, alignItems: "center" }}
+        >
+          <Text style={{ color: "white", fontSize: 15, fontWeight: "700" }}>Done</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
+     
       {/* LIGHTBOX */}
       {lightboxImage && (
         <Modal

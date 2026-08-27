@@ -787,6 +787,7 @@ function FilterSheet({
   applied,
   onApply,
   onClose,
+  onReopen,
   isPatrol,
   hasPatrolAssignment,
   patrolAssignedBarangays,
@@ -794,8 +795,9 @@ function FilterSheet({
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState({ ...applied });
   const [dateErr, setDateErr] = useState("");
-  const [showCrime, setShowCrime] = useState(false);
-  const [showBrgy, setShowBrgy] = useState(false);
+ const [showCrime, setShowCrime] = useState(false);
+const [showBrgy, setShowBrgy] = useState(false);
+const [pendingOpen, setPendingOpen] = useState(null); 
   // Latest selectable Start Date = today - 6 days, so there are always
   // at least 7 days of room between Start and today (the latest End Date).
   const maxStartDate = (() => {
@@ -808,12 +810,34 @@ function FilterSheet({
       NavigationBar.setVisibilityAsync("hidden");
     }
   }, [visible]);
-  useEffect(() => {
-    if (visible) {
+ const justReopenedRef = React.useRef(false);
+useEffect(() => {
+  if (visible) {
+    if (!justReopenedRef.current) {
       setDraft({ ...applied });
       setDateErr("");
     }
-  }, [visible, applied]);
+    justReopenedRef.current = false;
+    setPendingOpen(null);
+  }
+}, [visible, applied]);
+
+// Open pending picker after FilterSheet closes
+// Open pending picker after FilterSheet closes
+useEffect(() => {
+  if (!visible && pendingOpen === "crime") setShowCrime(true);
+  if (!visible && pendingOpen === "brgy") setShowBrgy(true);
+}, [visible, pendingOpen]);
+
+// Reopen FilterSheet once the picker closes
+const handlePickerClose = (setter) => {
+  setter(false);
+  if (pendingOpen) {
+    setPendingOpen(null);
+    justReopenedRef.current = true;
+    setTimeout(() => onReopen && onReopen(), 300);
+  }
+};
 
   const handlePreset = (key) => {
     if (key === "custom") {
@@ -999,7 +1023,10 @@ function FilterSheet({
               <View style={{ paddingHorizontal: 20 }}>
                 <TouchableOpacity
                   style={s.dropBtn}
-                  onPress={() => setShowCrime(true)}
+                  onPress={() => {
+  onClose(); 
+  setTimeout(() => setPendingOpen("crime"), 350);
+}}
                 >
                   <View style={s.dropInner}>
                     {draft.crimeTypes.length === 0 ? (
@@ -1054,7 +1081,10 @@ function FilterSheet({
                 ) : (
                   <TouchableOpacity
                     style={s.dropBtn}
-                    onPress={() => setShowBrgy(true)}
+                    onPress={() => {
+  onClose(); 
+  setTimeout(() => setPendingOpen("brgy"), 350);
+}}
                   >
                     <View style={s.dropInner}>
                       {draft.barangays.length === 0 ? (
@@ -1117,25 +1147,25 @@ function FilterSheet({
           </View>
         </View>
       </Modal>
-      <MultiSelect
-        visible={showCrime}
-        title="Incident Type"
-        items={INDEX_CRIMES}
-        selected={draft.crimeTypes}
-        searchable={false}
-        onClose={() => setShowCrime(false)}
-        onApply={(sel) => setDraft((f) => ({ ...f, crimeTypes: sel }))}
-      />
-      <MultiSelect
-        visible={showBrgy}
-        title="Barangay"
-        items={CURRENT_BARANGAYS}
-        legacy={LEGACY_OPTIONS}
-        selected={draft.barangays}
-        searchable={true}
-        onClose={() => setShowBrgy(false)}
-        onApply={(sel) => setDraft((f) => ({ ...f, barangays: sel }))}
-      />
+     <MultiSelect
+  visible={showCrime}
+  title="Incident Type"
+  items={INDEX_CRIMES}
+  selected={draft.crimeTypes}
+  searchable={false}
+  onClose={() => handlePickerClose(setShowCrime)}
+  onApply={(sel) => setDraft((f) => ({ ...f, crimeTypes: sel }))}
+/>
+<MultiSelect
+  visible={showBrgy}
+  title="Barangay"
+  items={CURRENT_BARANGAYS}
+  legacy={LEGACY_OPTIONS}
+  selected={draft.barangays}
+  searchable={true}
+  onClose={() => handlePickerClose(setShowBrgy)}
+  onApply={(sel) => setDraft((f) => ({ ...f, barangays: sel }))}
+/>
     </>
   );
 }
@@ -1272,8 +1302,8 @@ function IndexCrimeTable({ data, sel, dateFrom, dateTo }) {
                 />
               </TouchableOpacity>
             ))}
-            <Text style={[s.tH, { width: 62, textAlign: "center" }]}>CCE%</Text>
-            <Text style={[s.tH, { width: 62, textAlign: "center" }]}>CSE%</Text>
+            <Text style={[s.tH, { width: 70, textAlign: "center" }]}>CCE%</Text>
+            <Text style={[s.tH, { width: 70, textAlign: "center" }]}>CSE%</Text>
           </View>
           {rows.map((r, i) => {
             const cce = parseFloat(pct(r.cleared + r.solved, r.total));
@@ -1320,13 +1350,13 @@ function IndexCrimeTable({ data, sel, dateFrom, dateTo }) {
                 >
                   {r.underInvestigation}
                 </Text>
-                <View style={[s.tD, { width: 62, alignItems: "center" }]}>
+                <View style={[s.tD, { width: 70, alignItems: "center" }]}>
                   <Bdg
                     val={`${cce.toFixed(1)}%`}
                     color={cce >= 50 ? "green" : "red"}
                   />
                 </View>
-                <View style={[s.tD, { width: 62, alignItems: "center" }]}>
+                <View style={[s.tD, { width: 70, alignItems: "center" }]}>
                   <Bdg
                     val={`${cse.toFixed(1)}%`}
                     color={cse >= 50 ? "green" : "amber"}
@@ -1388,13 +1418,13 @@ function IndexCrimeTable({ data, sel, dateFrom, dateTo }) {
             >
               {tot.ui}
             </Text>
-            <View style={[s.tD, { width: 62, alignItems: "center" }]}>
+            <View style={[s.tD, { width: 70, alignItems: "center" }]}>
               <Bdg
                 val={`${pct(tot.cleared + tot.solved, tot.total)}%`}
                 color="green"
               />
             </View>
-            <View style={[s.tD, { width: 62, alignItems: "center" }]}>
+            <View style={[s.tD, { width: 70, alignItems: "center" }]}>
               <Bdg val={`${pct(tot.solved, tot.total)}%`} color="green" />
             </View>
           </View>
@@ -3061,14 +3091,15 @@ export default function DashboardScreen({ navigation }) {
       )}
 
       <FilterSheet
-        visible={filterVis}
-        applied={applied}
-        onApply={handleApply}
-        onClose={() => setFilterV(false)}
-        isPatrol={isPatrol}
-        hasPatrolAssignment={hasPatrolAssignment}
-        patrolAssignedBarangays={patrolAssignedBarangays}
-      />
+  visible={filterVis}
+  applied={applied}
+  onApply={handleApply}
+  onClose={() => setFilterV(false)}
+  onReopen={() => setFilterV(true)}
+  isPatrol={isPatrol}
+  hasPatrolAssignment={hasPatrolAssignment}
+  patrolAssignedBarangays={patrolAssignedBarangays}
+/>
     </SafeAreaView>
   );
 }
@@ -3407,8 +3438,8 @@ const s = StyleSheet.create({
     borderTopColor: G100,
   },
 
-  bdg: { paddingHorizontal: 5, paddingVertical: 2, borderRadius: 10 },
-  bdgTxt: { fontSize: 9.5, fontWeight: "700" },
+ bdg: { paddingHorizontal: 3, paddingVertical: 2, borderRadius: 10 },
+bdgTxt: { fontSize: 9, fontWeight: "700" },
 
   modeRow: {
     flexDirection: "row",

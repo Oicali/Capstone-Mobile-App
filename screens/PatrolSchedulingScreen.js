@@ -492,19 +492,20 @@ export default function PatrolSchedulingScreen({ navigation }) {
 
         {/* ── Date range filter ── */}
         <View style={styles.dateRangeRow}>
-          <DatePickerBtn
-            label="From"
-            value={dateFrom}
-            onChange={(d) => setDateFrom(fmtISODate(d))}
-            maximumDate={dateTo ? isoDate(dateTo) : undefined}
-          />
+         <DatePickerBtn
+  label="From"
+  value={dateFrom}
+  onChange={(d) => setDateFrom(fmtISODate(d))}
+  maximumDate={dateTo ? isoDate(dateTo) : new Date()}
+/>
           <Ionicons name="arrow-forward" size={14} color="#adb5bd" style={{ marginTop: 30 }} />
           <DatePickerBtn
-            label="To"
-            value={dateTo}
-            onChange={(d) => setDateTo(fmtISODate(d))}
-            minimumDate={dateFrom ? isoDate(dateFrom) : undefined}
-          />
+  label="To"
+  value={dateTo}
+  onChange={(d) => setDateTo(fmtISODate(d))}
+  minimumDate={dateFrom ? isoDate(dateFrom) : undefined}
+  maximumDate={new Date()}
+/>
         </View>
 
         {/* ── Filter Pills ── */}

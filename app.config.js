@@ -130,20 +130,18 @@ module.exports = {
         },
       ],
       "@react-native-community/datetimepicker",
-      [
-        "expo-location",
-        {
-          locationAlwaysAndWhenInUsePermission:
-            "BANTAY needs your location to track your patrol area in real time.",
-          locationWhenInUsePermission:
-            "BANTAY needs your location to track your patrol area in real time.",
-          locationAlwaysPermission:
-            "BANTAY needs your location in the background to share with dispatchers while GPS is active.",
-          isIosBackgroundLocationEnabled: true,
-          isAndroidBackgroundLocationEnabled: true,
-          notificationChannelName: "BANTAY Location",
-        },
-      ],
+    [
+  "expo-location",
+  {
+    locationAlwaysAndWhenInUsePermission: "BANTAY needs your location to track your patrol area in real time.",
+    locationWhenInUsePermission: "BANTAY needs your location to track your patrol area in real time.",
+    locationAlwaysPermission: "BANTAY needs your location in the background to share with dispatchers while GPS is active.",
+    NSLocationWhenInUseUsageDescription: "BANTAY needs your location to pin the crime incident on the map.",
+    isIosBackgroundLocationEnabled: true,
+    isAndroidBackgroundLocationEnabled: true,
+    notificationChannelName: "BANTAY Location",
+  },
+],
       [
         "@rnmapbox/maps",
         {
