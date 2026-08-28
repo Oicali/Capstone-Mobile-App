@@ -139,28 +139,35 @@ const ShiftBadge = ({ shift }) => {
 };
 
 // ── Delete Confirm Modal ───────────────────────────────────────────────────────
-const DeleteConfirmModal = ({ visible, reportDate, onConfirm, onCancel }) => (
-  <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-    <Pressable style={styles.overlay} onPress={onCancel}>
-      <Pressable style={styles.confirmBox} onPress={(e) => e.stopPropagation()}>
-        <Text style={styles.confirmTitle}>Delete Report</Text>
-        <Text style={styles.confirmText}>
-          Are you sure you want to delete the report for{" "}
-          <Text style={{ fontWeight: "700", color: "#212529" }}>{reportDate}</Text>?
-          This action cannot be undone.
-        </Text>
-        <View style={styles.confirmActions}>
-          <TouchableOpacity style={styles.confirmCancelBtn} onPress={onCancel}>
-            <Text style={styles.confirmCancelText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.confirmDeleteBtn} onPress={onConfirm}>
-            <Text style={styles.confirmDeleteText}>Delete</Text>
-          </TouchableOpacity>
-        </View>
+const DeleteConfirmModal = ({ visible, reportDate, onConfirm, onCancel }) => {
+  if (!visible) return null;
+  return (
+    <View style={{
+      position: "absolute",
+      top: 0, left: 0, right: 0, bottom: 0,
+      zIndex: 9999,
+    }}>
+      <Pressable style={styles.overlay} onPress={onCancel}>
+        <Pressable style={styles.confirmBox} onPress={(e) => e.stopPropagation()}>
+          <Text style={styles.confirmTitle}>Delete Report</Text>
+          <Text style={styles.confirmText}>
+            Are you sure you want to delete the report for{" "}
+            <Text style={{ fontWeight: "700", color: "#212529" }}>{reportDate}</Text>?
+            This action cannot be undone.
+          </Text>
+          <View style={styles.confirmActions}>
+            <TouchableOpacity style={styles.confirmCancelBtn} onPress={onCancel}>
+              <Text style={styles.confirmCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.confirmDeleteBtn} onPress={onConfirm}>
+              <Text style={styles.confirmDeleteText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
       </Pressable>
-    </Pressable>
-  </Modal>
-);
+    </View>
+  );
+};
 
 // ── Read-only field row ─────────────────────────────────────────────────────
 const ViewField = ({ label, value }) => (
@@ -179,7 +186,7 @@ const ViewSectionHeader = ({ children }) => (
 );
 
 // ── Full Report View (read-only) ─────────────────────────────────────────────
-const ViewReportModal = ({ visible, patrol, report, onClose }) => {
+const ViewReportModal = ({ visible, patrol, report, onClose, confirmDelete, onConfirmDelete, onCancelDelete }) => {
   if (!report) return null;
   const photos = report.photo_urls || [];
 
@@ -289,6 +296,16 @@ const ViewReportModal = ({ visible, patrol, report, onClose }) => {
 
           <View style={{ height: 40 }} />
         </ScrollView>
+         <DeleteConfirmModal
+        visible={!!confirmDelete}
+        reportDate={confirmDelete?.reportDate}
+        onConfirm={() => {
+          const id = confirmDelete.reportId;
+          setConfirmDelete(null);
+          handleDelete(id);
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
       </SafeAreaView>
     </Modal>
   );
@@ -579,23 +596,20 @@ export default function AfterPatrolHistoryScreen({ route, navigation }) {
         </ScrollView>
       )}
 
-      <DeleteConfirmModal
-        visible={!!confirmDelete}
-        reportDate={confirmDelete?.reportDate}
-        onConfirm={() => {
-          const id = confirmDelete.reportId;
-          setConfirmDelete(null);
-          handleDelete(id);
-        }}
-        onCancel={() => setConfirmDelete(null)}
-      />
 
       <ViewReportModal
-        visible={!!viewingReport}
-        patrol={patrol}
-        report={viewingReport}
-        onClose={() => setViewingReport(null)}
-      />
+  visible={!!viewingReport}
+  patrol={patrol}
+  report={viewingReport}
+  onClose={() => setViewingReport(null)}
+  confirmDelete={confirmDelete}
+  onConfirmDelete={() => {
+    const id = confirmDelete.reportId;
+    setConfirmDelete(null);
+    handleDelete(id);
+  }}
+  onCancelDelete={() => setConfirmDelete(null)}
+/>
 
       {toast && (
         <Toast key={toast.key} message={toast.message} type={toast.type} onHide={() => setToast(null)} />

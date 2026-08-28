@@ -194,7 +194,10 @@ const DatePickerBtn = React.memo(function DatePickerBtn({
   maximumDate,
 }) {
   const [show, setShow] = useState(false);
-  const [temp, setTemp] = useState(new Date());
+  const [temp, setTemp] = useState(() => {
+  const now = new Date();
+  return maximumDate && now > maximumDate ? maximumDate : now;
+});
   const maxISO = fmtISODate(maximumDate);
   const minISO = minimumDate ? fmtISODate(minimumDate) : undefined;
   const disp = value
@@ -246,9 +249,12 @@ const DatePickerBtn = React.memo(function DatePickerBtn({
         <TouchableOpacity
           style={dpStyles.btn}
           onPress={() => {
-            setTemp(value ? isoDate(value) : new Date());
-            setShow(true);
-          }}
+  const initial = value ? isoDate(value) : new Date();
+  // Clamp to maximumDate to prevent DateTimePicker crash on iOS
+  const clamped = maximumDate && initial > maximumDate ? maximumDate : initial;
+  setTemp(clamped);
+  setShow(true);
+}}
         >
           <Text style={[dpStyles.btnTxt, !value && { color: "#adb5bd" }]}>
             {disp || "Select date"}
@@ -277,7 +283,11 @@ const DatePickerBtn = React.memo(function DatePickerBtn({
                   value={temp}
                   mode="date"
                   display="spinner"
-                  onChange={(_, d) => d && setTemp(d)}
+                  onChange={(_, d) => {
+  if (!d) return;
+  const clamped = maximumDate && d > maximumDate ? maximumDate : d;
+  setTemp(clamped);
+}}
                   minimumDate={minimumDate}
                   maximumDate={maximumDate}
                 />

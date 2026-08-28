@@ -41,6 +41,7 @@ import Mapbox, {
 import { Asset } from "expo-asset";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 const Video = ({ style }) => (
   <View
     style={[
@@ -718,7 +719,12 @@ function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
 ═══════════════════════════════════════════════════════════════════════════ */
 function DatePickerBtn({ label, value, onChange, maximumDate, fieldKey }) {
   const [show, setShow] = useState(false);
-  const [temp, setTemp] = useState(new Date());
+  const toLocalDate = (isoString) => {
+  if (!isoString) return new Date();
+  const d = new Date(isoString);
+  return isNaN(d.getTime()) ? new Date() : d;
+};
+const [temp, setTemp] = useState(() => toLocalDate(value));
 
   const fmtDisplay = (d) =>
     d
@@ -739,10 +745,12 @@ function DatePickerBtn({ label, value, onChange, maximumDate, fieldKey }) {
               alignItems: "center",
             },
           ]}
-          onPress={() => {
-            setTemp(value || new Date());
-            setShow(true);
-          }}
+         onPress={() => {
+  const initial = value || new Date();
+  setTemp(initial);
+  if (!value) onChange(initial);
+  setShow(true);
+}}
         >
           <Text
             style={{ fontSize: 14, color: value ? C.text : C.faint, flex: 1 }}
@@ -814,9 +822,11 @@ function DatePickerBtn({ label, value, onChange, maximumDate, fieldKey }) {
           },
         ]}
         onPress={() => {
-          setTemp(value || new Date());
-          setShow(true);
-        }}
+  const initial = value || new Date();
+  setTemp(initial);
+  if (!value) onChange(initial);
+  setShow(true);
+}}
       >
         <Text
           style={{ fontSize: 14, color: value ? C.text : C.faint, flex: 1 }}
@@ -5175,6 +5185,7 @@ const AttachmentPanel = memo(function AttachmentPanel({
    MAIN SCREEN
 ═══════════════════════════════════════════════════════════════════════════ */
 export default function EBlotterScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
   const { regions, loadingR, getProvinces, getCities, getBarangays } =
     usePSGC();
 
@@ -6829,10 +6840,18 @@ reset();
   ════════════════════════════════════════════════════════════════════════ */
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
-      <StatusBar barStyle="light-content" backgroundColor={C.navy} />
+  <StatusBar barStyle="light-content" backgroundColor={C.navy} />
+  <ConfirmModal
+    visible={confirm.visible}
+    title={confirm.title}
+    message={confirm.message}
+    confirmText={confirm.confirmText}
+    confirmColor={confirm.confirmColor}
+    onConfirm={confirm.onConfirm}
+    onCancel={hideConfirm}
+  />
 
-
-      {/* Header */}
+  {/* Header */}
       <View style={ml.header}>
         <View>
           <Text style={ml.headerTitle}>Reporting Records</Text>
@@ -7298,8 +7317,8 @@ reset();
 
       {/* ═══ FORM MODAL ═══ */}
       <Modal visible={modal} animationType="slide" onRequestClose={askClose}>
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
-          <StatusBar barStyle="light-content" backgroundColor={C.navy} />
+  <View style={{ flex: 1, backgroundColor: C.navy, paddingTop: insets.top }}>
+    <StatusBar barStyle="light-content" backgroundColor={C.navy} />
 
              <ConfirmModal
         visible={confirm.visible}
@@ -7632,7 +7651,7 @@ reset();
               </View>
             </KeyboardAvoidingView>
           )}
-        </SafeAreaView>
+        </View>
       </Modal>
 
       {/* ═══ TRASH MODAL ═══ */}
@@ -7641,9 +7660,18 @@ reset();
         animationType="slide"
         onRequestClose={() => setTrashModal(false)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
-          <StatusBar barStyle="light-content" backgroundColor={C.navy} />
-          <View style={ml.modalHeader}>
+      <View style={{ flex: 1, backgroundColor: C.navy, paddingTop: insets.top }}>
+  <StatusBar barStyle="light-content" backgroundColor={C.navy} />
+  <ConfirmModal
+    visible={confirm.visible}
+    title={confirm.title}
+    message={confirm.message}
+    confirmText={confirm.confirmText}
+    confirmColor={confirm.confirmColor}
+    onConfirm={confirm.onConfirm}
+    onCancel={hideConfirm}
+  />
+  <View style={ml.modalHeader}>
             <TouchableOpacity
               onPress={() => setTrashModal(false)}
               style={ml.modalCloseBtn}
@@ -7800,7 +7828,7 @@ reset();
               />
             )}
           </View>
-        </SafeAreaView>
+        </View>
       </Modal>
 
 {/* ═══ SUCCESS MODAL ═══ */}

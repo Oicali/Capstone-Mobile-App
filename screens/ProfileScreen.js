@@ -162,19 +162,12 @@ const V = {
 function LoadingOverlay({ visible, message = "Please wait…" }) {
   if (!visible) return null;
   return (
-    <Modal
-      visible
-      transparent
-      animationType="fade"
-      
-    >
-      <View style={lo.overlay}>
-        <View style={lo.box}>
-          <ActivityIndicator size="large" color={C.navy} />
-          <Text style={lo.text}>{message}</Text>
-        </View>
+    <View style={[lo.overlay, { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998 }]}>
+      <View style={lo.box}>
+        <ActivityIndicator size="large" color={C.navy} />
+        <Text style={lo.text}>{message}</Text>
       </View>
-    </Modal>
+    </View>
   );
 }
 const lo = StyleSheet.create({
@@ -207,40 +200,24 @@ const lo = StyleSheet.create({
 });
 
 // ── Confirm Modal ──────────────────────────────────────────────────────────────
-function ConfirmModal({
-  visible,
-  title,
-  message,
-  onConfirm,
-  onCancel,
-  confirmText = "Confirm",
-  confirmColor = C.navy,
-}) {
+function ConfirmModal({ visible, title, message, onConfirm, onCancel, confirmText = "Confirm", confirmColor = C.navy }) {
   if (!visible) return null;
   return (
-    <Modal
-      visible
-      transparent
-      animationType="fade"
-    >
-      <View style={cm.overlay}>
-        <View style={cm.box}>
-          <Text style={cm.title}>{title}</Text>
-          <Text style={cm.msg}>{message}</Text>
-          <View style={cm.row}>
-            <TouchableOpacity style={cm.cancel} onPress={onCancel}>
-              <Text style={cm.cancelTxt}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[cm.confirm, { backgroundColor: confirmColor }]}
-              onPress={onConfirm}
-            >
-              <Text style={cm.confirmTxt}>{confirmText}</Text>
-            </TouchableOpacity>
-          </View>
+    <View style={[cm.overlay, { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }]}>
+      <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onCancel} />
+      <View style={cm.box}>
+        <Text style={cm.title}>{title}</Text>
+        <Text style={cm.msg}>{message}</Text>
+        <View style={cm.row}>
+          <TouchableOpacity style={cm.cancel} onPress={onCancel}>
+            <Text style={cm.cancelTxt}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[cm.confirm, { backgroundColor: confirmColor }]} onPress={onConfirm}>
+            <Text style={cm.confirmTxt}>{confirmText}</Text>
+          </TouchableOpacity>
         </View>
       </View>
-    </Modal>
+    </View>
   );
 }
 const cm = StyleSheet.create({
@@ -1253,13 +1230,15 @@ export default function ProfileScreen({ navigation }) {
     setShowDropdown(null);
   };
   const startEdit = async () => {
-    NavigationBar.setVisibilityAsync("hidden");
-    stopPolling();
-    setFormData({ ...originalFormData, phone: "", alternate_phone: "" });
-    setPhoneChanged(false);
-    setAltPhoneChanged(false);
-    setErrors({});
-    setIsEditing(true);
+  if (Platform.OS === "android") NavigationBar.setVisibilityAsync("hidden");
+  stopPolling();
+  setFormData({ ...originalFormData, phone: "", alternate_phone: "" });
+  setPhoneChanged(false);
+  setAltPhoneChanged(false);
+  setErrors({});
+  setErrorMsg("");
+  setIsEditing(true);
+  try {
     await loadRegions();
     if (originalFormData.region_code) {
       if (originalFormData.region_code === "130000000") {
@@ -1285,6 +1264,9 @@ export default function ProfileScreen({ navigation }) {
         }
       }
     }
+      } catch (err) {
+    setErrorMsg("Failed to load address data. Tap a dropdown to retry.");
+  }
   };
   const cancelEdit = () => {
     
@@ -1430,7 +1412,7 @@ export default function ProfileScreen({ navigation }) {
       setPhoneChanged(false);
       setAltPhoneChanged(false);
       startPolling();
-      NavigationBar.setVisibilityAsync("visible");
+      if (Platform.OS === "android") NavigationBar.setVisibilityAsync("visible");
     } catch (err) {
       // console.error("doSave:", err);
       setErrorMsg("Network error. Check your connection.");
@@ -1452,7 +1434,6 @@ export default function ProfileScreen({ navigation }) {
       quality: 0.8,
     });
     if (!r.canceled && r.assets[0]) {
-      setShowPhotoModal(false);
       confirmUploadPhoto(r.assets[0].uri);
     }
   };
@@ -1469,11 +1450,12 @@ export default function ProfileScreen({ navigation }) {
       quality: 0.8,
     });
     if (!r.canceled && r.assets[0]) {
-      setShowPhotoModal(false);
       confirmUploadPhoto(r.assets[0].uri);
     }
   };
-  const confirmUploadPhoto = (uri) =>
+  const confirmUploadPhoto = (uri) => {
+  setShowPhotoModal(false);
+  setTimeout(() => {
     showConfirm(
       "Update Profile Photo",
       "Are you sure you want to update your profile photo?",
@@ -1483,6 +1465,8 @@ export default function ProfileScreen({ navigation }) {
       },
       "Yes, Update",
     );
+  }, 350);
+};
   const uploadPhoto = async (uri) => {
     try {
       setUploadingPhoto(true);

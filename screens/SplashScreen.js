@@ -82,6 +82,20 @@ export default function SplashScreen({ navigation, route }) {
   />
 </View>
 
+{/* Wordmark card */}
+<LinearGradient
+  colors={["rgba(59, 130, 246, 0.06)", "rgba(220, 38, 38, 0.04)"]}
+  start={{ x: 0, y: 0 }}
+  end={{ x: 1, y: 1 }}
+  style={styles.wordmarkCard}
+>
+  <Image
+    source={require("../assets/Long-logo.png")}
+    style={styles.wordmarkImage}
+    resizeMode="contain"
+  />
+</LinearGradient>
+
         {/* Full title — matches web .main-title (this IS the only title, no separate line) */}
         <Text style={styles.mainTitle}>
           Bacoor Anti-Criminality Network for Targeted Actions and Yields

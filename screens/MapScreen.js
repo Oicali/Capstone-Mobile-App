@@ -1696,8 +1696,7 @@ export default function MapScreen({ navigation }) {
                   iconAllowOverlap: true,
                   iconIgnorePlacement: true,
                   iconAnchor: "bottom",
-                  visibility:
-                    !heatmapMode && mapZoom >= 13 ? "visible" : "none",
+                  visibility: !heatmapMode ? "visible" : "none",
                 }}
               />
             </ShapeSource>
@@ -2161,7 +2160,10 @@ export default function MapScreen({ navigation }) {
                 <View style={styles.dateFilterRow}>
                   <TouchableOpacity
                     style={styles.dateFilterBtn}
-                    onPress={() => setShowCrimeTypeFilter(true)}
+                    onPress={() => {
+  setShowSidebar(false);
+  setTimeout(() => setShowCrimeTypeFilter(true), 350);
+}}
                   >
                     <Ionicons name="flag-outline" size={14} color="#1e3a5f" />
                     <Text style={styles.dateFilterBtnText}>
@@ -2196,7 +2198,10 @@ export default function MapScreen({ navigation }) {
                   <View style={styles.dateFilterRow}>
                     <TouchableOpacity
                       style={styles.dateFilterBtn}
-                      onPress={() => setShowBarangayFilter(true)}
+                      onPress={() => {
+  setShowSidebar(false);
+  setTimeout(() => setShowBarangayFilter(true), 350);
+}}
                     >
                       <Ionicons
                         name="location-outline"
@@ -2651,7 +2656,10 @@ export default function MapScreen({ navigation }) {
         items={INDEX_CRIMES.map((c) => ({ label: CRIME_DISPLAY[c], value: c }))}
         selected={filterIncidentTypes}
         searchable={false}
-        onClose={() => setShowCrimeTypeFilter(false)}
+        onClose={() => {
+    setShowCrimeTypeFilter(false);
+    setTimeout(() => setShowSidebar(true), 300);
+  }}
         onApply={(sel) => setFilterIncidentTypes(sel)}
       />
 
@@ -2665,7 +2673,10 @@ export default function MapScreen({ navigation }) {
         legacy={LEGACY_OPTIONS}
         selected={filterBarangays}
         searchable={true}
-        onClose={() => setShowBarangayFilter(false)}
+         onClose={() => {
+    setShowBarangayFilter(false);
+    setTimeout(() => setShowSidebar(true), 300);
+  }}
         onApply={(sel) => setFilterBarangays(sel)}
       />
     </SafeAreaView>
