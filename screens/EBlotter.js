@@ -57,7 +57,6 @@ const Video = ({ style }) => (
   </View>
 );
 const ResizeMode = { COVER: "cover" };
-import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 // ============ FIX 1: MAPBOX BLACK SCREEN FIX ============
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN);
