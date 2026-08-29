@@ -744,10 +744,8 @@ const [temp, setTemp] = useState(() => toLocalDate(value));
               alignItems: "center",
             },
           ]}
-         onPress={() => {
-  const initial = value || new Date();
-  setTemp(initial);
-  if (!value) onChange(initial);
+       onPress={() => {
+  setTemp(value || new Date());
   setShow(true);
 }}
         >
@@ -820,10 +818,8 @@ const [temp, setTemp] = useState(() => toLocalDate(value));
             alignItems: "center",
           },
         ]}
-        onPress={() => {
-  const initial = value || new Date();
-  setTemp(initial);
-  if (!value) onChange(initial);
+       onPress={() => {
+  setTemp(value || new Date());
   setShow(true);
 }}
       >

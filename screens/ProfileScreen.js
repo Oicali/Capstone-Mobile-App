@@ -2825,7 +2825,7 @@ export default function ProfileScreen({ navigation }) {
         transparent={false}
        
       >
-        <SafeAreaView style={em.safe}>
+      <View style={[em.safe, { paddingTop: insets.top }]}>
           <View style={em.header}>
             <TouchableOpacity
               onPress={closeEmailModal}
@@ -3234,7 +3234,7 @@ export default function ProfileScreen({ navigation }) {
                 })}
             </ScrollView>
           </KeyboardAvoidingView>
-        </SafeAreaView>
+        </View>
       </Modal>
 
       {/* EDIT PROFILE MODAL — unchanged */}
@@ -3244,10 +3244,7 @@ export default function ProfileScreen({ navigation }) {
         transparent={false}
      
       >
-        <SafeAreaView
-          style={ef.safe}
-          edges={["top", "left", "right", "bottom"]}
-        >
+        <View style={[ef.safe, { paddingTop: insets.top }]}>
           <View style={ef.header}>
             <TouchableOpacity
               onPress={cancelEdit}
@@ -3662,7 +3659,7 @@ export default function ProfileScreen({ navigation }) {
             </View>
             <View style={{ height: 48 }} />
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </Modal>
 
       {/* Photo picker sheet — unchanged */}

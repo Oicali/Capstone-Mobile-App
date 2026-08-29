@@ -5,7 +5,7 @@ import {
   ActivityIndicator, Image, Modal, Pressable,
   StatusBar, RefreshControl, Animated,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -187,12 +187,13 @@ const ViewSectionHeader = ({ children }) => (
 
 // ── Full Report View (read-only) ─────────────────────────────────────────────
 const ViewReportModal = ({ visible, patrol, report, onClose, confirmDelete, onConfirmDelete, onCancelDelete }) => {
+  const insets = useSafeAreaInsets();
   if (!report) return null;
   const photos = report.photo_urls || [];
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.container} edges={["top"]}>
+     <View style={[styles.container, { paddingTop: insets.top }]}>
         <StatusBar barStyle="light-content" backgroundColor="#1e3a5f" />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={onClose}>
@@ -306,7 +307,7 @@ const ViewReportModal = ({ visible, patrol, report, onClose, confirmDelete, onCo
         }}
         onCancel={() => setConfirmDelete(null)}
       />
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 };

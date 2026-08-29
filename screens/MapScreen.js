@@ -1696,7 +1696,7 @@ export default function MapScreen({ navigation }) {
                   iconAllowOverlap: true,
                   iconIgnorePlacement: true,
                   iconAnchor: "bottom",
-                  visibility: !heatmapMode ? "visible" : "none",
+                  visibility: !heatmapMode && mapZoom >= 13 ? "visible" : "none",
                 }}
               />
             </ShapeSource>
