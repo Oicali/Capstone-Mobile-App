@@ -301,15 +301,11 @@ const ViewReportModal = ({ visible, patrol, report, onClose, confirmDelete, onCo
           <View style={{ height: 40 }} />
         </ScrollView>
          <DeleteConfirmModal
-        visible={!!confirmDelete}
-        reportDate={confirmDelete?.reportDate}
-        onConfirm={() => {
-          const id = confirmDelete.reportId;
-          setConfirmDelete(null);
-          handleDelete(id);
-        }}
-        onCancel={() => setConfirmDelete(null)}
-      />
+  visible={!!confirmDelete}
+  reportDate={confirmDelete?.reportDate}
+  onConfirm={onConfirmDelete}
+  onCancel={onCancelDelete}
+/>
       </View>
     </Modal>
   );

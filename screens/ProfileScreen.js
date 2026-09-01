@@ -469,6 +469,17 @@ function SectionLabel({ icon, color, children }) {
     </View>
   );
 }
+
+const sc = StyleSheet.create({
+  card: { backgroundColor: C.white, borderRadius: 16, marginBottom: 14, borderWidth: 1, borderColor: C.border, overflow: "hidden" },
+  header: { flexDirection: "row", alignItems: "center", padding: 16, gap: 12 },
+  iconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  title: { fontSize: 15, fontWeight: "700", color: C.navy },
+  subtitle: { fontSize: 12, color: C.textMuted, marginTop: 2 },
+  chevronWrap: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: C.bg },
+  body: { paddingHorizontal: 16, paddingBottom: 16 },
+});
+
 const sl = StyleSheet.create({
   row: {
     flexDirection: "row",
@@ -4139,7 +4150,7 @@ const em = StyleSheet.create({
 // EDIT FORM STYLES
 // ══════════════════════════════════════════════════════════════════════════════
 const ef = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.bg, paddingBottom: 0 },
+  safe: { flex: 1, backgroundColor: C.bg, paddingBottom: 0, position: "relative" },
   header: {
     flexDirection: "row",
     alignItems: "center",
