@@ -243,54 +243,60 @@ const DatePickerBtn = React.memo(function DatePickerBtn({
     );
 
   if (Platform.OS === "ios")
-  return (
-    <View style={{ flex: 1 }}>
-      <Text style={dpStyles.lbl}>{label}</Text>
-      <TouchableOpacity
-        style={dpStyles.btn}
-        onPress={() => {
-          const initial = value ? isoDate(value) : new Date();
-          const clamped = maximumDate && initial > maximumDate ? maximumDate : initial;
-          setTemp(clamped);
-          setShow(true);
-        }}
-      >
-        <Text style={[dpStyles.btnTxt, !value && { color: "#adb5bd" }]}>
-          {disp || "Select date"}
-        </Text>
-        <Ionicons name="calendar-outline" size={15} color="#6b7280" />
-      </TouchableOpacity>
-      {show && (
-        <View style={{ backgroundColor: "#fff", borderRadius: 12, marginTop: 8, overflow: "hidden" }}>
-          <View style={dpStyles.iosHdr}>
-            <TouchableOpacity onPress={() => setShow(false)}>
-              <Text style={dpStyles.iosCan}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={dpStyles.iosTit}>{label}</Text>
-            <TouchableOpacity onPress={() => {
-              onChange(temp);
-              setShow(false);
-            }}>
-              <Text style={dpStyles.iosDone}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <DateTimePicker
-            value={temp}
-            mode="date"
-            display="spinner"
-            onChange={(_, d) => {
-              if (!d) return;
-              const clamped = maximumDate && d > maximumDate ? maximumDate : d;
-              setTemp(clamped);
-            }}
-            minimumDate={minimumDate}
-            maximumDate={maximumDate}
-            style={{ height: 180 }}
-          />
-        </View>
-      )}
-    </View>
-  );
+    return (
+      <View style={{ flex: 1 }}>
+        <Text style={dpStyles.lbl}>{label}</Text>
+        <TouchableOpacity
+          style={dpStyles.btn}
+          onPress={() => {
+  const initial = value ? isoDate(value) : new Date();
+  // Clamp to maximumDate to prevent DateTimePicker crash on iOS
+  const clamped = maximumDate && initial > maximumDate ? maximumDate : initial;
+  setTemp(clamped);
+  setShow(true);
+}}
+        >
+          <Text style={[dpStyles.btnTxt, !value && { color: "#adb5bd" }]}>
+            {disp || "Select date"}
+          </Text>
+          <Ionicons name="calendar-outline" size={15} color="#6b7280" />
+        </TouchableOpacity>
+        {show && (
+          <Modal visible transparent animationType="slide">
+            <View style={dpStyles.iosOv}>
+              <View style={dpStyles.iosSh}>
+                <View style={dpStyles.iosHdr}>
+                  <TouchableOpacity onPress={() => setShow(false)}>
+                    <Text style={dpStyles.iosCan}>Cancel</Text>
+                  </TouchableOpacity>
+                  <Text style={dpStyles.iosTit}>{label}</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      onChange(temp);
+                      setShow(false);
+                    }}
+                  >
+                    <Text style={dpStyles.iosDone}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={temp}
+                  mode="date"
+                  display="spinner"
+                  onChange={(_, d) => {
+  if (!d) return;
+  const clamped = maximumDate && d > maximumDate ? maximumDate : d;
+  setTemp(clamped);
+}}
+                  minimumDate={minimumDate}
+                  maximumDate={maximumDate}
+                />
+              </View>
+            </View>
+          </Modal>
+        )}
+      </View>
+    );
 
   const androidValue = React.useMemo(
     () => (value ? isoDate(value) : new Date()),

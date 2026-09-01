@@ -8,7 +8,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Dimensions } from "react-native";
+
 const API_BASE = process.env.EXPO_PUBLIC_API_URL;
 
 // ── Helpers (mirrors AfterPatrolScreen.jsx) ─────────────────────────────────
@@ -141,13 +141,10 @@ const ShiftBadge = ({ shift }) => {
 // ── Delete Confirm Modal ───────────────────────────────────────────────────────
 const DeleteConfirmModal = ({ visible, reportDate, onConfirm, onCancel }) => {
   if (!visible) return null;
-  const { width: SW, height: SH } = Dimensions.get("window");
   return (
     <View style={{
       position: "absolute",
-      top: 0, left: 0,
-      width: SW,
-      height: SH,
+      top: 0, left: 0, right: 0, bottom: 0,
       zIndex: 9999,
     }}>
       <Pressable style={styles.overlay} onPress={onCancel}>
@@ -624,7 +621,7 @@ export default function AfterPatrolHistoryScreen({ route, navigation }) {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa", position: "relative" },
+  container: { flex: 1, backgroundColor: "#f8f9fa" },
 
   header: {
     flexDirection: "row", alignItems: "center",

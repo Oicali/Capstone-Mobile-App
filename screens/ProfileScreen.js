@@ -3245,16 +3245,7 @@ export default function ProfileScreen({ navigation }) {
      
       >
         <View style={[ef.safe, { paddingTop: insets.top }]}>
-  <ConfirmModal
-    visible={confirm.visible}
-    title={confirm.title}
-    message={confirm.message}
-    onConfirm={confirm.onConfirm}
-    onCancel={hideConfirm}
-    confirmText={confirm.confirmText}
-    confirmColor={confirm.confirmColor}
-  />
-  <View style={ef.header}>
+          <View style={ef.header}>
             <TouchableOpacity
               onPress={cancelEdit}
               style={ef.headerBackWrap}
@@ -3712,7 +3703,15 @@ export default function ProfileScreen({ navigation }) {
 
       <LoadingOverlay visible={isSaving} message="Saving your profile…" />
       <LoadingOverlay visible={uploadingPhoto} message="Uploading photo…" />
-  
+      <ConfirmModal
+        visible={confirm.visible}
+        title={confirm.title}
+        message={confirm.message}
+        onConfirm={confirm.onConfirm}
+        onCancel={hideConfirm}
+        confirmText={confirm.confirmText}
+        confirmColor={confirm.confirmColor}
+      />
     </SafeAreaView>
   );
 }
