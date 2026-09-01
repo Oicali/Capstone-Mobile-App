@@ -367,7 +367,7 @@ const titleCase = (str) => {
 };
 
 const lettersOnly = (v) => v.replace(/[^A-Za-zÑñ\s'-]/g, "");
-
+const [dtPickerState, setDtPickerState] = useState(null);
 // FIX 5: Date display formatter
 const formatDateDisplay = (dt) => {
   if (!dt) return "N/A";
@@ -664,51 +664,127 @@ function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
         )}
       </View>
 
-      {showDate && (
-        <DateTimePicker
-          value={tempDate}
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(e, d) => {
-            setShowDate(false);
-            if (e.type !== "dismissed" && d) {
-              const updated = new Date(d);
-              setTempDate(updated);
-              setTimeout(() => setShowTime(true), 50);
-            }
-          }}
-          maximumDate={new Date()}
-        />
-      )}
-      {showTime && (
-        <DateTimePicker
-          value={tempDate}
-          mode="time"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(e, t) => {
-            setShowTime(false);
-            if (e.type !== "dismissed" && t) {
-              const localHours = t.getHours();
-              const localMinutes = t.getMinutes();
-              const combined = new Date(tempDate);
-              combined.setHours(localHours, localMinutes, 0, 0);
-              const yr = combined.getFullYear();
-              const mo = String(combined.getMonth() + 1).padStart(2, "0");
-              const day = String(combined.getDate()).padStart(2, "0");
-              const hr = String(localHours).padStart(2, "0");
-              const min = String(localMinutes).padStart(2, "0");
-              onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
-              if (fieldKey && _formErrRef.setter) {
-                _formErrRef.setter((prev) => {
-                  const n = { ...prev };
-                  delete n[fieldKey];
-                  return n;
-                });
-              }
-            }
-          }}
-        />
-      )}
+      {Platform.OS === "ios" ? (
+  <>
+    {/* iOS Date Picker - inline overlay, no Modal stacking */}
+    {showDate && (
+  <Modal visible={true} transparent={true} animationType="fade" presentationStyle="overFullScreen">
+    <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: C.white, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 34 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border }}>
+              <TouchableOpacity onPress={() => setShowDate(false)}>
+                <Text style={{ fontSize: 15, color: C.sub, fontWeight: "600" }}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: C.navy }}>Select Date</Text>
+              <TouchableOpacity onPress={() => {
+                setShowDate(false);
+                if (!value) {
+                  const now = new Date();
+                  tempDate.setHours(now.getHours(), now.getMinutes(), 0, 0);
+                }
+                setTimeout(() => setShowTime(true), 50);
+              }}>
+                <Text style={{ fontSize: 15, color: C.navyMid, fontWeight: "700" }}>Next</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={tempDate}
+              mode="date"
+              display="spinner"
+              onChange={(_, d) => d && setTempDate(new Date(d))}
+              maximumDate={new Date()}
+            />
+          </View>
+        </View>
+     </Modal>
+    )}
+
+    {/* iOS Time Picker - inline overlay, no Modal stacking */}
+   {showTime && (
+  <Modal visible={true} transparent={true} animationType="fade" presentationStyle="overFullScreen">
+    <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: C.white, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 34 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border }}>
+              <TouchableOpacity onPress={() => { setShowTime(false); setTimeout(() => setShowDate(true), 50); }}>
+                <Text style={{ fontSize: 15, color: C.sub, fontWeight: "600" }}>Back</Text>
+              </TouchableOpacity>
+              <Text style={{ fontSize: 15, fontWeight: "700", color: C.navy }}>Select Time</Text>
+              <TouchableOpacity onPress={() => {
+                setShowTime(false);
+                const combined = new Date(tempDate);
+                const yr = combined.getFullYear();
+                const mo = String(combined.getMonth() + 1).padStart(2, "0");
+                const day = String(combined.getDate()).padStart(2, "0");
+                const hr = String(combined.getHours()).padStart(2, "0");
+                const min = String(combined.getMinutes()).padStart(2, "0");
+                onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
+if (fieldKey && _formErrRef.setter) {
+  _formErrRef.setter((prev) => {
+    const n = { ...prev };
+    delete n[fieldKey];
+    return n;
+  });
+}
+}}>
+  <Text style={{ fontSize: 15, color: C.navyMid, fontWeight: "700" }}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={tempDate}
+              mode="time"
+              display="spinner"
+              onChange={(_, t) => {
+                if (!t) return;
+                const combined = new Date(tempDate);
+                combined.setHours(t.getHours(), t.getMinutes(), 0, 0);
+                setTempDate(combined);
+              }}
+            />
+          </View>
+        </View>
+     </Modal>
+    )}
+  </>
+) : (
+  <>
+    {showDate && (
+      <DateTimePicker
+        value={tempDate}
+        mode="date"
+        display="default"
+        onChange={(e, d) => {
+          setShowDate(false);
+          if (e.type !== "dismissed" && d) {
+            const updated = new Date(d);
+            setTempDate(updated);
+            setTimeout(() => setShowTime(true), 50);
+          }
+        }}
+        maximumDate={new Date()}
+      />
+    )}
+    {showTime && (
+      <DateTimePicker
+        value={tempDate}
+        mode="time"
+        display="default"
+        onChange={(e, t) => {
+          setShowTime(false);
+          if (e.type !== "dismissed" && t) {
+            const combined = new Date(tempDate);
+            combined.setHours(t.getHours(), t.getMinutes(), 0, 0);
+            const yr = combined.getFullYear();
+            const mo = String(combined.getMonth() + 1).padStart(2, "0");
+            const day = String(combined.getDate()).padStart(2, "0");
+            const hr = String(combined.getHours()).padStart(2, "0");
+            const min = String(combined.getMinutes()).padStart(2, "0");
+            onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
+          }
+        }}
+      />
+    )}
+  </>
+)}
     </View>
   );
 }
