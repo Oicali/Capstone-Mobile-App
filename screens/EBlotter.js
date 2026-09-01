@@ -367,7 +367,6 @@ const titleCase = (str) => {
 };
 
 const lettersOnly = (v) => v.replace(/[^A-Za-zÑñ\s'-]/g, "");
-const [dtPickerState, setDtPickerState] = useState(null);
 // FIX 5: Date display formatter
 const formatDateDisplay = (dt) => {
   if (!dt) return "N/A";
