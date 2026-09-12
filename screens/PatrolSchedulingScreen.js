@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Platform,
   StatusBar,
+  Modal, 
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -260,35 +261,35 @@ const DatePickerBtn = React.memo(function DatePickerBtn({
         </Text>
         <Ionicons name="calendar-outline" size={15} color="#6b7280" />
       </TouchableOpacity>
-      {show && (
-        <View style={{ backgroundColor: "#fff", borderRadius: 12, marginTop: 8, overflow: "hidden" }}>
-          <View style={dpStyles.iosHdr}>
-            <TouchableOpacity onPress={() => setShow(false)}>
-              <Text style={dpStyles.iosCan}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={dpStyles.iosTit}>{label}</Text>
-            <TouchableOpacity onPress={() => {
-              onChange(temp);
-              setShow(false);
-            }}>
-              <Text style={dpStyles.iosDone}>Done</Text>
-            </TouchableOpacity>
+
+      <Modal visible={show} transparent animationType="slide" onRequestClose={() => setShow(false)}>
+        <View style={dpStyles.iosOv}>
+          <View style={dpStyles.iosSh}>
+            <View style={dpStyles.iosHdr}>
+              <TouchableOpacity onPress={() => setShow(false)}>
+                <Text style={dpStyles.iosCan}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={dpStyles.iosTit}>{label}</Text>
+              <TouchableOpacity onPress={() => { onChange(temp); setShow(false); }}>
+                <Text style={dpStyles.iosDone}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={temp}
+              mode="date"
+              display="spinner"
+              onChange={(_, d) => {
+                if (!d) return;
+                const clamped = maximumDate && d > maximumDate ? maximumDate : d;
+                setTemp(clamped);
+              }}
+              minimumDate={minimumDate}
+              maximumDate={maximumDate}
+              style={{ height: 180 }}
+            />
           </View>
-          <DateTimePicker
-            value={temp}
-            mode="date"
-            display="spinner"
-            onChange={(_, d) => {
-              if (!d) return;
-              const clamped = maximumDate && d > maximumDate ? maximumDate : d;
-              setTemp(clamped);
-            }}
-            minimumDate={minimumDate}
-            maximumDate={maximumDate}
-            style={{ height: 180 }}
-          />
         </View>
-      )}
+      </Modal>
     </View>
   );
 

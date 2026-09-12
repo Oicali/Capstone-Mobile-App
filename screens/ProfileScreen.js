@@ -2806,7 +2806,15 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-
+ <ConfirmModal
+    visible={confirm.visible}
+    title={confirm.title}
+    message={confirm.message}
+    onConfirm={confirm.onConfirm}
+    onCancel={hideConfirm}
+    confirmText={confirm.confirmText}
+    confirmColor={confirm.confirmColor}
+  />
       {/* Toasts */}
       {!!successMsg && (
         <View style={[st.toastWrap, { bottom: insets.bottom + 100 }]}>
@@ -3256,15 +3264,7 @@ export default function ProfileScreen({ navigation }) {
      
       >
         <View style={[ef.safe, { paddingTop: insets.top }]}>
-  <ConfirmModal
-    visible={confirm.visible}
-    title={confirm.title}
-    message={confirm.message}
-    onConfirm={confirm.onConfirm}
-    onCancel={hideConfirm}
-    confirmText={confirm.confirmText}
-    confirmColor={confirm.confirmColor}
-  />
+ 
   <View style={ef.header}>
             <TouchableOpacity
               onPress={cancelEdit}

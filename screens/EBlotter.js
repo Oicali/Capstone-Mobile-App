@@ -589,11 +589,13 @@ const cm = StyleSheet.create({
    FIX 5: DATE TIME PICKER FIELD (replaces plain TextInput for dates)
 ═══════════════════════════════════════════════════════════════════════════ */
 function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
+  const safeDate = (d) => (d && !isNaN(new Date(d).getTime()) ? new Date(d) : new Date());
   const [showDate, setShowDate] = useState(false);
   const [showTime, setShowTime] = useState(false);
   const [tempDate, setTempDate] = useState(
     value ? new Date(value) : new Date(),
   );
+  const pickRef = useRef(tempDate); 
 
   const formatDisplay = (dt) => {
     if (!dt) return "";
@@ -633,8 +635,10 @@ function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
             error && inp.err,
           ]}
           onPress={() => {
-            setTempDate(value ? new Date(value) : new Date());
-            setShowDate(true);
+             const initial = value ? new Date(value) : new Date();
+    setTempDate(initial);
+    pickRef.current = initial;   
+    setShowDate(true);
           }}
         >
           <Text
@@ -676,23 +680,26 @@ function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
               </TouchableOpacity>
               <Text style={{ fontSize: 15, fontWeight: "700", color: C.navy }}>Select Date</Text>
               <TouchableOpacity onPress={() => {
-                setShowDate(false);
-                if (!value) {
-                  const now = new Date();
-                  tempDate.setHours(now.getHours(), now.getMinutes(), 0, 0);
-                }
-                setTimeout(() => setShowTime(true), 50);
-              }}>
+  setShowDate(false);
+  const committed = safeDate(pickRef.current);
+  if (!value) {
+    const now = new Date();
+    committed.setHours(now.getHours(), now.getMinutes(), 0, 0);
+  }
+  setTempDate(committed);
+  pickRef.current = committed;
+  setTimeout(() => setShowTime(true), 50);
+}}>
                 <Text style={{ fontSize: 15, color: C.navyMid, fontWeight: "700" }}>Next</Text>
               </TouchableOpacity>
             </View>
             <DateTimePicker
-              value={tempDate}
-              mode="date"
-              display="spinner"
-              onChange={(_, d) => d && setTempDate(new Date(d))}
-              maximumDate={new Date()}
-            />
+  value={tempDate}
+  mode="date"
+  display="spinner"
+  onChange={(_, d) => { if (d) pickRef.current = safeDate(d); }}
+  maximumDate={new Date()}
+/>
           </View>
         </View>
      </Modal>
@@ -704,41 +711,38 @@ function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
     <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
           <View style={{ backgroundColor: C.white, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 34 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border }}>
-              <TouchableOpacity onPress={() => { setShowTime(false); setTimeout(() => setShowDate(true), 50); }}>
+             <TouchableOpacity onPress={() => { pickRef.current = safeDate(pickRef.current); setShowTime(false); setTimeout(() => setShowDate(true), 50); }}>
                 <Text style={{ fontSize: 15, color: C.sub, fontWeight: "600" }}>Back</Text>
               </TouchableOpacity>
               <Text style={{ fontSize: 15, fontWeight: "700", color: C.navy }}>Select Time</Text>
               <TouchableOpacity onPress={() => {
-                setShowTime(false);
-                const combined = new Date(tempDate);
-                const yr = combined.getFullYear();
-                const mo = String(combined.getMonth() + 1).padStart(2, "0");
-                const day = String(combined.getDate()).padStart(2, "0");
-                const hr = String(combined.getHours()).padStart(2, "0");
-                const min = String(combined.getMinutes()).padStart(2, "0");
-                onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
-if (fieldKey && _formErrRef.setter) {
-  _formErrRef.setter((prev) => {
-    const n = { ...prev };
-    delete n[fieldKey];
-    return n;
-  });
-}
+  setShowTime(false);
+  const combined = safeDate(pickRef.current);
+  const yr = combined.getFullYear();
+  const mo = String(combined.getMonth() + 1).padStart(2, "0");
+  const day = String(combined.getDate()).padStart(2, "0");
+  const hr = String(combined.getHours()).padStart(2, "0");
+  const min = String(combined.getMinutes()).padStart(2, "0");
+  onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
+  setTempDate(combined);
+  if (fieldKey && _formErrRef.setter) {
+    _formErrRef.setter((prev) => { const n = { ...prev }; delete n[fieldKey]; return n; });
+  }
 }}>
   <Text style={{ fontSize: 15, color: C.navyMid, fontWeight: "700" }}>Done</Text>
               </TouchableOpacity>
             </View>
             <DateTimePicker
-              value={tempDate}
-              mode="time"
-              display="spinner"
-              onChange={(_, t) => {
-                if (!t) return;
-                const combined = new Date(tempDate);
-                combined.setHours(t.getHours(), t.getMinutes(), 0, 0);
-                setTempDate(combined);
-              }}
-            />
+  value={tempDate}
+  mode="time"
+  display="spinner"
+  onChange={(_, t) => {
+    if (!t) return;
+    const combined = safeDate(pickRef.current);
+    combined.setHours(t.getHours(), t.getMinutes(), 0, 0);
+    pickRef.current = combined;
+  }}
+/>
           </View>
         </View>
      </Modal>
@@ -2466,7 +2470,7 @@ const Step3 = memo(function Step3({
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const [outsideBrgy, setOutsideBrgy] = useState(false);
   const [streetOutsideWarning, setStreetOutsideWarning] = useState("");
-
+const insets = useSafeAreaInsets();
   // Helper function - MUST be defined BEFORE it's used
   const isInsideBoundary = (lng, lat, feature) => {
     if (!feature) return true;
@@ -3441,16 +3445,16 @@ const Step3 = memo(function Step3({
         animationType="slide"
         onRequestClose={() => setMapFullscreen(false)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: 12,
-              backgroundColor: C.navy,
-            }}
-          >
+       <View style={{ flex: 1, backgroundColor: "#000" }}>
+  <View style={{
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: insets.top + 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    backgroundColor: C.navy,
+  }}>
             <Text style={{ color: C.white, fontWeight: "700", fontSize: 15 }}>
               {caseD.lat && caseD.lng ? "Tap to move pin" : "Tap to drop pin"}
             </Text>
@@ -3558,7 +3562,7 @@ const Step3 = memo(function Step3({
               </View>
             </View>
           )}
-        </SafeAreaView>
+       </View>
       </Modal>
       {/* Outside boundary street warning modal */}
       <Modal
@@ -5644,6 +5648,14 @@ export default function EBlotterScreen({ navigation, route }) {
     }
   }, [route?.params?.openBlotterId]);
 
+  useEffect(() => {
+  const initialTab = route?.params?.initialReportTab;
+  if (initialTab) {
+    setActiveReportTab(initialTab);
+    navigation.setParams({ initialReportTab: undefined });
+  }
+}, [route?.params?.initialReportTab]);
+
   /* ── Edit ─────────────────────────────────────────────────────────────── */
   const handleEdit = useCallback(
     async (id) => {
@@ -6623,11 +6635,11 @@ reset();
       );
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-      allowsEditing: false,
-      quality: 1,
-    });
+   const result = await ImagePicker.launchImageLibraryAsync({
+  mediaTypes: ["videos"],
+  allowsEditing: false,
+  quality: 1,
+});
     if (!result.canceled && result.assets?.[0]) {
       const asset = result.assets[0];
       if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
@@ -6656,12 +6668,12 @@ reset();
       );
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-      allowsEditing: false,
-      quality: 1,
-      videoMaxDuration: 60,
-    });
+   const result = await ImagePicker.launchCameraAsync({
+  mediaTypes: ["videos"],  
+  allowsEditing: false,
+  quality: 1,
+  videoMaxDuration: 60,
+});
     if (!result.canceled && result.assets?.[0]) {
       const asset = result.assets[0];
       if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {

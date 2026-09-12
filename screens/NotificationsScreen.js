@@ -259,12 +259,14 @@ const LINK_TO_TAB = {
     }
 
     if (notif.link_to) {
-      const basePath = notif.link_to.split("?")[0];
-      const tab = LINK_TO_TAB[basePath];
-      if (tab) {
-        navigation.navigate("Main", { screen: tab });
-      }
-    }
+  const basePath = notif.link_to.split("?")[0];
+  const tab = LINK_TO_TAB[basePath];
+  if (tab) {
+    const screenParams =
+      notif.type === "NEW_REFERRAL" ? { initialReportTab: "referred" } : undefined;
+    navigation.navigate("Main", { screen: tab, params: screenParams });
+  }
+}
   };
 
   const handleMarkAll = () => {

@@ -189,7 +189,7 @@ const ViewSectionHeader = ({ children }) => (
 );
 
 // ── Full Report View (read-only) ─────────────────────────────────────────────
-const ViewReportModal = ({ visible, patrol, report, onClose, confirmDelete, onConfirmDelete, onCancelDelete }) => {
+const ViewReportModal = ({ visible, patrol, report, onClose }) => {
   const insets = useSafeAreaInsets();
   if (!report) return null;
   const photos = report.photo_urls || [];
@@ -300,12 +300,7 @@ const ViewReportModal = ({ visible, patrol, report, onClose, confirmDelete, onCo
 
           <View style={{ height: 40 }} />
         </ScrollView>
-         <DeleteConfirmModal
-  visible={!!confirmDelete}
-  reportDate={confirmDelete?.reportDate}
-  onConfirm={onConfirmDelete}
-  onCancel={onCancelDelete}
-/>
+        
       </View>
     </Modal>
   );
@@ -602,13 +597,17 @@ export default function AfterPatrolHistoryScreen({ route, navigation }) {
   patrol={patrol}
   report={viewingReport}
   onClose={() => setViewingReport(null)}
-  confirmDelete={confirmDelete}
-  onConfirmDelete={() => {
+/>
+
+<DeleteConfirmModal
+  visible={!!confirmDelete}
+  reportDate={confirmDelete?.reportDate}
+  onConfirm={() => {
     const id = confirmDelete.reportId;
     setConfirmDelete(null);
     handleDelete(id);
   }}
-  onCancelDelete={() => setConfirmDelete(null)}
+  onCancel={() => setConfirmDelete(null)}
 />
 
       {toast && (

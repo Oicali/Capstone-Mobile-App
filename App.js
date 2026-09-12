@@ -72,18 +72,21 @@ function TabIcon({ focused, iconName, label }) {
           color={focused ? "#FFFFFF" : "#6c757d"}
         />
       </View>
-      <Text
-        numberOfLines={1}
-        style={{
-          fontSize: 9,
-          fontWeight: focused ? "700" : "600",
-          color: focused ? "#1e3a5f" : "#6c757d",
-          textAlign: "center",
-          maxWidth: 70,
-        }}
-      >
-        {label}
-      </Text>
+    <Text
+  numberOfLines={1}
+  allowFontScaling={false}
+  adjustsFontSizeToFit
+  minimumFontScale={0.75}
+  style={{
+    fontSize: 9,
+    fontWeight: focused ? "700" : "600",
+    color: focused ? "#1e3a5f" : "#6c757d",
+    textAlign: "center",
+    width: 64,
+  }}
+>
+  {label}
+</Text>
     </View>
   );
 }
