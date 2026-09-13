@@ -41,7 +41,9 @@ import AfterPatrolHistoryScreen from "./screens/AfterPatrolHistoryScreen";
 // Module-level — runs once before anything mounts
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowAlert: true,     
+    shouldShowBanner: true,  
+    shouldShowList: true,    
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),

@@ -6464,18 +6464,27 @@ reset();
     [api],
   );
 
-  const uploadAttachment = useCallback(async (id, file) => {
-    try {
-      const token = await AsyncStorage.getItem("auth_token");
-      const formData = new FormData();
-      const isVideo = file.isVideo || file.mimeType?.startsWith("video/");
-      formData.append("file", {
-        uri: file.uri,
-        type: file.mimeType || (isVideo ? "video/mp4" : "image/jpeg"),
-        name:
-          file.fileName ||
-          (isVideo ? `video_${Date.now()}.mp4` : `photo_${Date.now()}.jpg`),
-      });
+const uploadAttachment = useCallback(async (id, file) => {
+  try {
+    const token = await AsyncStorage.getItem("auth_token");
+    const formData = new FormData();
+    const isVideo = file.isVideo || file.mimeType?.startsWith("video/");
+
+    const ext = (file.uri || file.fileName || "").split(".").pop()?.toLowerCase();
+    let resolvedType = file.mimeType;
+    if (isVideo) {
+      if (ext === "mov") resolvedType = "video/quicktime";
+      else if (ext === "webm") resolvedType = "video/webm";
+      else resolvedType = "video/mp4";
+    } else if (!resolvedType) {
+      resolvedType = "image/jpeg";
+    }
+
+    formData.append("file", {
+      uri: file.uri,
+      type: resolvedType,
+      name: file.fileName || (isVideo ? `video_${Date.now()}.${ext === "mov" ? "mov" : "mp4"}` : `photo_${Date.now()}.jpg`),
+    });
       const res = await fetch(`${API}/blotters/${id}/attachments`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
