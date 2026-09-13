@@ -667,87 +667,37 @@ function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
         )}
       </View>
 
-      {Platform.OS === "ios" ? (
-  <>
-    {/* iOS Date Picker - inline overlay, no Modal stacking */}
-    {showDate && (
-  <Modal visible={true} transparent={true} animationType="fade" presentationStyle="overFullScreen">
+     {Platform.OS === "ios" ? (
+  <Modal visible={showDate} transparent animationType="fade" presentationStyle="overFullScreen">
     <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: C.white, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 34 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border }}>
-              <TouchableOpacity onPress={() => setShowDate(false)}>
-                <Text style={{ fontSize: 15, color: C.sub, fontWeight: "600" }}>Cancel</Text>
-              </TouchableOpacity>
-              <Text style={{ fontSize: 15, fontWeight: "700", color: C.navy }}>Select Date</Text>
-              <TouchableOpacity onPress={() => {
-  setShowDate(false);
-  const committed = safeDate(pickRef.current);
-  if (!value) {
-    const now = new Date();
-    committed.setHours(now.getHours(), now.getMinutes(), 0, 0);
-  }
-  setTempDate(committed);
-  pickRef.current = committed;
-  setTimeout(() => setShowTime(true), 50);
-}}>
-                <Text style={{ fontSize: 15, color: C.navyMid, fontWeight: "700" }}>Next</Text>
-              </TouchableOpacity>
-            </View>
-            <DateTimePicker
-  value={tempDate}
-  mode="date"
-  display="spinner"
-  onChange={(_, d) => { if (d) pickRef.current = safeDate(d); }}
-  maximumDate={new Date()}
-/>
-          </View>
+      <View style={{ backgroundColor: C.white, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 34 }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border }}>
+          <TouchableOpacity onPress={() => setShowDate(false)}>
+            <Text style={{ fontSize: 15, color: C.sub, fontWeight: "600" }}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={{ fontSize: 15, fontWeight: "700", color: C.navy }}>Select Date & Time</Text>
+          <TouchableOpacity onPress={() => {
+            setShowDate(false);
+            const yr = tempDate.getFullYear();
+            const mo = String(tempDate.getMonth() + 1).padStart(2, "0");
+            const day = String(tempDate.getDate()).padStart(2, "0");
+            const hr = String(tempDate.getHours()).padStart(2, "0");
+            const min = String(tempDate.getMinutes()).padStart(2, "0");
+            onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
+          }}>
+            <Text style={{ fontSize: 15, color: C.navyMid, fontWeight: "700" }}>Done</Text>
+          </TouchableOpacity>
         </View>
-     </Modal>
-    )}
-
-    {/* iOS Time Picker - inline overlay, no Modal stacking */}
-   {showTime && (
-  <Modal visible={true} transparent={true} animationType="fade" presentationStyle="overFullScreen">
-    <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: C.white, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 34 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border }}>
-             <TouchableOpacity onPress={() => { pickRef.current = safeDate(pickRef.current); setShowTime(false); setTimeout(() => setShowDate(true), 50); }}>
-                <Text style={{ fontSize: 15, color: C.sub, fontWeight: "600" }}>Back</Text>
-              </TouchableOpacity>
-              <Text style={{ fontSize: 15, fontWeight: "700", color: C.navy }}>Select Time</Text>
-              <TouchableOpacity onPress={() => {
-  setShowTime(false);
-  const combined = safeDate(pickRef.current);
-  const yr = combined.getFullYear();
-  const mo = String(combined.getMonth() + 1).padStart(2, "0");
-  const day = String(combined.getDate()).padStart(2, "0");
-  const hr = String(combined.getHours()).padStart(2, "0");
-  const min = String(combined.getMinutes()).padStart(2, "0");
-  onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
-  setTempDate(combined);
-  if (fieldKey && _formErrRef.setter) {
-    _formErrRef.setter((prev) => { const n = { ...prev }; delete n[fieldKey]; return n; });
-  }
-}}>
-  <Text style={{ fontSize: 15, color: C.navyMid, fontWeight: "700" }}>Done</Text>
-              </TouchableOpacity>
-            </View>
-            <DateTimePicker
-  value={tempDate}
-  mode="time"
-  display="spinner"
-  onChange={(_, t) => {
-    if (!t) return;
-    const combined = safeDate(pickRef.current);
-    combined.setHours(t.getHours(), t.getMinutes(), 0, 0);
-    pickRef.current = combined;
-  }}
-/>
-          </View>
-        </View>
-     </Modal>
-    )}
-  </>
+        <DateTimePicker
+          value={safeDate(tempDate)}
+          mode="datetime"
+          display="spinner"
+          onChange={(_, d) => { if (d) setTempDate(d); }}
+          maximumDate={new Date()}
+        />
+      </View>
+    </View>
+  </Modal>
 ) : (
   <>
     {showDate && (
@@ -6469,7 +6419,6 @@ const uploadAttachment = useCallback(async (id, file) => {
     const token = await AsyncStorage.getItem("auth_token");
     const formData = new FormData();
     const isVideo = file.isVideo || file.mimeType?.startsWith("video/");
-
     const ext = (file.uri || file.fileName || "").split(".").pop()?.toLowerCase();
     let resolvedType = file.mimeType;
     if (isVideo) {
@@ -6479,23 +6428,28 @@ const uploadAttachment = useCallback(async (id, file) => {
     } else if (!resolvedType) {
       resolvedType = "image/jpeg";
     }
-
     formData.append("file", {
       uri: file.uri,
       type: resolvedType,
       name: file.fileName || (isVideo ? `video_${Date.now()}.${ext === "mov" ? "mov" : "mp4"}` : `photo_${Date.now()}.jpg`),
     });
-      const res = await fetch(`${API}/blotters/${id}/attachments`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      return await res.json();
-    } catch (e) {
-      // console.error("uploadAttachment error:", e);
-      return null;
+    const res = await fetch(`${API}/blotters/${id}/attachments`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const json = await res.json();
+    if (!json.success) {
+      console.error("Upload failed:", json.message);
+      showConfirm("Upload Failed", json.message || "Could not upload file.", "OK", C.navyMid, hideConfirm);
     }
-  }, []);
+    return json;
+  } catch (e) {
+    console.error("uploadAttachment error:", e.message);
+    showConfirm("Upload Error", "Network error while uploading. Check your connection.", "OK", C.navyMid, hideConfirm);
+    return null;
+  }
+}, []);
 
   const deleteAttachment = useCallback(
     async (blotterId, attachmentId) => {

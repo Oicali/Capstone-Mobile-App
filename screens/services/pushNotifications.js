@@ -12,6 +12,16 @@ messaging().setBackgroundMessageHandler(async () => {});
 
 export const navigationRef = createNavigationContainerRef();
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
 export const registerForPushNotifications = async () => {
   if (!Device.isDevice) return null;
 
@@ -31,12 +41,14 @@ export const registerForPushNotifications = async () => {
     authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
   if (!enabled) {
-    console.log('❌ Push notification permission denied');
+    console.log('❌ Push notification permission denied'); 
     return null;
+  }
+ if (Platform.OS === 'ios') {
+    await messaging().registerDeviceForRemoteMessages();
   }
 
   const token = await messaging().getToken();
-  console.log('FCM Token:', token);
   return token;
 };
 
