@@ -888,9 +888,32 @@ export default function AfterPatrolScreen({ route, navigation }) {
 
     if (data.success) {
       const reportId = data.report_id ?? data.data?.report_id;
-      if (images.length > 0 && reportId) {
-        // ...photo upload block stays as-is...
+     if (images.length > 0 && reportId) {
+  try {
+    const photoForm = new FormData();
+    images.forEach((img) => {
+      photoForm.append("photos", {
+        uri: img.uri,
+        type: "image/jpeg",
+        name: img.name || `photo_${Date.now()}.jpg`,
+      });
+    });
+    const uploadRes = await fetch(
+      `${API_BASE}/patrol/after-reports/${reportId}/photos`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}` },
+        body: photoForm,
       }
+    );
+    const uploadData = await uploadRes.json();
+    if (!uploadData.success) {
+      console.error("Photo upload failed:", uploadData.message);
+    }
+  } catch (err) {
+    console.error("Photo upload error:", err.message);
+  }
+}
       showToast(isEditing ? "Report updated successfully!" : "After Patrol Report submitted!", "success");
       setTimeout(() => navigation.goBack(), 1200);
     } else {

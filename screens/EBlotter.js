@@ -42,21 +42,7 @@ import { Asset } from "expo-asset";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-const Video = ({ style }) => (
-  <View
-    style={[
-      style,
-      {
-        backgroundColor: "#1e3a5f",
-        alignItems: "center",
-        justifyContent: "center",
-      },
-    ]}
-  >
-    <Ionicons name="videocam" size={28} color="white" />
-  </View>
-);
-const ResizeMode = { COVER: "cover" };
+import { Video, ResizeMode } from "expo-av";
 import * as Location from "expo-location";
 // ============ FIX 1: MAPBOX BLACK SCREEN FIX ============
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN);
@@ -4818,7 +4804,7 @@ const AttachmentPanel = memo(function AttachmentPanel({
   const pendingImages = pendingFiles.filter((f) => !f.isVideo);
   const pendingVideos = pendingFiles.filter((f) => f.isVideo);
 
-  const imagesFull = savedImages.length + pendingImages.length >= 5;
+  const imagesFull = savedImages.length + pendingImages.length >= 8;
   const videosFull = savedVideos.length + pendingVideos.length >= 3;
 
   const displayedSaved = mediaTab === "image" ? savedImages : savedVideos;
@@ -4854,8 +4840,7 @@ const AttachmentPanel = memo(function AttachmentPanel({
           </Text>
         </View>
         <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11 }}>
-          Photos: {savedImages.length + pendingImages.length}/5 · Videos:{" "}
-          {savedVideos.length + pendingVideos.length}/3
+         Photos: {savedImages.length + pendingImages.length}/8 · Videos: {savedVideos.length + pendingVideos.length}/3
         </Text>
       </View>
 
@@ -5006,14 +4991,14 @@ const AttachmentPanel = memo(function AttachmentPanel({
                 }}
               >
                 {file.isVideo ? (
-                  <Video
-                    source={{ uri: file.uri }}
-                    style={{ width: 100, height: 100 }}
-                    resizeMode={ResizeMode.COVER}
-                    shouldPlay={false}
-                    isMuted
-                  />
-                ) : (
+  <Video
+    source={{ uri: file.uri }}
+    style={{ width: 100, height: 100 }}
+    resizeMode={ResizeMode.COVER}
+    useNativeControls
+    isLooping={false}
+  />
+) : (
                   <TouchableOpacity
                     onPress={() =>
                       setLightboxImage({ url: file.uri, caption: "New photo" })
@@ -5182,7 +5167,7 @@ const AttachmentPanel = memo(function AttachmentPanel({
               }}
             >
               <Text style={{ fontSize: 12, fontWeight: "600", color: C.green }}>
-                ✓ Maximum 5 photos added
+                ✓ Maximum 8 photos added
               </Text>
             </View>
           )}
@@ -6605,10 +6590,14 @@ const uploadAttachment = useCallback(async (id, file) => {
 });
     if (!result.canceled && result.assets?.[0]) {
       const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
-        showConfirm(
-          "File Too Large",
-          "Max 50MB per video.",
+      if (asset.mimeType && !allowedVideoTypes.includes(asset.mimeType)) {
+  showConfirm("Invalid File", "Only MP4, MOV, or WebM videos allowed.", "OK", C.navyMid, hideConfirm);
+  return;
+}
+     if (asset.fileSize && asset.fileSize > 180 * 1024 * 1024) {
+  showConfirm(
+    "File Too Large",
+    "Max 180MB per video.",
           "OK",
           C.navyMid,
           hideConfirm,
@@ -6639,10 +6628,15 @@ const uploadAttachment = useCallback(async (id, file) => {
 });
     if (!result.canceled && result.assets?.[0]) {
       const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
-        showConfirm(
-          "File Too Large",
-          "Max 50MB per video.",
+      const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm"];
+if (asset.mimeType && !allowedVideoTypes.includes(asset.mimeType)) {
+  showConfirm("Invalid File", "Only MP4, MOV, or WebM videos allowed.", "OK", C.navyMid, hideConfirm);
+  return;
+}
+     if (asset.fileSize && asset.fileSize > 180 * 1024 * 1024) {
+  showConfirm(
+    "File Too Large",
+    "Max 180MB per video.",
           "OK",
           C.navyMid,
           hideConfirm,
@@ -6666,16 +6660,21 @@ const uploadAttachment = useCallback(async (id, file) => {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: false,
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.[0]) {
       const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-        showConfirm(
-          "File Too Large",
-          "Max 5MB per photo.",
+      const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"];
+if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
+  showConfirm("Invalid File", "Only JPG, PNG, WebP, or HEIC images allowed.", "OK", C.navyMid, hideConfirm);
+  return;
+}
+     if (asset.fileSize && asset.fileSize > 12 * 1024 * 1024) {
+  showConfirm(
+    "File Too Large",
+    "Max 12MB per photo.",
           "OK",
           C.navyMid,
           hideConfirm,
@@ -6687,25 +6686,24 @@ const uploadAttachment = useCallback(async (id, file) => {
   }, []);
 
   const takePhoto = useCallback(async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      showConfirm(
-        "Permission Denied",
-        "Camera permission is required.",
-        "OK",
-        C.navyMid,
-        hideConfirm,
-      );
+  const { status } = await ImagePicker.requestCameraPermissionsAsync();
+  if (status !== "granted") {
+    showConfirm("Permission Denied", "Camera permission is required.", "OK", C.navyMid, hideConfirm);
+    return;
+  }
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: false,
+    quality: 0.8,
+  });
+  if (!result.canceled && result.assets?.[0]) {
+    const asset = result.assets[0];
+    if (asset.fileSize && asset.fileSize > 12 * 1024 * 1024) {
+      showConfirm("File Too Large", "Max 12MB per photo.", "OK", C.navyMid, hideConfirm);
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: false,
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets?.[0]) {
-      setPendingFiles((prev) => [...prev, result.assets[0]]);
-    }
-  }, []);
+    setPendingFiles((prev) => [...prev, asset]);
+  }
+}, []);
   /* ── Updaters ─────────────────────────────────────────────────────────── */
   const uC = useCallback(
     (i, f, v) =>
