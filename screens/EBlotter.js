@@ -44,6 +44,7 @@ import { Image } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Video, ResizeMode } from "expo-av";
 import * as Location from "expo-location";
+import * as VideoThumbnails from "expo-video-thumbnails";
 // ============ FIX 1: MAPBOX BLACK SCREEN FIX ============
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN);
 // =========================================================
@@ -3324,6 +3325,7 @@ const insets = useSafeAreaInsets();
             </View>
           )}
         </View>
+        
         {/* Attachments */}
         <AttachmentPanel
           blotterId={null}
@@ -4309,7 +4311,15 @@ const ViewContent = memo(function ViewContent({
     .startsWith("BRGY");
   const [mapFocused, setMapFocused] = useState(false);
   const [showMap, setShowMap] = useState(false); // NEW: Lazy load map
-
+const [thumbs, setThumbs] = useState({});
+useEffect(() => {
+  (modalAttachments || []).forEach(async (a) => {
+    if (a.file_type?.startsWith("video") && !thumbs[a.file_url]) {
+      const t = await getVideoThumb(a.file_url);
+      if (t) setThumbs(prev => ({ ...prev, [a.file_url]: t }));
+    }
+  });
+}, [modalAttachments]);
   // NEW: Delay map rendering
   useEffect(() => {
     if (d.lat && d.lng) {
@@ -4680,25 +4690,34 @@ const ViewContent = memo(function ViewContent({
                   <View
                     style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
                   >
-                  {modalAttachments.map((a) => (
+                {modalAttachments.map((a) => (
   <View
     key={a.attachment_id}
     style={{
-      width: 100,
-      height: 100,
-      borderRadius: 10,
-      overflow: "hidden",
-      borderWidth: 1,
-      borderColor: C.border,
+      width: 100, height: 100, borderRadius: 10,
+      overflow: "hidden", borderWidth: 1, borderColor: C.border,
     }}
   >
     {a.file_type?.startsWith("video") ? (
-      <View style={{ flex: 1, backgroundColor: "#1e3a5f", alignItems: "center", justifyContent: "center" }}>
-        <Ionicons name="videocam" size={28} color={C.white} />
-        <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 9, marginTop: 4 }} numberOfLines={1}>
-          {a.file_name}
-        </Text>
-      </View>
+      <TouchableOpacity
+        style={{ width: 100, height: 100 }}
+        onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption, isVideo: true })}
+        activeOpacity={0.85}
+      >
+        <Image
+         source={{ uri: thumbs[a.file_url] || undefined }}
+          style={{ width: 100, height: 100 }}
+          resizeMode="cover"
+          onError={() => {}}
+        />
+        <View style={{
+          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+          alignItems: "center", justifyContent: "center",
+          backgroundColor: "rgba(0,0,0,0.3)",
+        }}>
+          <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.9)" />
+        </View>
+      </TouchableOpacity>
     ) : (
       <TouchableOpacity onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption })}>
         <Image
@@ -4783,6 +4802,19 @@ const vw = StyleSheet.create({
   },
   value: { fontSize: 14, color: C.text, fontWeight: "500", lineHeight: 20 },
 });
+
+const thumbCache = {};
+async function getVideoThumb(uri) {
+  if (thumbCache[uri]) return thumbCache[uri];
+  try {
+    const { uri: thumbUri } = await VideoThumbnails.getThumbnailAsync(uri, { time: 500 });
+    thumbCache[uri] = thumbUri;
+    return thumbUri;
+  } catch {
+    return null;
+  }
+}
+
 const AttachmentPanel = memo(function AttachmentPanel({
   blotterId,
   modalAttachments,
@@ -4814,6 +4846,17 @@ const AttachmentPanel = memo(function AttachmentPanel({
 
   const displayedSaved = mediaTab === "image" ? savedImages : savedVideos;
   const displayedPending = mediaTab === "image" ? pendingImages : pendingVideos;
+const [thumbs, setThumbs] = useState({});
+
+useEffect(() => {
+  const all = [...displayedSaved.map(a => a.file_url), ...displayedPending.map(f => f.uri)];
+  all.forEach(async (uri) => {
+    if (uri && !thumbs[uri]) {
+      const t = await getVideoThumb(uri);
+      if (t) setThumbs(prev => ({ ...prev, [uri]: t }));
+    }
+  });
+}, [displayedSaved, displayedPending]);
 
   return (
     <View style={{ marginTop: 8, marginBottom: 16 }}>
@@ -4913,28 +4956,27 @@ const AttachmentPanel = memo(function AttachmentPanel({
                 position: "relative",
               }}
             >
-              {a.file_type?.startsWith("video") ? (
-                <View
-                  style={{
-                    flex: 1,
-                    backgroundColor: "#1e3a5f",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Ionicons name="videocam" size={28} color={C.white} />
-                  <Text
-                    style={{
-                      color: "rgba(255,255,255,0.7)",
-                      fontSize: 9,
-                      marginTop: 4,
-                    }}
-                    numberOfLines={1}
-                  >
-                    {a.file_name}
-                  </Text>
-                </View>
-              ) : (
+          {a.file_type?.startsWith("video") ? (
+  <TouchableOpacity
+    style={{ width: 100, height: 100 }}
+    onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption, isVideo: true })}
+    activeOpacity={0.85}
+  >
+    <Image
+      source={{ uri: thumbs[a.file_url] || undefined }}
+      style={{ width: 100, height: 100 }}
+      resizeMode="cover"
+      onError={() => {}}
+    />
+    <View style={{
+      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      alignItems: "center", justifyContent: "center",
+      backgroundColor: "rgba(0,0,0,0.3)",
+    }}>
+      <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.9)" />
+    </View>
+  </TouchableOpacity>
+) : (
                 <TouchableOpacity
                   onPress={() =>
                     setLightboxImage({ url: a.file_url, caption: a.caption })
@@ -4997,11 +5039,22 @@ const AttachmentPanel = memo(function AttachmentPanel({
               >
                {file.isVideo ? (
   <TouchableOpacity
-    style={{ width: 100, height: 100, backgroundColor: "#1e3a5f", alignItems: "center", justifyContent: "center" }}
+    style={{ width: 100, height: 100 }}
     onPress={() => setLightboxImage({ url: file.uri, caption: "Video preview", isVideo: true })}
+    activeOpacity={0.85}
   >
-    <Ionicons name="play-circle" size={36} color={C.white} />
-    <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 8, marginTop: 4 }}>Tap to preview</Text>
+   <Image
+  source={{ uri: thumbs[file.uri] }}
+  style={{ width: 100, height: 100 }}
+  resizeMode="cover"
+/>
+    <View style={{
+      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      alignItems: "center", justifyContent: "center",
+      backgroundColor: "rgba(0,0,0,0.25)",
+    }}>
+      <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.9)" />
+    </View>
   </TouchableOpacity>
 ) : (
                   <TouchableOpacity
