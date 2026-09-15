@@ -4680,31 +4680,36 @@ const ViewContent = memo(function ViewContent({
                   <View
                     style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
                   >
-                    {modalAttachments.map((a) => (
-                      <TouchableOpacity
-                        key={a.attachment_id}
-                        onPress={() =>
-                          setLightboxImage({
-                            url: a.file_url,
-                            caption: a.caption,
-                          })
-                        }
-                        style={{
-                          width: 100,
-                          height: 100,
-                          borderRadius: 10,
-                          overflow: "hidden",
-                          borderWidth: 1,
-                          borderColor: C.border,
-                        }}
-                      >
-                        <Image
-                          source={{ uri: a.file_url }}
-                          style={{ width: "100%", height: "100%" }}
-                          resizeMode="cover"
-                        />
-                      </TouchableOpacity>
-                    ))}
+                  {modalAttachments.map((a) => (
+  <View
+    key={a.attachment_id}
+    style={{
+      width: 100,
+      height: 100,
+      borderRadius: 10,
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: C.border,
+    }}
+  >
+    {a.file_type?.startsWith("video") ? (
+      <View style={{ flex: 1, backgroundColor: "#1e3a5f", alignItems: "center", justifyContent: "center" }}>
+        <Ionicons name="videocam" size={28} color={C.white} />
+        <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 9, marginTop: 4 }} numberOfLines={1}>
+          {a.file_name}
+        </Text>
+      </View>
+    ) : (
+      <TouchableOpacity onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption })}>
+        <Image
+          source={{ uri: a.file_url }}
+          style={{ width: 100, height: 100 }}
+          resizeMode="cover"
+        />
+      </TouchableOpacity>
+    )}
+  </View>
+))}
                   </View>
                 </View>
               </Sec>
@@ -4990,14 +4995,14 @@ const AttachmentPanel = memo(function AttachmentPanel({
                   position: "relative",
                 }}
               >
-                {file.isVideo ? (
-  <Video
-    source={{ uri: file.uri }}
-    style={{ width: 100, height: 100 }}
-    resizeMode={ResizeMode.COVER}
-    useNativeControls
-    isLooping={false}
-  />
+               {file.isVideo ? (
+  <TouchableOpacity
+    style={{ width: 100, height: 100, backgroundColor: "#1e3a5f", alignItems: "center", justifyContent: "center" }}
+    onPress={() => setLightboxImage({ url: file.uri, caption: "Video preview", isVideo: true })}
+  >
+    <Ionicons name="play-circle" size={36} color={C.white} />
+    <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 8, marginTop: 4 }}>Tap to preview</Text>
+  </TouchableOpacity>
 ) : (
                   <TouchableOpacity
                     onPress={() =>
@@ -6588,9 +6593,10 @@ const uploadAttachment = useCallback(async (id, file) => {
   allowsEditing: false,
   quality: 1,
 });
-    if (!result.canceled && result.assets?.[0]) {
-      const asset = result.assets[0];
-      if (asset.mimeType && !allowedVideoTypes.includes(asset.mimeType)) {
+   if (!result.canceled && result.assets?.[0]) {
+  const asset = result.assets[0];
+  const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm"];
+  if (asset.mimeType && !allowedVideoTypes.includes(asset.mimeType)) {
   showConfirm("Invalid File", "Only MP4, MOV, or WebM videos allowed.", "OK", C.navyMid, hideConfirm);
   return;
 }
@@ -7957,11 +7963,21 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
             activeOpacity={1}
             onPress={() => setLightboxImage(null)}
           >
-            <Image
-              source={{ uri: lightboxImage.url }}
-              style={{ width: "100%", height: 300, borderRadius: 10 }}
-              resizeMode="contain"
-            />
+          {lightboxImage.isVideo ? (
+  <Video
+    source={{ uri: lightboxImage.url }}
+    style={{ width: "100%", height: 300, borderRadius: 10 }}
+    resizeMode={ResizeMode.CONTAIN}
+    useNativeControls
+    shouldPlay
+  />
+) : (
+  <Image
+    source={{ uri: lightboxImage.url }}
+    style={{ width: "100%", height: 300, borderRadius: 10 }}
+    resizeMode="contain"
+  />
+)}
             {lightboxImage.caption ? (
               <Text
                 style={{
