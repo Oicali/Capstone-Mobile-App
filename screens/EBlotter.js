@@ -26,6 +26,7 @@ import {
   RefreshControl,
   StatusBar,
   PanResponder,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -2633,16 +2634,18 @@ const insets = useSafeAreaInsets();
           onClose={() => setActivePick(null)}
         />
 
-        <FField label="COP (Chief of Police)" error={formErr.cop}>
-          <TInput
-            value={caseD.cop}
-            onChange={(v) => uCase("cop", v)}
-            placeholder="Officer Name (optional)"
-            error={formErr.cop}
-            maxLen={100}
-            fieldKey="cop"
-          />
-        </FField>
+       {false && (
+  <FField label="COP (Chief of Police)" error={formErr.cop}>
+    <TInput
+      value={caseD.cop}
+      onChange={(v) => uCase("cop", v)}
+      placeholder="Officer Name (optional)"
+      error={formErr.cop}
+      maxLen={100}
+      fieldKey="cop"
+    />
+  </FField>
+)}
 
         {/* FIX 5: Native date/time pickers for commission and reported dates */}
         <FField label="Date & Time of Commission" required error={formErr.dtc}>
@@ -3715,14 +3718,7 @@ const BlotterCard = memo(function BlotterCard({
                       Accept
                     </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={bcc.delBtn}
-                    onPress={onDelete}
-                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                  >
-                    <Ionicons name="trash-outline" size={13} color={C.red} />
-                    <Text style={bcc.delTxt}>Delete</Text>
-                  </TouchableOpacity>
+                
                 </>
               )}
 
@@ -3760,14 +3756,7 @@ const BlotterCard = memo(function BlotterCard({
                       Accept
                     </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={bcc.delBtn}
-                    onPress={onDelete}
-                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                  >
-                    <Ionicons name="trash-outline" size={13} color={C.red} />
-                    <Text style={bcc.delTxt}>Delete</Text>
-                  </TouchableOpacity>
+               
                 </>
               )}
 
@@ -3814,16 +3803,14 @@ const BlotterCard = memo(function BlotterCard({
               <Ionicons name="create-outline" size={13} color={C.navyMid} />
               <Text style={bcc.editTxt}>Edit</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={bcc.delBtn}
-              onPress={onDelete}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Ionicons name="trash-outline" size={13} color={C.red} />
-              <Text style={bcc.delTxt}>Delete</Text>
-            </TouchableOpacity>
-          </>
-        )}
+              {userRole !== "Patrol" && (
+      <TouchableOpacity style={bcc.delBtn} onPress={onDelete}>
+        <Ionicons name="trash-outline" size={13} color={C.red} />
+        <Text style={bcc.delTxt}>Delete</Text>
+      </TouchableOpacity>
+    )}
+  </>
+)}
       </View>
     </View>
   );
@@ -5377,6 +5364,12 @@ export default function EBlotterScreen({ navigation, route }) {
   const [trashPage, setTrashPage] = useState(1);
 
   const listRef = useRef(null);
+  const fabScale = useRef(new Animated.Value(0)).current;
+useEffect(() => {
+  Animated.spring(fabScale, { toValue: 1, friction: 5, useNativeDriver: true }).start();
+}, []);
+const pressIn = () => Animated.spring(fabScale, { toValue: 0.9, useNativeDriver: true }).start();
+const pressOut = () => Animated.spring(fabScale, { toValue: 1, friction: 4, useNativeDriver: true }).start();
   const STEPS = 3;
   const paged = allData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const activeFC = [
@@ -6960,27 +6953,14 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
           <Text style={ml.headerSub}>B.A.N.T.A.Y. Reporting</Text>
         </View>
         <View style={{ flexDirection: "row", gap: 10 }}>
-          <TouchableOpacity
-            style={ml.iconBtn}
-            onPress={() => {
-              setTrashModal(true);
-              setTrashPage(1);
-              loadTrash();
-            }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="trash-outline" size={17} color={C.white} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[ml.iconBtn, { backgroundColor: C.red }]}
-            onPress={() => {
-              reset();
-              setModal(true);
-            }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="add" size={22} color={C.white} />
-          </TouchableOpacity>
+         <TouchableOpacity
+  style={ml.iconBtn}
+  onPress={() => { setTrashModal(true); setTrashPage(1); loadTrash(); }}
+  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+>
+  <Ionicons name="archive-outline" size={17} color={C.white} />
+</TouchableOpacity>
+        
         </View>
       </View>
 
@@ -8095,6 +8075,30 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
           load(filters, activeReportTab);
         }}
       />
+      <Animated.View
+  style={{
+    position: "absolute",
+    right: 20,
+    bottom: insets.bottom + 20,
+    transform: [{ scale: fabScale }],
+  }}
+>
+  <TouchableOpacity
+    style={{
+      width: 58, height: 58, borderRadius: 29,
+      backgroundColor: C.red,
+      alignItems: "center", justifyContent: "center",
+      elevation: 6, shadowColor: "#000", shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.3, shadowRadius: 6,
+    }}
+    activeOpacity={0.85}
+    onPressIn={pressIn}
+    onPressOut={pressOut}
+    onPress={() => { reset(); setModal(true); }}
+  >
+    <Ionicons name="document-attach-outline" size={26} color={C.white} />
+  </TouchableOpacity>
+</Animated.View>
     </SafeAreaView>
   );
 }
