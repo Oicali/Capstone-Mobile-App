@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -19,6 +20,11 @@ export const login = async (username, password) => {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
+        // Native fetch (via OkHttp/NSURLSession) sends a generic UA the
+        // backend's browser-based device-label matching can't recognize —
+        // tell it explicitly what app/platform this is instead.
+        "X-Client-App": "BANTAY Mobile",
+        "X-Client-Platform": Platform.OS === "ios" ? "iOS" : "Android",
       },
       body: JSON.stringify({
         username: username.trim(),
