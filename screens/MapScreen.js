@@ -54,6 +54,17 @@ const API = BASE_URL;
 const INTERVAL_MS = 5000;
 const BACOOR_CENTER = [120.964, 14.4341];
 
+// Pan/zoom limits — keeps the mobile map locked to Bacoor City,
+// mirroring the maxBounds used on the web CrimeMapping.jsx map.
+const BACOOR_BOUNDS = {
+  ne: [121.025, 14.495], // northeast corner [lng, lat]
+  sw: [120.895, 14.345], // southwest corner [lng, lat]
+};
+const clampToBounds = ([lng, lat]) => [
+  Math.min(Math.max(lng, BACOOR_BOUNDS.sw[0]), BACOOR_BOUNDS.ne[0]),
+  Math.min(Math.max(lat, BACOOR_BOUNDS.sw[1]), BACOOR_BOUNDS.ne[1]),
+];
+
 // ── Marker collision avoidance ──────────────────────────────
 // If an officer's ping lands very close to "my location" AT A HIGH ZOOM
 // (street level), their avatar fully covers my puck since MarkerViews
@@ -1504,7 +1515,7 @@ export default function MapScreen({ navigation }) {
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Crime Map</Text>
+        <Text style={styles.headerTitle}>Crime Mapping</Text>
         <View style={styles.headerRight}>
           {(loading || heatLoading) && (
             <ActivityIndicator
@@ -1583,8 +1594,25 @@ export default function MapScreen({ navigation }) {
           onRegionDidChange={(feature) => {
             const z = feature?.properties?.zoomLevel;
             if (typeof z === "number") setMapZoom(z);
+
+            // Fallback bounds clamp — works regardless of whether the
+            // installed @rnmapbox/maps version honors Camera's maxBounds
+            // prop below. If the center has drifted past Bacoor, snap it
+            // back with no animation (instant, so it doesn't fight the
+            // user's finger mid-drag).
+            const center = feature?.geometry?.coordinates;
+            if (Array.isArray(center)) {
+              const clamped = clampToBounds(center);
+              if (clamped[0] !== center[0] || clamped[1] !== center[1]) {
+                cameraRef.current?.setCamera({
+                  centerCoordinate: clamped,
+                  animationDuration: 0,
+                });
+              }
+            }
           }}
           minZoomLevel={11.5}
+          maxZoomLevel={18}
         >
           <Camera
             ref={cameraRef}
@@ -1592,6 +1620,7 @@ export default function MapScreen({ navigation }) {
             centerCoordinate={BACOOR_CENTER}
             animationMode="flyTo"
             animationDuration={800}
+            maxBounds={BACOOR_BOUNDS}
           />
 
           {styleReady && (

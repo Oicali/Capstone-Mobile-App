@@ -75,11 +75,13 @@ export const savePushToken = async (token) => {
   }
 };
 
+// Strip query string before matching — linkTo is often "/e-blotter?referral=123"
 const getNavigationTarget = (linkTo) => {
   if (!linkTo) return null;
-  if (linkTo === '/e-blotter' || linkTo === '/brgy-report') return { tab: 'Reporting' };
-  if (linkTo === '/case-management') return { tab: 'Dashboard' };
-  if (linkTo === '/patrol-scheduling') return { tab: 'Assignments' };
+  const basePath = linkTo.split('?')[0];
+  if (basePath === '/e-blotter' || basePath === '/brgy-report') return { tab: 'Reporting' };
+  if (basePath === '/case-management') return { tab: 'Dashboard' };
+  if (basePath === '/patrol-scheduling') return { tab: 'Assignments' };
   return null;
 };
 
