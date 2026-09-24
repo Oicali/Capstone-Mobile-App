@@ -2364,10 +2364,12 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={st.safe}>
-      <ScrollView
-        style={[st.scroll, { backgroundColor: C.bg }]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+ <ScrollView
+  style={[st.scroll, { backgroundColor: C.bg }]}
+  keyboardShouldPersistTaps="handled"
+  showsVerticalScrollIndicator={false}
+  bounces={false}
+  overScrollMode="never"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
