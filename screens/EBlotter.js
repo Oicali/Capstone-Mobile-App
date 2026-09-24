@@ -46,6 +46,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Video, ResizeMode } from "expo-av";
 import * as Location from "expo-location";
 import * as VideoThumbnails from "expo-video-thumbnails";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 // ============ FIX 1: MAPBOX BLACK SCREEN FIX ============
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN);
 // =========================================================
@@ -56,7 +57,7 @@ const PAGE_SIZE = 10;
 const PSGC = "https://psgc.gitlab.io/api";
 const NCR_CODE = "130000000";
 const BACOOR_CENTER = [120.964, 14.4341];
-
+const tabBarHeight = useBottomTabBarHeight();
 const BLANK_F = {
   search: "",
   status: "",
@@ -6953,12 +6954,13 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
           <Text style={ml.headerSub}>B.A.N.T.A.Y. Reporting</Text>
         </View>
         <View style={{ flexDirection: "row", gap: 10 }}>
-         <TouchableOpacity
-  style={ml.iconBtn}
+       <TouchableOpacity
+  style={ml.trashBtn}
   onPress={() => { setTrashModal(true); setTrashPage(1); loadTrash(); }}
   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
 >
-  <Ionicons name="archive-outline" size={17} color={C.white} />
+  <Ionicons name="archive-outline" size={16} color={C.white} />
+  <Text style={ml.trashBtnTxt}>Deleted Records</Text>
 </TouchableOpacity>
         
         </View>
@@ -8079,7 +8081,7 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
   style={{
     position: "absolute",
     right: 20,
-    bottom: insets.bottom + 20,
+    bottom: tabBarHeight + 16,
     transform: [{ scale: fabScale }],
   }}
 >
@@ -8252,6 +8254,16 @@ const ml = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  trashBtn: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+  borderRadius: 10,
+  backgroundColor: "rgba(255,255,255,0.12)",
+},
+trashBtnTxt: { fontSize: 12, fontWeight: "700", color: C.white },
   tabRow: {
     flexDirection: "row",
     backgroundColor: C.white,
