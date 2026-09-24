@@ -57,6 +57,7 @@ import {
   TextInput,
   Image,
   KeyboardAvoidingView,
+  RefreshControl, // ← pull-to-refresh, replaces interval polling
 } from "react-native";
 import { BASE_URL } from "../screens/services/api";
 import {
@@ -66,7 +67,6 @@ import {
 import { clearPushToken } from "../screens/services/pushNotifications"; // ← adjust path to match your actual file location
 
 const PSGC_API = "https://psgc.gitlab.io/api";
-const POLL_INTERVAL = 15000;
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
 const C = {
@@ -577,8 +577,6 @@ export default function ProfileScreen({ navigation }) {
   const [phoneChanged, setPhoneChanged] = useState(false);
   const [altPhoneChanged, setAltPhoneChanged] = useState(false);
 
-  const pollTimer = useRef(null);
-
   const editScrollRef = useRef(null);
   const fieldRefs = useRef({});
 
@@ -620,10 +618,6 @@ export default function ProfileScreen({ navigation }) {
 
   const appStateRef = useRef(AppState.currentState);
   const lastEtag = useRef(null);
-  const isEditingRef = useRef(false);
-  useEffect(() => {
-    isEditingRef.current = isEditing;
-  }, [isEditing]);
   useEffect(() => {
     if (successMsg) {
       const t = setTimeout(() => setSuccessMsg(""), 5000);
@@ -829,7 +823,9 @@ export default function ProfileScreen({ navigation }) {
 
   useEffect(() => {
     loadProfile(true);
-    startPolling();
+    // AppState listener: still refresh once when returning to foreground —
+    // independent of the pull-to-refresh gesture, kept for instant freshness
+    // after backgrounding the app.
     const sub = AppState.addEventListener("change", (nextState) => {
       if (
         appStateRef.current.match(/inactive|background/) &&
@@ -839,25 +835,11 @@ export default function ProfileScreen({ navigation }) {
       appStateRef.current = nextState;
     });
     return () => {
-      stopPolling();
       sub.remove();
       clearInterval(oldOtpTimerRef.current);
       clearInterval(newOtpTimerRef.current);
     };
   }, []);
-
-  const startPolling = () => {
-    stopPolling();
-    pollTimer.current = setInterval(() => {
-      if (!isEditingRef.current) silentRefresh();
-    }, POLL_INTERVAL);
-  };
-  const stopPolling = () => {
-    if (pollTimer.current) {
-      clearInterval(pollTimer.current);
-      pollTimer.current = null;
-    }
-  };
 
   const silentRefresh = async () => {
     try {
@@ -871,7 +853,6 @@ export default function ProfileScreen({ navigation }) {
         },
       });
       if (res.status === 401) {
-        stopPolling();
         await AsyncStorage.clear();
         navigation.reset({ index: 0, routes: [{ name: "Login" }] });
         return;
@@ -1242,7 +1223,6 @@ export default function ProfileScreen({ navigation }) {
   };
   const startEdit = async () => {
   if (Platform.OS === "android") NavigationBar.setVisibilityAsync("hidden");
-  stopPolling();
   setFormData({ ...originalFormData, phone: "", alternate_phone: "" });
   setPhoneChanged(false);
   setAltPhoneChanged(false);
@@ -1280,14 +1260,12 @@ export default function ProfileScreen({ navigation }) {
   }
   };
   const cancelEdit = () => {
-    
     setFormData(originalFormData);
     setErrors({});
     setErrorMsg("");
     setPhoneChanged(false);
     setAltPhoneChanged(false);
     setIsEditing(false);
-    startPolling();
   };
 
   const onSavePress = () => {
@@ -1297,15 +1275,7 @@ export default function ProfileScreen({ navigation }) {
       setTimeout(() => scrollToFirstError(validationErrors), 50);
       return;
     }
-    showConfirm(
-      "Save Changes",
-      "Are you sure you want to save these changes to your profile?",
-      () => {
-        hideConfirm();
-        doSave();
-      },
-      "Yes, Save",
-    );
+    doSave();
   };
   const doSave = async () => {
     setIsSaving(true);
@@ -1422,7 +1392,6 @@ export default function ProfileScreen({ navigation }) {
       setIsEditing(false);
       setPhoneChanged(false);
       setAltPhoneChanged(false);
-      startPolling();
       if (Platform.OS === "android") NavigationBar.setVisibilityAsync("visible");
     } catch (err) {
       // console.error("doSave:", err);
@@ -1535,7 +1504,6 @@ export default function ProfileScreen({ navigation }) {
       "Are you sure you want to logout?",
       async () => {
         hideConfirm();
-        stopPolling();
         await clearPushToken(); // ← clear FCM token BEFORE wiping session
         await AsyncStorage.clear();
         navigation.reset({ index: 0, routes: [{ name: "Login" }] });
@@ -2400,6 +2368,14 @@ export default function ProfileScreen({ navigation }) {
         style={[st.scroll, { backgroundColor: C.bg }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={silentRefresh}
+            colors={[C.navy]}
+            tintColor={C.navy}
+          />
+        }
       >
         {/* ════════════ HEADER ════════════ */}
         {/* FIX #8: was a plain <View> with a CSS `background: linear-gradient
@@ -2508,11 +2484,6 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </View>
 
-          {refreshing && (
-            <View style={st.syncIndicator}>
-              <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />
-            </View>
-          )}
         </LinearGradient>
 
         {/* ════════════ ACTION CARDS (grouped) ════════════ */}
@@ -4611,17 +4582,6 @@ const st = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.15)",
-  },
-  syncIndicator: {
-    position: "absolute",
-    top: 14,
-    right: 16,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    alignItems: "center",
-    justifyContent: "center",
   },
 
   actionGroupCard: {

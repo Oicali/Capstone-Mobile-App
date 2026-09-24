@@ -57,7 +57,6 @@ const PAGE_SIZE = 10;
 const PSGC = "https://psgc.gitlab.io/api";
 const NCR_CODE = "130000000";
 const BACOOR_CENTER = [120.964, 14.4341];
-const tabBarHeight = useBottomTabBarHeight();
 const BLANK_F = {
   search: "",
   status: "",
@@ -5239,8 +5238,10 @@ useEffect(() => {
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN SCREEN
 ═══════════════════════════════════════════════════════════════════════════ */
-export default function EBlotterScreen({ navigation, route }) {
-  const insets = useSafeAreaInsets();
+   export default function EBlotterScreen({ navigation, route }) {
+     const insets = useSafeAreaInsets();
+     // tab bar height for FAB positioning (hook must live inside the component)
+     const tabBarHeight = useBottomTabBarHeight();
   const { regions, loadingR, getProvinces, getCities, getBarangays } =
     usePSGC();
 
