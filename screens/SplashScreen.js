@@ -8,6 +8,7 @@ import {
   Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function SplashScreen({ navigation, route }) {
   const isLoggedIn = route.params?.isLoggedIn ?? false;
@@ -30,14 +31,26 @@ export default function SplashScreen({ navigation, route }) {
       }),
     ]).start();
 
-    // Navigate to Login after 3 seconds with fade-out
-    const timer = setTimeout(() => {
+    // Navigate after 3 seconds with fade-out. First-ever run (no onboarding
+    // flag yet) detours through the notification/location permission
+    // screens before reaching Login or Main; the eventual destination is
+    // carried along as a param so those screens know where to send the
+    // user once permissions are handled.
+    const timer = setTimeout(async () => {
+      const seenOnboarding = await AsyncStorage.getItem(
+        "onboarding_permissions_done",
+      );
+
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 600,
         useNativeDriver: true,
       }).start(() => {
-        navigation.replace(isLoggedIn ? "Main" : "Login");
+        if (!seenOnboarding) {
+          navigation.replace("NotificationsPermission", { isLoggedIn });
+        } else {
+          navigation.replace(isLoggedIn ? "Main" : "Login");
+        }
       });
     }, 3000);
 

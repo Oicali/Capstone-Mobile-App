@@ -25,6 +25,8 @@ import {
 import * as NavigationBar from "expo-navigation-bar";
 
 import SplashScreen from "./screens/SplashScreen";
+import NotificationsPermissionScreen from "./screens/NotificationsPermissionScreen";
+import LocationPermissionScreen from "./screens/LocationPermissionScreen";
 import LoginScreen from "./screens/LoginScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import EBlotterScreen from "./screens/EBlotter";
@@ -261,6 +263,16 @@ export default function App() {
             component={SplashScreen}
             initialParams={{ isLoggedIn }}
             options={{ animation: "fade" }}
+          />
+          <Stack.Screen
+            name="NotificationsPermission"
+            component={NotificationsPermissionScreen}
+            options={{ animation: "fade", gestureEnabled: false }}
+          />
+          <Stack.Screen
+            name="LocationPermission"
+            component={LocationPermissionScreen}
+            options={{ animation: "fade", gestureEnabled: false }}
           />
           <Stack.Screen
             name="Login"
