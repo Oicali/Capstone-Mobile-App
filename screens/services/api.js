@@ -11,10 +11,30 @@ const validateResponse = async (response) => {
   return response.json();
 };
 
+// ─── DEVICE IDENTITY ──────────────────────────────────────────────────────
+// A stable per-install ID, generated once and persisted, used to key
+// mobile's "trust this device for 30 days" instead of ip+user-agent
+// (which is unreliable on cellular networks). This is a dependency-free
+// generator — swap for a real UUID lib if one's already in the project.
+const DEVICE_ID_KEY = "device_id";
+
+const generateDeviceId = () =>
+  `dev_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+
+export const getDeviceId = async () => {
+  let id = await AsyncStorage.getItem(DEVICE_ID_KEY);
+  if (!id) {
+    id = generateDeviceId();
+    await AsyncStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+};
+
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 
 export const login = async (username, password) => {
   try {
+    const deviceId = await getDeviceId();
     const response = await fetch(`${BASE_URL}/auth/mobile/login`, {
       method: "POST",
       headers: {
@@ -25,6 +45,7 @@ export const login = async (username, password) => {
         // tell it explicitly what app/platform this is instead.
         "X-Client-App": "BANTAY Mobile",
         "X-Client-Platform": Platform.OS === "ios" ? "iOS" : "Android",
+        "X-Device-Id": deviceId,
       },
       body: JSON.stringify({
         username: username.trim(),
@@ -67,6 +88,78 @@ export const logout = async (token) => {
     console.error("Logout Error:", error);
     await clearSession();
     return { success: false };
+  }
+};
+
+// ─── NEW-DEVICE VERIFICATION ────────────────────────────────────────────────
+
+export const verifyDeviceLogin = async (pendingId, code) => {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/device/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pendingId, code }),
+    });
+    const data = await validateResponse(response);
+    if (data.success && data.token) await saveSession(data.token, data.user);
+    return data;
+  } catch (error) {
+    return { success: false, message: error.message || "Verification failed" };
+  }
+};
+
+export const resendDeviceLogin = async (pendingId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/device/resend`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pendingId }),
+    });
+    return await validateResponse(response);
+  } catch (error) {
+    return { success: false, message: error.message || "Failed to resend code" };
+  }
+};
+
+export const requestDeviceApproval = async (pendingId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/device/request-approval`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pendingId }),
+    });
+    return await validateResponse(response);
+  } catch (error) {
+    return { success: false, message: error.message || "Failed to request approval" };
+  }
+};
+
+export const pollDeviceLogin = async (pendingId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/device/poll?pendingId=${pendingId}`);
+    const data = await validateResponse(response);
+    if (data.success && data.status === "approved" && data.token) {
+      await saveSession(data.token, data.user);
+    }
+    return data;
+  } catch (error) {
+    return { success: false, message: error.message || "Failed to check status" };
+  }
+};
+
+export const trustCurrentDevice = async (token) => {
+  try {
+    const deviceId = await getDeviceId();
+    await fetch(`${BASE_URL}/auth/device/trust-current`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-Device-Id": deviceId,
+      },
+    });
+  } catch (error) {
+    console.error("trustCurrentDevice error:", error);
   }
 };
 
@@ -352,6 +445,38 @@ export const markNotificationRead = async (id) => {
     });
   } catch (err) {
     console.error("markNotificationRead error:", err);
+  }
+};
+
+export const approveLoginNotification = async (notificationId, trustDevice) => {
+  try {
+    const session = await getSession();
+    if (!session?.token) return { success: false };
+    const res = await fetch(`${BASE_URL}/notifications/${notificationId}/approve-login`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ trustDevice }),
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, message: err.message || "Failed to approve login" };
+  }
+};
+
+export const denyLoginNotification = async (notificationId) => {
+  try {
+    const session = await getSession();
+    if (!session?.token) return { success: false };
+    const res = await fetch(`${BASE_URL}/notifications/${notificationId}/deny-login`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.token}` },
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, message: err.message || "Failed to deny login" };
   }
 };
 

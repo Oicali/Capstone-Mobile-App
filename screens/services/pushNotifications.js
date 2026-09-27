@@ -98,9 +98,22 @@ const navigateTo = (linkTo) => {
   waitForNav();
 };
 
+const emitLoginApprovalRequest = (data) => {
+  if (!data || data.type !== "LOGIN_APPROVAL_REQUEST" || !data.notificationId) return;
+  let meta = {};
+  try {
+    meta = data.metadata ? JSON.parse(data.metadata) : {};
+  } catch {}
+  DeviceEventEmitter.emit("loginApprovalRequest", {
+    notificationId: data.notificationId,
+    ...meta,
+  });
+};
+
 const handleNotificationResponse = async (response) => {
-  const linkTo = response?.notification?.request?.content?.data?.linkTo;
-  navigateTo(linkTo);
+  const data = response?.notification?.request?.content?.data;
+  emitLoginApprovalRequest(data);
+  navigateTo(data?.linkTo);
 };
 
 let handlersInitialized = false;
@@ -117,6 +130,7 @@ export const setupNotificationHandlers = () => {
 
   const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
     DeviceEventEmitter.emit('onNewNotification');
+    emitLoginApprovalRequest(remoteMessage.data);
     await Notifications.scheduleNotificationAsync({
       content: {
         title: remoteMessage.data?.title,
@@ -129,12 +143,16 @@ export const setupNotificationHandlers = () => {
   });
 
   const unsubscribeOpenedApp = messaging().onNotificationOpenedApp(remoteMessage => {
+    emitLoginApprovalRequest(remoteMessage?.data);
     navigateTo(remoteMessage?.data?.linkTo);
   });
 
   // ← add this back
   messaging().getInitialNotification().then(remoteMessage => {
-    if (remoteMessage) navigateTo(remoteMessage?.data?.linkTo);
+    if (remoteMessage) {
+      emitLoginApprovalRequest(remoteMessage?.data);
+      navigateTo(remoteMessage?.data?.linkTo);
+    }
   });
 
   return () => {

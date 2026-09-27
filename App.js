@@ -24,6 +24,7 @@ import {
 } from "./screens/services/pushNotifications";
 import * as NavigationBar from "expo-navigation-bar";
 
+import LoginApprovalModal from "./screens/LoginApprovalModal";
 import SplashScreen from "./screens/SplashScreen";
 import NotificationsPermissionScreen from "./screens/NotificationsPermissionScreen";
 import LocationPermissionScreen from "./screens/LocationPermissionScreen";
@@ -313,6 +314,7 @@ export default function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
+      <LoginApprovalModal />
     </SafeAreaProvider>
   );
 }

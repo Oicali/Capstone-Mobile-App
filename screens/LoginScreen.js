@@ -24,6 +24,11 @@ import {
   resendOTP,
   resetPassword,
   forceLockOTP,
+  verifyDeviceLogin,
+  resendDeviceLogin,
+  requestDeviceApproval,
+  pollDeviceLogin,
+  trustCurrentDevice,
 } from "./services/api";
 
 // ── Countdown helper (same format as web) ──────────────────────────────────
@@ -102,6 +107,23 @@ export default function LoginScreen({ navigation }) {
   // OTP input refs for auto-focus
   const otpRefs = useRef([]);
 
+  // ─── NEW-DEVICE VERIFICATION STATE ────────────────────────────────────────
+  const [pendingId, setPendingId] = useState(null);
+  const [deviceMaskedEmail, setDeviceMaskedEmail] = useState("");
+  const [deviceOtpCode, setDeviceOtpCode] = useState(["", "", "", "", "", ""]);
+  const [deviceOtpTimer, setDeviceOtpTimer] = useState(120);
+  const [deviceCanResend, setDeviceCanResend] = useState(false);
+  const [deviceResendsLeft, setDeviceResendsLeft] = useState(3);
+  const [deviceOtpState, setDeviceOtpState] = useState("active"); // 'active' | 'attempts-exceeded'
+  const [deviceStep, setDeviceStep] = useState("active"); // 'active' | 'locked'
+  const [deviceLockedUntilTs, setDeviceLockedUntilTs] = useState(null);
+  const [deviceLockedCountdown, setDeviceLockedCountdown] = useState("");
+  const [deviceCanUseTrustedDevice, setDeviceCanUseTrustedDevice] = useState(false);
+  const [deviceTrustChecked, setDeviceTrustChecked] = useState(false);
+  const [deviceToken, setDeviceToken] = useState(null);
+  const deviceOtpRefs = useRef([]);
+  const approvalPollingRef = useRef(null);
+
   // ─── BACKEND CHECK ────────────────────────────────────────────────────────
   useEffect(() => {
     const checkConnection = async () => {
@@ -149,6 +171,39 @@ export default function LoginScreen({ navigation }) {
   useEffect(() => {
     resendsLeftRef.current = resendsLeft;
   }, [resendsLeft]);
+
+  // ─── DEVICE-VERIFY OTP COUNTDOWN ──────────────────────────────────────────
+  useEffect(() => {
+    let interval;
+    if (currentView === "device-verify" && deviceOtpTimer > 0 && deviceStep === "active") {
+      interval = setInterval(() => {
+        setDeviceOtpTimer((prev) => {
+          if (prev <= 1) {
+            setDeviceCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [currentView, deviceOtpTimer, deviceStep]);
+
+  // ─── DEVICE-VERIFY LOCK COUNTDOWN ─────────────────────────────────────────
+  useEffect(() => {
+    let interval;
+    if (deviceStep === "locked" && deviceLockedUntilTs) {
+      const tick = () => setDeviceLockedCountdown(fmtCountdown(deviceLockedUntilTs - Date.now()));
+      tick();
+      interval = setInterval(tick, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [deviceStep, deviceLockedUntilTs]);
+
+  // ─── Stop polling on unmount ──────────────────────────────────────────────
+  useEffect(() => {
+    return () => clearInterval(approvalPollingRef.current);
+  }, []);
 
   // ── Blocked/session-locked countdown ticker — re-runs on fpStep change ──
   useEffect(() => {
@@ -286,7 +341,19 @@ export default function LoginScreen({ navigation }) {
     try {
       setLoading(true);
       const data = await login(username, password);
-      if (data.success) {
+      if (data.requiresDeviceVerification) {
+        setPendingId(data.pendingId);
+        setDeviceMaskedEmail(data.maskedEmail || "");
+        setDeviceResendsLeft(data.resendsLeft ?? 3);
+        setDeviceCanUseTrustedDevice(!!data.canUseTrustedDevice);
+        setDeviceOtpCode(["", "", "", "", "", ""]);
+        setDeviceOtpState("active");
+        setDeviceStep("active");
+        setDeviceOtpTimer(120);
+        setDeviceCanResend(false);
+        setErrorMsg("");
+        setCurrentView("device-verify");
+      } else if (data.success) {
         setUsername("");
         setPassword("");
         setErrorMsg("");
@@ -321,6 +388,130 @@ export default function LoginScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ─── DEVICE VERIFICATION HANDLERS ─────────────────────────────────────────
+  const finishDeviceLogin = async () => {
+    setUsername("");
+    setPassword("");
+    try {
+      const {
+        registerForPushNotifications,
+        savePushToken,
+      } = require("./services/pushNotifications");
+      const pushToken = await registerForPushNotifications();
+      if (pushToken) await savePushToken(pushToken);
+    } catch (err) {}
+    nav.reset({
+      index: 0,
+      routes: [{ name: "Main", params: { screen: "Dashboard" } }],
+    });
+  };
+
+  const handleVerifyDeviceCode = async () => {
+    const code = deviceOtpCode.join("");
+    if (code.length !== 6) {
+      setErrorMsg("Please enter all 6 digits");
+      return;
+    }
+    setLoading(true);
+    const data = await verifyDeviceLogin(pendingId, code);
+    setLoading(false);
+
+    if (data.success) {
+      setDeviceToken(data.token || null);
+      setErrorMsg("");
+      setCurrentView("device-trust-confirm");
+      return;
+    }
+    if (data.sessionLocked) {
+      setDeviceLockedUntilTs(Date.now() + (data.msLeft ?? (data.minutesLeft ?? 15) * 60000));
+      setDeviceStep("locked");
+      return;
+    }
+    if (data.forceResend) {
+      setDeviceOtpState("attempts-exceeded");
+      setDeviceOtpCode(["", "", "", "", "", ""]);
+      if (data.resendsLeft !== undefined) setDeviceResendsLeft(data.resendsLeft);
+      setErrorMsg(data.message || "Too many incorrect codes. Please request a new one.");
+      return;
+    }
+    setDeviceOtpCode(["", "", "", "", "", ""]);
+    deviceOtpRefs.current[0]?.focus();
+    setErrorMsg(data.message || "Invalid verification code");
+  };
+
+  const handleResendDeviceCode = async () => {
+    if ((!deviceCanResend && deviceOtpState !== "attempts-exceeded") || loading || deviceResendsLeft <= 0) return;
+    setLoading(true);
+    const data = await resendDeviceLogin(pendingId);
+    setLoading(false);
+
+    if (data.success) {
+      setDeviceOtpTimer(120);
+      setDeviceCanResend(false);
+      setDeviceOtpState("active");
+      setDeviceOtpCode(["", "", "", "", "", ""]);
+      setDeviceResendsLeft(data.resendsLeft ?? 0);
+      setErrorMsg("");
+      setSuccessMsg("New code sent! Check your email.");
+      setTimeout(() => setSuccessMsg(""), 2000);
+      return;
+    }
+    if (data.sessionLocked) {
+      setDeviceLockedUntilTs(Date.now() + (data.msLeft ?? (data.minutesLeft ?? 15) * 60000));
+      setDeviceStep("locked");
+      return;
+    }
+    if (data.resendLocked) {
+      setDeviceResendsLeft(0);
+      setErrorMsg(data.message || "No more resends available for this session.");
+      return;
+    }
+    setErrorMsg(data.message || "Failed to resend code");
+  };
+
+  const startApprovalPolling = () => {
+    clearInterval(approvalPollingRef.current);
+    approvalPollingRef.current = setInterval(async () => {
+      const data = await pollDeviceLogin(pendingId);
+      if (data.success && data.status === "approved") {
+        clearInterval(approvalPollingRef.current);
+        setDeviceToken(data.token || null);
+        setCurrentView("device-trust-confirm");
+        return;
+      }
+      if (!data.success && (data.denied || data.expired)) {
+        clearInterval(approvalPollingRef.current);
+        setErrorMsg(data.message || "The login request was denied or expired.");
+        backToLogin();
+      }
+    }, 3000);
+  };
+
+  const handleUseAnotherDevice = async () => {
+    setLoading(true);
+    const data = await requestDeviceApproval(pendingId);
+    setLoading(false);
+    if (!data.success) {
+      setErrorMsg(data.message || "Failed to request approval");
+      return;
+    }
+    setErrorMsg("");
+    setCurrentView("device-approval-wait");
+    startApprovalPolling();
+  };
+
+  const handleCancelDeviceApproval = () => {
+    clearInterval(approvalPollingRef.current);
+    setCurrentView("device-verify");
+  };
+
+  const handleConfirmDeviceTrust = async () => {
+    if (deviceTrustChecked && deviceToken) {
+      await trustCurrentDevice(deviceToken);
+    }
+    finishDeviceLogin();
   };
 
   // ─── FORGOT PASSWORD — SEND OTP ───────────────────────────────────────────
@@ -549,6 +740,8 @@ export default function LoginScreen({ navigation }) {
           >
             {/* ── BACK BUTTON (non-login views) ─────────────────────────── */}
             {currentView !== "login" &&
+              currentView !== "device-trust-confirm" &&
+              currentView !== "device-approval-wait" &&
               !(
                 currentView === "verify" &&
                 (fpStep === "blocked" || fpStep === "session-locked")
@@ -1046,6 +1239,196 @@ export default function LoginScreen({ navigation }) {
                   ) : (
                     <Text style={styles.loginButtonText}>Reset Password</Text>
                   )}
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════ */}
+            {/*  VIEW: DEVICE VERIFY — LOCKED                              */}
+            {/* ══════════════════════════════════════════════════════════ */}
+            {currentView === "device-verify" && deviceStep === "locked" && (
+              <View style={{ alignItems: "center" }}>
+                <View style={styles.lockIconOuter}>
+                  <View style={styles.lockIconInner}>
+                    <Ionicons name="lock-closed" size={32} color="#60a5fa" />
+                  </View>
+                </View>
+                <Text style={[styles.title, { fontSize: 24, textAlign: "center" }]}>
+                  Verification Locked
+                </Text>
+                <Text style={[styles.subtitle, { textAlign: "center", marginBottom: 8 }]}>
+                  Too many incorrect attempts. For your security, this login has been
+                  temporarily locked.
+                </Text>
+                <Text style={styles.tryAgainLabel}>Try again in:</Text>
+                <View style={styles.countdownBadge}>
+                  <Text style={styles.countdownText}>
+                    {deviceLockedCountdown || "Calculating…"}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.loginButton, { width: "100%", marginTop: 20 }]}
+                  onPress={backToLogin}
+                >
+                  <Text style={styles.loginButtonText}>Back to Login</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════ */}
+            {/*  VIEW: DEVICE VERIFY — ACTIVE                              */}
+            {/* ══════════════════════════════════════════════════════════ */}
+            {currentView === "device-verify" && deviceStep === "active" && (
+              <View>
+                <View style={styles.header}>
+                  <Text style={styles.title}>Verify This Device</Text>
+                  <Text style={styles.subtitle}>
+                    We don't recognize this device. Enter the 6-digit code sent to
+                  </Text>
+                  <Text style={styles.emailDisplay}>{deviceMaskedEmail}</Text>
+                </View>
+
+                <View style={styles.otpContainer}>
+                  {[0, 1, 2, 3, 4, 5].map((index) => (
+                    <TextInput
+                      key={index}
+                      ref={(el) => (deviceOtpRefs.current[index] = el)}
+                      style={styles.otpInput}
+                      value={deviceOtpCode[index]}
+                      onChangeText={(val) => {
+                        if (!/^\d*$/.test(val)) return;
+                        const updated = [...deviceOtpCode];
+                        updated[index] = val.slice(-1);
+                        setDeviceOtpCode(updated);
+                        setErrorMsg("");
+                        if (val && index < 5) deviceOtpRefs.current[index + 1]?.focus();
+                      }}
+                      onKeyPress={({ nativeEvent }) => {
+                        if (nativeEvent.key === "Backspace" && !deviceOtpCode[index] && index > 0) {
+                          deviceOtpRefs.current[index - 1]?.focus();
+                        }
+                      }}
+                      keyboardType="number-pad"
+                      maxLength={1}
+                      textAlign="center"
+                      placeholderTextColor="#94a3b8"
+                      editable={!loading && deviceOtpState !== "attempts-exceeded"}
+                    />
+                  ))}
+                </View>
+
+                {deviceOtpState === "active" && (
+                  <TouchableOpacity
+                    style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+                    onPress={handleVerifyDeviceCode}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.loginButtonText}>Verify Code</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  style={[
+                    styles.resendButton,
+                    deviceOtpState === "attempts-exceeded" && styles.urgentResend,
+                    ((!deviceCanResend && deviceOtpState !== "attempts-exceeded") ||
+                      loading ||
+                      deviceResendsLeft <= 0) &&
+                      styles.disabledOpacity,
+                  ]}
+                  onPress={handleResendDeviceCode}
+                  disabled={
+                    (!deviceCanResend && deviceOtpState !== "attempts-exceeded") ||
+                    loading ||
+                    deviceResendsLeft <= 0
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.resendButtonText,
+                      deviceOtpState === "attempts-exceeded" && { color: "#fff" },
+                    ]}
+                  >
+                    {loading
+                      ? "Sending..."
+                      : deviceResendsLeft <= 0
+                        ? "No resends available"
+                        : deviceOtpState === "attempts-exceeded"
+                          ? `Request New Code (${deviceResendsLeft} left)`
+                          : deviceCanResend
+                            ? `Resend Code (${deviceResendsLeft} left)`
+                            : `Resend in ${deviceOtpTimer}s`}
+                  </Text>
+                </TouchableOpacity>
+
+                {deviceCanUseTrustedDevice && (
+                  <TouchableOpacity
+                    style={{ marginTop: 16, alignItems: "center" }}
+                    onPress={handleUseAnotherDevice}
+                    disabled={loading}
+                  >
+                    <Text style={styles.forgotPasswordText}>
+                      Use another device instead
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════ */}
+            {/*  VIEW: DEVICE APPROVAL — WAITING                           */}
+            {/* ══════════════════════════════════════════════════════════ */}
+            {currentView === "device-approval-wait" && (
+              <View style={{ alignItems: "center" }}>
+                <ActivityIndicator size="large" color="#60a5fa" />
+                <Text style={[styles.title, { fontSize: 22, textAlign: "center", marginTop: 24 }]}>
+                  Waiting for Approval
+                </Text>
+                <Text style={[styles.subtitle, { textAlign: "center", marginTop: 8 }]}>
+                  Approve this login from one of your other trusted devices.
+                </Text>
+                <TouchableOpacity
+                  style={[styles.resendButton, { width: "100%", marginTop: 28 }]}
+                  onPress={handleCancelDeviceApproval}
+                >
+                  <Text style={styles.resendButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════ */}
+            {/*  VIEW: DEVICE TRUST CONFIRM                                */}
+            {/* ══════════════════════════════════════════════════════════ */}
+            {currentView === "device-trust-confirm" && (
+              <View>
+                <View style={styles.header}>
+                  <Text style={styles.title}>Device Verified</Text>
+                  <Text style={styles.subtitle}>
+                    Would you like to skip verification on this device for the next 30
+                    days?
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={{ flexDirection: "row", alignItems: "center", marginBottom: 24, gap: 10 }}
+                  onPress={() => setDeviceTrustChecked((v) => !v)}
+                >
+                  <Ionicons
+                    name={deviceTrustChecked ? "checkbox" : "square-outline"}
+                    size={22}
+                    color="#60a5fa"
+                  />
+                  <Text style={{ color: "#e2e8f0", fontSize: 13, flex: 1 }}>
+                    Don't ask again on this device for 30 days
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.loginButton} onPress={handleConfirmDeviceTrust}>
+                  <Text style={styles.loginButtonText}>Continue</Text>
                 </TouchableOpacity>
               </View>
             )}
