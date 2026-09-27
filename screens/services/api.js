@@ -95,9 +95,15 @@ export const logout = async (token) => {
 
 export const verifyDeviceLogin = async (pendingId, code) => {
   try {
+    const deviceId = await getDeviceId();
     const response = await fetch(`${BASE_URL}/auth/device/verify`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Client-App": "BANTAY Mobile",
+        "X-Client-Platform": Platform.OS === "ios" ? "iOS" : "Android",
+        "X-Device-Id": deviceId,
+      },
       body: JSON.stringify({ pendingId, code }),
     });
     const data = await validateResponse(response);
@@ -123,9 +129,13 @@ export const resendDeviceLogin = async (pendingId) => {
 
 export const requestDeviceApproval = async (pendingId) => {
   try {
+    const deviceId = await getDeviceId();
     const response = await fetch(`${BASE_URL}/auth/device/request-approval`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Device-Id": deviceId,
+      },
       body: JSON.stringify({ pendingId }),
     });
     return await validateResponse(response);
@@ -179,7 +189,117 @@ export const getProfile = async (token) => {
   }
 };
 
-// ─── SESSION MANAGEMENT ───────────────────────────────────────────────────────
+// ─── SESSIONS / LOGIN ACTIVITY ─────────────────────────────────────────────
+
+export const getSessions = async () => {
+  try {
+    const session = await getSession();
+    if (!session?.token) throw new Error("No auth token found");
+
+    const res = await fetch(`${BASE_URL}/users/sessions`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    return await validateResponse(res);
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const revokeSession = async (tokenId) => {
+  try {
+    const session = await getSession();
+    if (!session?.token) throw new Error("No auth token found");
+
+    const res = await fetch(`${BASE_URL}/users/sessions/${tokenId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    return await validateResponse(res);
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const revokeAllOtherSessions = async () => {
+  try {
+    const session = await getSession();
+    if (!session?.token) throw new Error("No auth token found");
+
+    const res = await fetch(`${BASE_URL}/users/sessions/all-except-current`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    return await validateResponse(res);
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getSessionHistory = async (tokenId) => {
+  try {
+    const session = await getSession();
+    if (!session?.token) throw new Error("No auth token found");
+
+    const res = await fetch(`${BASE_URL}/users/sessions/${tokenId}/history`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    return await validateResponse(res);
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const trustDevice = async (tokenId) => {
+  try {
+    const session = await getSession();
+    if (!session?.token) throw new Error("No auth token found");
+
+    const res = await fetch(`${BASE_URL}/users/sessions/${tokenId}/trust`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    return await validateResponse(res);
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const removeTrustedDevice = async (tokenId) => {
+  try {
+    const session = await getSession();
+    if (!session?.token) throw new Error("No auth token found");
+
+    const res = await fetch(`${BASE_URL}/users/sessions/${tokenId}/trust`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    return await validateResponse(res);
+  } catch (error) {
+    throw error;
+  }
+};
+
+// ─── AUTH SESSION (local storage) ──────────────────────────────────────────
 
 export const saveSession = async (token, user) => {
   await AsyncStorage.setItem("auth_token", token);

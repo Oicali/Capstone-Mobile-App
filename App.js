@@ -25,6 +25,7 @@ import {
 import * as NavigationBar from "expo-navigation-bar";
 
 import LoginApprovalModal from "./screens/LoginApprovalModal";
+import LoginActivityScreen from "./screens/LoginActivityScreen";
 import SplashScreen from "./screens/SplashScreen";
 import NotificationsPermissionScreen from "./screens/NotificationsPermissionScreen";
 import LocationPermissionScreen from "./screens/LocationPermissionScreen";
@@ -290,6 +291,10 @@ export default function App() {
           <Stack.Screen
             name="ChangePassword"
             component={ChangePasswordScreen}
+          />
+          <Stack.Screen
+            name="LoginActivity"
+            component={LoginActivityScreen}
           />
 
           {/*

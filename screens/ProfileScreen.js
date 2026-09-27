@@ -2538,6 +2538,23 @@ export default function ProfileScreen({ navigation }) {
             </View>
             <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
           </TouchableOpacity>
+
+          <View style={st.actionDivider} />
+
+          <TouchableOpacity
+            style={st.actionRow}
+            onPress={() => navigation.navigate("LoginActivity")}
+            activeOpacity={0.75}
+          >
+            <View style={[st.actionIcon, { backgroundColor: C.navyMid }]}>
+              <Ionicons name="phone-portrait-outline" size={18} color={C.white} />
+            </View>
+            <View style={st.actionText}>
+              <Text style={st.actionLabel}>Login Activity</Text>
+              <Text style={st.actionSub}>See where you're signed in</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
+          </TouchableOpacity>
         </View>
 
         {/* ════════════ TABS ════════════ */}

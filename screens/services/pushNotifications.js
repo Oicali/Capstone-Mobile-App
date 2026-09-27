@@ -4,7 +4,7 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { Platform, DeviceEventEmitter } from "react-native";
 import messaging from '@react-native-firebase/messaging';
-import { BASE_URL, getSession } from "./api";
+import { BASE_URL, getSession, getDeviceId } from "./api";
 import { createNavigationContainerRef } from '@react-navigation/native';
 
 // Required by Firebase — must be at module level
@@ -60,11 +60,13 @@ export const savePushToken = async (token) => {
       console.log('❌ No session token found');
       return;
     }
+    const deviceId = await getDeviceId();
     const res = await fetch(`${BASE_URL}/notifications/push-token`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${session.token}`,
         "Content-Type": "application/json",
+        "X-Device-Id": deviceId,
       },
       body: JSON.stringify({ push_token: token }),
     });
@@ -168,10 +170,12 @@ export const clearPushToken = async () => {
     await messaging().deleteToken(); // forces FCM to mint a fresh token next login
     const session = await getSession();
     if (session?.token) {
+      const deviceId = await getDeviceId();
       await fetch(`${BASE_URL}/notifications/push-token`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${session.token}`,
+          "X-Device-Id": deviceId,
         },
       });
     }
