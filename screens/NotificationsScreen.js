@@ -8,6 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { getNotifications, markNotificationRead, markAllNotificationsRead } from "./services/api";
 import { useFocusEffect } from '@react-navigation/native';
+import { DeviceEventEmitter } from "react-native";
 const NAVY   = "#0a1628";
 const NAVY_M = "#1e3a5f";
 const WHITE  = "#ffffff";
@@ -256,6 +257,17 @@ const LINK_TO_TAB = {
       setNotifs((prev) => prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n)));
       setUnread((prev) => Math.max(0, prev - 1));
       markNotificationRead(notif.id).catch(console.error);
+    }
+
+    // Reopen the approve/deny modal — metadata here is already a parsed
+    // object (jsonb from the DB), unlike push payloads where it arrives
+    // as a JSON string, so it's spread directly with no JSON.parse.
+    if (notif.type === "LOGIN_APPROVAL_REQUEST") {
+      DeviceEventEmitter.emit("loginApprovalRequest", {
+        notificationId: notif.id,
+        ...(notif.metadata || {}),
+      });
+      return;
     }
 
     if (notif.link_to) {
