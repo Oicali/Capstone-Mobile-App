@@ -57,7 +57,7 @@ export default function LocationPermissionScreen({ navigation, route }) {
 
         <Text style={s.title}>Enable Location</Text>
         <Text style={s.subtitle}>
-          BANTAY uses your location for patrol tracking and to show your
+          B.A.N.T.A.Y. uses your location for patrol tracking and to show your
           position on the map while you're on duty.
         </Text>
 

@@ -1,4 +1,4 @@
-// screens\services\pushNotifications.js
+// screens\services\pushNotifications2.js
 
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
@@ -33,10 +33,23 @@ export const registerForPushNotifications = async () => {
       lightColor: '#c1272d',
       sound: 'default',
     });
+
+    // Android 13+ runtime prompt for POST_NOTIFICATIONS (expo-notifications triggers it)
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      console.log('❌ Push notification permission denied (Android)');
+      return null;
+    }
   }
 
   const authStatus = await messaging().requestPermission();
   const enabled =
+    Platform.OS === 'android' ||
     authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
     authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 

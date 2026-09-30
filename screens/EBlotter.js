@@ -42,7 +42,10 @@ import Mapbox, {
 import { Asset } from "expo-asset";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Video, ResizeMode } from "expo-av";
 import * as Location from "expo-location";
 import * as VideoThumbnails from "expo-video-thumbnails";
@@ -506,11 +509,19 @@ const ConfirmModal = memo(function ConfirmModal({
 }) {
   if (!visible) return null;
   return (
-    <View style={[cm.overlay, {
-      position: "absolute",
-      top: 0, left: 0, right: 0, bottom: 0,
-      zIndex: 9999,
-    }]}>
+    <View
+      style={[
+        cm.overlay,
+        {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+        },
+      ]}
+    >
       <TouchableOpacity
         style={StyleSheet.absoluteFill}
         activeOpacity={1}
@@ -524,10 +535,7 @@ const ConfirmModal = memo(function ConfirmModal({
             <Text style={cm.cancelTxt}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              cm.confirmBtn,
-              { backgroundColor: confirmColor || C.red },
-            ]}
+            style={[cm.confirmBtn, { backgroundColor: confirmColor || C.red }]}
             onPress={onConfirm}
           >
             <Text style={cm.confirmTxt}>{confirmText || "Confirm"}</Text>
@@ -577,13 +585,14 @@ const cm = StyleSheet.create({
    FIX 5: DATE TIME PICKER FIELD (replaces plain TextInput for dates)
 ═══════════════════════════════════════════════════════════════════════════ */
 function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
-  const safeDate = (d) => (d && !isNaN(new Date(d).getTime()) ? new Date(d) : new Date());
+  const safeDate = (d) =>
+    d && !isNaN(new Date(d).getTime()) ? new Date(d) : new Date();
   const [showDate, setShowDate] = useState(false);
   const [showTime, setShowTime] = useState(false);
   const [tempDate, setTempDate] = useState(
     value ? new Date(value) : new Date(),
   );
-  const pickRef = useRef(tempDate); 
+  const pickRef = useRef(tempDate);
 
   const formatDisplay = (dt) => {
     if (!dt) return "";
@@ -623,10 +632,10 @@ function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
             error && inp.err,
           ]}
           onPress={() => {
-             const initial = value ? new Date(value) : new Date();
-    setTempDate(initial);
-    pickRef.current = initial;   
-    setShowDate(true);
+            const initial = value ? new Date(value) : new Date();
+            setTempDate(initial);
+            pickRef.current = initial;
+            setShowDate(true);
           }}
         >
           <Text
@@ -655,77 +664,125 @@ function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
         )}
       </View>
 
-     {Platform.OS === "ios" ? (
-  <Modal visible={showDate} transparent animationType="fade" presentationStyle="overFullScreen">
-    <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
-      <View style={{ backgroundColor: C.white, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 34 }}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border }}>
-          <TouchableOpacity onPress={() => setShowDate(false)}>
-            <Text style={{ fontSize: 15, color: C.sub, fontWeight: "600" }}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={{ fontSize: 15, fontWeight: "700", color: C.navy }}>Select Date & Time</Text>
-          <TouchableOpacity onPress={() => {
-            setShowDate(false);
-            const yr = tempDate.getFullYear();
-            const mo = String(tempDate.getMonth() + 1).padStart(2, "0");
-            const day = String(tempDate.getDate()).padStart(2, "0");
-            const hr = String(tempDate.getHours()).padStart(2, "0");
-            const min = String(tempDate.getMinutes()).padStart(2, "0");
-            onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
-          }}>
-            <Text style={{ fontSize: 15, color: C.navyMid, fontWeight: "700" }}>Done</Text>
-          </TouchableOpacity>
-        </View>
-        <DateTimePicker
-          value={safeDate(tempDate)}
-          mode="datetime"
-          display="spinner"
-          onChange={(_, d) => { if (d) setTempDate(d); }}
-          maximumDate={new Date()}
-        />
-      </View>
-    </View>
-  </Modal>
-) : (
-  <>
-    {showDate && (
-      <DateTimePicker
-        value={tempDate}
-        mode="date"
-        display="default"
-        onChange={(e, d) => {
-          setShowDate(false);
-          if (e.type !== "dismissed" && d) {
-            const updated = new Date(d);
-            setTempDate(updated);
-            setTimeout(() => setShowTime(true), 50);
-          }
-        }}
-        maximumDate={new Date()}
-      />
-    )}
-    {showTime && (
-      <DateTimePicker
-        value={tempDate}
-        mode="time"
-        display="default"
-        onChange={(e, t) => {
-          setShowTime(false);
-          if (e.type !== "dismissed" && t) {
-            const combined = new Date(tempDate);
-            combined.setHours(t.getHours(), t.getMinutes(), 0, 0);
-            const yr = combined.getFullYear();
-            const mo = String(combined.getMonth() + 1).padStart(2, "0");
-            const day = String(combined.getDate()).padStart(2, "0");
-            const hr = String(combined.getHours()).padStart(2, "0");
-            const min = String(combined.getMinutes()).padStart(2, "0");
-            onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
-          }
-        }}
-      />
-    )}
-  </>
-)}
+      {Platform.OS === "ios" ? (
+        <Modal
+          visible={showDate}
+          transparent
+          animationType="fade"
+          presentationStyle="overFullScreen"
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0,0,0,0.4)",
+              justifyContent: "flex-end",
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: C.white,
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                paddingBottom: 34,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  paddingHorizontal: 20,
+                  paddingVertical: 14,
+                  borderBottomWidth: 1,
+                  borderBottomColor: C.border,
+                }}
+              >
+                <TouchableOpacity onPress={() => setShowDate(false)}>
+                  <Text
+                    style={{ fontSize: 15, color: C.sub, fontWeight: "600" }}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <Text
+                  style={{ fontSize: 15, fontWeight: "700", color: C.navy }}
+                >
+                  Select Date & Time
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowDate(false);
+                    const yr = tempDate.getFullYear();
+                    const mo = String(tempDate.getMonth() + 1).padStart(2, "0");
+                    const day = String(tempDate.getDate()).padStart(2, "0");
+                    const hr = String(tempDate.getHours()).padStart(2, "0");
+                    const min = String(tempDate.getMinutes()).padStart(2, "0");
+                    onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      color: C.navyMid,
+                      fontWeight: "700",
+                    }}
+                  >
+                    Done
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={safeDate(tempDate)}
+                mode="datetime"
+                display="spinner"
+                onChange={(_, d) => {
+                  if (d) setTempDate(d);
+                }}
+                maximumDate={new Date()}
+              />
+            </View>
+          </View>
+        </Modal>
+      ) : (
+        <>
+          {showDate && (
+            <DateTimePicker
+              value={tempDate}
+              mode="date"
+              display="default"
+              onChange={(e, d) => {
+                setShowDate(false);
+                if (e.type !== "dismissed" && d) {
+                  const updated = new Date(d);
+                  setTempDate(updated);
+                  setTimeout(() => setShowTime(true), 50);
+                }
+              }}
+              maximumDate={new Date()}
+            />
+          )}
+          {showTime && (
+            <DateTimePicker
+              value={tempDate}
+              mode="time"
+              display="default"
+              onChange={(e, t) => {
+                setShowTime(false);
+                if (e.type !== "dismissed" && t) {
+                  const combined = new Date(tempDate);
+                  combined.setHours(t.getHours(), t.getMinutes(), 0, 0);
+                  const yr = combined.getFullYear();
+                  const mo = String(combined.getMonth() + 1).padStart(2, "0");
+                  const day = String(combined.getDate()).padStart(2, "0");
+                  const hr = String(combined.getHours()).padStart(2, "0");
+                  const min = String(combined.getMinutes()).padStart(2, "0");
+                  onChange(`${yr}-${mo}-${day}T${hr}:${min}`);
+                }
+              }}
+            />
+          )}
+        </>
+      )}
     </View>
   );
 }
@@ -736,11 +793,11 @@ function DateTimePickerField({ label, value, onChange, error, fieldKey }) {
 function DatePickerBtn({ label, value, onChange, maximumDate, fieldKey }) {
   const [show, setShow] = useState(false);
   const toLocalDate = (isoString) => {
-  if (!isoString) return new Date();
-  const d = new Date(isoString);
-  return isNaN(d.getTime()) ? new Date() : d;
-};
-const [temp, setTemp] = useState(() => toLocalDate(value));
+    if (!isoString) return new Date();
+    const d = new Date(isoString);
+    return isNaN(d.getTime()) ? new Date() : d;
+  };
+  const [temp, setTemp] = useState(() => toLocalDate(value));
 
   const fmtDisplay = (d) =>
     d
@@ -761,10 +818,10 @@ const [temp, setTemp] = useState(() => toLocalDate(value));
               alignItems: "center",
             },
           ]}
-       onPress={() => {
-  setTemp(value || new Date());
-  setShow(true);
-}}
+          onPress={() => {
+            setTemp(value || new Date());
+            setShow(true);
+          }}
         >
           <Text
             style={{ fontSize: 14, color: value ? C.text : C.faint, flex: 1 }}
@@ -775,39 +832,61 @@ const [temp, setTemp] = useState(() => toLocalDate(value));
         </TouchableOpacity>
 
         <Modal visible={show} transparent animationType="slide">
-          <View style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.4)",
-            justifyContent: "flex-end",
-          }}>
-            <View style={{
-              backgroundColor: C.white,
-              borderTopLeftRadius: 16,
-              borderTopRightRadius: 16,
-              paddingBottom: 34,
-            }}>
-              <View style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                paddingHorizontal: 20,
-                paddingVertical: 14,
-                borderBottomWidth: 1,
-                borderBottomColor: C.border,
-              }}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0,0,0,0.4)",
+              justifyContent: "flex-end",
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: C.white,
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                paddingBottom: 34,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  paddingHorizontal: 20,
+                  paddingVertical: 14,
+                  borderBottomWidth: 1,
+                  borderBottomColor: C.border,
+                }}
+              >
                 <TouchableOpacity onPress={() => setShow(false)}>
-                  <Text style={{ fontSize: 15, color: C.sub, fontWeight: "600" }}>Cancel</Text>
+                  <Text
+                    style={{ fontSize: 15, color: C.sub, fontWeight: "600" }}
+                  >
+                    Cancel
+                  </Text>
                 </TouchableOpacity>
-                <Text style={{ fontSize: 15, fontWeight: "700", color: C.navy }}>
+                <Text
+                  style={{ fontSize: 15, fontWeight: "700", color: C.navy }}
+                >
                   {label || "Select Date"}
                 </Text>
-                <TouchableOpacity onPress={() => {
-                  // Validate max date
-                  const selected = temp > maxDate ? maxDate : temp;
-                  onChange(selected);
-                  setShow(false);
-                }}>
-                  <Text style={{ fontSize: 15, color: C.navyMid, fontWeight: "700" }}>Done</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    // Validate max date
+                    const selected = temp > maxDate ? maxDate : temp;
+                    onChange(selected);
+                    setShow(false);
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      color: C.navyMid,
+                      fontWeight: "700",
+                    }}
+                  >
+                    Done
+                  </Text>
                 </TouchableOpacity>
               </View>
               <DateTimePicker
@@ -835,10 +914,10 @@ const [temp, setTemp] = useState(() => toLocalDate(value));
             alignItems: "center",
           },
         ]}
-       onPress={() => {
-  setTemp(value || new Date());
-  setShow(true);
-}}
+        onPress={() => {
+          setTemp(value || new Date());
+          setShow(true);
+        }}
       >
         <Text
           style={{ fontSize: 14, color: value ? C.text : C.faint, flex: 1 }}
@@ -2408,7 +2487,7 @@ const Step3 = memo(function Step3({
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const [outsideBrgy, setOutsideBrgy] = useState(false);
   const [streetOutsideWarning, setStreetOutsideWarning] = useState("");
-const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   // Helper function - MUST be defined BEFORE it's used
   const isInsideBoundary = (lng, lat, feature) => {
     if (!feature) return true;
@@ -2634,18 +2713,18 @@ const insets = useSafeAreaInsets();
           onClose={() => setActivePick(null)}
         />
 
-       {false && (
-  <FField label="COP (Chief of Police)" error={formErr.cop}>
-    <TInput
-      value={caseD.cop}
-      onChange={(v) => uCase("cop", v)}
-      placeholder="Officer Name (optional)"
-      error={formErr.cop}
-      maxLen={100}
-      fieldKey="cop"
-    />
-  </FField>
-)}
+        {false && (
+          <FField label="COP (Chief of Police)" error={formErr.cop}>
+            <TInput
+              value={caseD.cop}
+              onChange={(v) => uCase("cop", v)}
+              placeholder="Officer Name (optional)"
+              error={formErr.cop}
+              maxLen={100}
+              fieldKey="cop"
+            />
+          </FField>
+        )}
 
         {/* FIX 5: Native date/time pickers for commission and reported dates */}
         <FField label="Date & Time of Commission" required error={formErr.dtc}>
@@ -2715,60 +2794,64 @@ const insets = useSafeAreaInsets();
           onClose={() => setActivePick(null)}
         />
 
-       <FField label="Street / Specific Place" required error={formErr.str}
-  hint="Type your address or use the search button to auto-pin">
-  <View style={{ flexDirection: "row", gap: 8 }}>
-    <TextInput
-      style={[
-        inp.base,
-        { flex: 1 },
-        formErr.str && inp.err,
-        !caseD.place_barangay && inp.dis,
-      ]}
-      value={caseD.place_street}
-      onChangeText={(v) => {
-        uCase("place_street", v);
-        if (_formErrRef.setter)
-          _formErrRef.setter((prev) => {
-            const n = { ...prev };
-            delete n.str;
-            return n;
-          });
-      }}
-      placeholder={
-        caseD.place_barangay
-          ? "e.g. 123 Rizal St., near market"
-          : "Select barangay first"
-      }
-      placeholderTextColor={C.faint}
-      editable={!!caseD.place_barangay}
-      autoCorrect={false}
-    />
-    <TouchableOpacity
-      style={{
-        width: 44,
-        borderRadius: 12,
-        backgroundColor: caseD.place_barangay ? C.navyMid : C.border,
-        alignItems: "center",
-        justifyContent: "center",
-        borderWidth: 1.5,
-        borderColor: caseD.place_barangay ? C.navyMid : C.border,
-      }}
-      onPress={() => {
-        if (!caseD.place_barangay) return;
-        setStreetQuery(caseD.place_street || "");
-        setShowStreetModal(true);
-      }}
-      disabled={!caseD.place_barangay}
-    >
-      <Ionicons
-        name="search-outline"
-        size={18}
-        color={caseD.place_barangay ? C.white : C.muted}
-      />
-    </TouchableOpacity>
-  </View>
-</FField>
+        <FField
+          label="Street / Specific Place"
+          required
+          error={formErr.str}
+          hint="Type your address or use the search button to auto-pin"
+        >
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <TextInput
+              style={[
+                inp.base,
+                { flex: 1 },
+                formErr.str && inp.err,
+                !caseD.place_barangay && inp.dis,
+              ]}
+              value={caseD.place_street}
+              onChangeText={(v) => {
+                uCase("place_street", v);
+                if (_formErrRef.setter)
+                  _formErrRef.setter((prev) => {
+                    const n = { ...prev };
+                    delete n.str;
+                    return n;
+                  });
+              }}
+              placeholder={
+                caseD.place_barangay
+                  ? "e.g. 123 Rizal St., near market"
+                  : "Select barangay first"
+              }
+              placeholderTextColor={C.faint}
+              editable={!!caseD.place_barangay}
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              style={{
+                width: 44,
+                borderRadius: 12,
+                backgroundColor: caseD.place_barangay ? C.navyMid : C.border,
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1.5,
+                borderColor: caseD.place_barangay ? C.navyMid : C.border,
+              }}
+              onPress={() => {
+                if (!caseD.place_barangay) return;
+                setStreetQuery(caseD.place_street || "");
+                setShowStreetModal(true);
+              }}
+              disabled={!caseD.place_barangay}
+            >
+              <Ionicons
+                name="search-outline"
+                size={18}
+                color={caseD.place_barangay ? C.white : C.muted}
+              />
+            </TouchableOpacity>
+          </View>
+        </FField>
 
         {/* Street Search Modal */}
         <Modal
@@ -3328,7 +3411,7 @@ const insets = useSafeAreaInsets();
             </View>
           )}
         </View>
-        
+
         {/* Attachments */}
         <AttachmentPanel
           blotterId={null}
@@ -3386,16 +3469,18 @@ const insets = useSafeAreaInsets();
         animationType="slide"
         onRequestClose={() => setMapFullscreen(false)}
       >
-       <View style={{ flex: 1, backgroundColor: "#000" }}>
-  <View style={{
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: insets.top + 12,
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-    backgroundColor: C.navy,
-  }}>
+        <View style={{ flex: 1, backgroundColor: "#000" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingTop: insets.top + 12,
+              paddingHorizontal: 12,
+              paddingBottom: 12,
+              backgroundColor: C.navy,
+            }}
+          >
             <Text style={{ color: C.white, fontWeight: "700", fontSize: 15 }}>
               {caseD.lat && caseD.lng ? "Tap to move pin" : "Tap to drop pin"}
             </Text>
@@ -3503,7 +3588,7 @@ const insets = useSafeAreaInsets();
               </View>
             </View>
           )}
-       </View>
+        </View>
       </Modal>
       {/* Outside boundary street warning modal */}
       <Modal
@@ -3718,7 +3803,6 @@ const BlotterCard = memo(function BlotterCard({
                       Accept
                     </Text>
                   </TouchableOpacity>
-                
                 </>
               )}
 
@@ -3756,7 +3840,6 @@ const BlotterCard = memo(function BlotterCard({
                       Accept
                     </Text>
                   </TouchableOpacity>
-               
                 </>
               )}
 
@@ -3803,14 +3886,14 @@ const BlotterCard = memo(function BlotterCard({
               <Ionicons name="create-outline" size={13} color={C.navyMid} />
               <Text style={bcc.editTxt}>Edit</Text>
             </TouchableOpacity>
-              {userRole !== "Patrol" && (
-      <TouchableOpacity style={bcc.delBtn} onPress={onDelete}>
-        <Ionicons name="trash-outline" size={13} color={C.red} />
-        <Text style={bcc.delTxt}>Delete</Text>
-      </TouchableOpacity>
-    )}
-  </>
-)}
+            {userRole !== "Patrol" && (
+              <TouchableOpacity style={bcc.delBtn} onPress={onDelete}>
+                <Ionicons name="trash-outline" size={13} color={C.red} />
+                <Text style={bcc.delTxt}>Delete</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
       </View>
     </View>
   );
@@ -4075,7 +4158,8 @@ const RemindPatrolModal = memo(function RemindPatrolModal({
                       color: C.text,
                     }}
                   >
-                    Select All{search ? ` (${filteredPatrols.length} shown)` : ""}
+                    Select All
+                    {search ? ` (${filteredPatrols.length} shown)` : ""}
                   </Text>
                   <Text
                     style={{
@@ -4284,6 +4368,7 @@ const ViewContent = memo(function ViewContent({
   offenseSelModus,
   modalAttachments,
   setLightboxImage,
+  auditSummary,
 }) {
   if (!viewData)
     return (
@@ -4298,15 +4383,15 @@ const ViewContent = memo(function ViewContent({
     .startsWith("BRGY");
   const [mapFocused, setMapFocused] = useState(false);
   const [showMap, setShowMap] = useState(false); // NEW: Lazy load map
-const [thumbs, setThumbs] = useState({});
-useEffect(() => {
-  (modalAttachments || []).forEach(async (a) => {
-    if (a.file_type?.startsWith("video") && !thumbs[a.file_url]) {
-      const t = await getVideoThumb(a.file_url);
-      if (t) setThumbs(prev => ({ ...prev, [a.file_url]: t }));
-    }
-  });
-}, [modalAttachments]);
+  const [thumbs, setThumbs] = useState({});
+  useEffect(() => {
+    (modalAttachments || []).forEach(async (a) => {
+      if (a.file_type?.startsWith("video") && !thumbs[a.file_url]) {
+        const t = await getVideoThumb(a.file_url);
+        if (t) setThumbs((prev) => ({ ...prev, [a.file_url]: t }));
+      }
+    });
+  }, [modalAttachments]);
   // NEW: Delay map rendering
   useEffect(() => {
     if (d.lat && d.lng) {
@@ -4409,8 +4494,14 @@ useEffect(() => {
                   c.district_province,
                   c.region,
                 ]
-                  .filter((v) => v && v !== "null" && String(v).trim())
-                  .join(", ") || "N/A",
+                  .filter(
+                    (v) =>
+                      v &&
+                      v !== "null" &&
+                      String(v).trim() &&
+                      v.toUpperCase() !== "N/A",
+                  )
+                  .join(", ") || "—",
               )}
               {VI("Info Obtained", c.info_obtained)}
               {c.role === "Complainant" && c.relationship_to_victim
@@ -4488,8 +4579,11 @@ useEffect(() => {
                       s.district_province,
                       s.region,
                     ]
-                      .filter((v) => v && String(v).trim())
-                      .join(", ") || "N/A",
+                      .filter(
+                        (v) =>
+                          v && String(v).trim() && v.toUpperCase() !== "N/A",
+                      )
+                      .join(", ") || "—",
                   )}
                   {VI("Motive", s.motive || "N/A")}
                 </View>
@@ -4677,48 +4771,100 @@ useEffect(() => {
                   <View
                     style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
                   >
-                {modalAttachments.map((a) => (
-  <View
-    key={a.attachment_id}
-    style={{
-      width: 100, height: 100, borderRadius: 10,
-      overflow: "hidden", borderWidth: 1, borderColor: C.border,
-    }}
-  >
-    {a.file_type?.startsWith("video") ? (
-      <TouchableOpacity
-        style={{ width: 100, height: 100 }}
-        onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption, isVideo: true })}
-        activeOpacity={0.85}
-      >
-        <Image
-         source={{ uri: thumbs[a.file_url] || undefined }}
-          style={{ width: 100, height: 100 }}
-          resizeMode="cover"
-          onError={() => {}}
-        />
-        <View style={{
-          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-          alignItems: "center", justifyContent: "center",
-          backgroundColor: "rgba(0,0,0,0.3)",
-        }}>
-          <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.9)" />
-        </View>
-      </TouchableOpacity>
-    ) : (
-      <TouchableOpacity onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption })}>
-        <Image
-          source={{ uri: a.file_url }}
-          style={{ width: 100, height: 100 }}
-          resizeMode="cover"
-        />
-      </TouchableOpacity>
-    )}
-  </View>
-))}
+                    {modalAttachments.map((a) => (
+                      <View
+                        key={a.attachment_id}
+                        style={{
+                          width: 100,
+                          height: 100,
+                          borderRadius: 10,
+                          overflow: "hidden",
+                          borderWidth: 1,
+                          borderColor: C.border,
+                        }}
+                      >
+                        {a.file_type?.startsWith("video") ? (
+                          <TouchableOpacity
+                            style={{ width: 100, height: 100 }}
+                            onPress={() =>
+                              setLightboxImage({
+                                url: a.file_url,
+                                caption: a.caption,
+                                isVideo: true,
+                              })
+                            }
+                            activeOpacity={0.85}
+                          >
+                            <Image
+                              source={{ uri: thumbs[a.file_url] || undefined }}
+                              style={{ width: 100, height: 100 }}
+                              resizeMode="cover"
+                              onError={() => {}}
+                            />
+                            <View
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                backgroundColor: "rgba(0,0,0,0.3)",
+                              }}
+                            >
+                              <Ionicons
+                                name="play-circle"
+                                size={32}
+                                color="rgba(255,255,255,0.9)"
+                              />
+                            </View>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            onPress={() =>
+                              setLightboxImage({
+                                url: a.file_url,
+                                caption: a.caption,
+                              })
+                            }
+                          >
+                            <Image
+                              source={{ uri: a.file_url }}
+                              style={{ width: 100, height: 100 }}
+                              resizeMode="cover"
+                            />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                                    ))}
                   </View>
                 </View>
               </Sec>
+            )}
+          </View>
+        </Sec>
+
+        {/* RECORD HISTORY */}
+        <Sec title="RECORD HISTORY" icon="time-outline" color={C.slate}>
+          <View style={vw.card}>
+            {VI(
+              "Created By",
+              auditSummary?.created
+                ? `${auditSummary.created.name}${auditSummary.created.imported ? " (import)" : ""}`
+                : "Not recorded",
+            )}
+            {VI(
+              "Date Created",
+              auditSummary?.created ? fmt(auditSummary.created.at) : "Not recorded",
+            )}
+            {VI(
+              "Last Updated By",
+              auditSummary?.updated ? auditSummary.updated.name : "Not recorded",
+            )}
+            {VI(
+              "Last Updated",
+              auditSummary?.updated ? fmt(auditSummary.updated.at) : "Not recorded",
             )}
           </View>
         </Sec>
@@ -4794,7 +4940,9 @@ const thumbCache = {};
 async function getVideoThumb(uri) {
   if (thumbCache[uri]) return thumbCache[uri];
   try {
-    const { uri: thumbUri } = await VideoThumbnails.getThumbnailAsync(uri, { time: 500 });
+    const { uri: thumbUri } = await VideoThumbnails.getThumbnailAsync(uri, {
+      time: 500,
+    });
     thumbCache[uri] = thumbUri;
     return thumbUri;
   } catch {
@@ -4833,17 +4981,20 @@ const AttachmentPanel = memo(function AttachmentPanel({
 
   const displayedSaved = mediaTab === "image" ? savedImages : savedVideos;
   const displayedPending = mediaTab === "image" ? pendingImages : pendingVideos;
-const [thumbs, setThumbs] = useState({});
+  const [thumbs, setThumbs] = useState({});
 
-useEffect(() => {
-  const all = [...displayedSaved.map(a => a.file_url), ...displayedPending.map(f => f.uri)];
-  all.forEach(async (uri) => {
-    if (uri && !thumbs[uri]) {
-      const t = await getVideoThumb(uri);
-      if (t) setThumbs(prev => ({ ...prev, [uri]: t }));
-    }
-  });
-}, [displayedSaved, displayedPending]);
+  useEffect(() => {
+    const all = [
+      ...displayedSaved.map((a) => a.file_url),
+      ...displayedPending.map((f) => f.uri),
+    ];
+    all.forEach(async (uri) => {
+      if (uri && !thumbs[uri]) {
+        const t = await getVideoThumb(uri);
+        if (t) setThumbs((prev) => ({ ...prev, [uri]: t }));
+      }
+    });
+  }, [displayedSaved, displayedPending]);
 
   return (
     <View style={{ marginTop: 8, marginBottom: 16 }}>
@@ -4875,7 +5026,8 @@ useEffect(() => {
           </Text>
         </View>
         <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 11 }}>
-         Photos: {savedImages.length + pendingImages.length}/8 · Videos: {savedVideos.length + pendingVideos.length}/3
+          Photos: {savedImages.length + pendingImages.length}/8 · Videos:{" "}
+          {savedVideos.length + pendingVideos.length}/3
         </Text>
       </View>
 
@@ -4943,27 +5095,44 @@ useEffect(() => {
                 position: "relative",
               }}
             >
-          {a.file_type?.startsWith("video") ? (
-  <TouchableOpacity
-    style={{ width: 100, height: 100 }}
-    onPress={() => setLightboxImage({ url: a.file_url, caption: a.caption, isVideo: true })}
-    activeOpacity={0.85}
-  >
-    <Image
-      source={{ uri: thumbs[a.file_url] || undefined }}
-      style={{ width: 100, height: 100 }}
-      resizeMode="cover"
-      onError={() => {}}
-    />
-    <View style={{
-      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-      alignItems: "center", justifyContent: "center",
-      backgroundColor: "rgba(0,0,0,0.3)",
-    }}>
-      <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.9)" />
-    </View>
-  </TouchableOpacity>
-) : (
+              {a.file_type?.startsWith("video") ? (
+                <TouchableOpacity
+                  style={{ width: 100, height: 100 }}
+                  onPress={() =>
+                    setLightboxImage({
+                      url: a.file_url,
+                      caption: a.caption,
+                      isVideo: true,
+                    })
+                  }
+                  activeOpacity={0.85}
+                >
+                  <Image
+                    source={{ uri: thumbs[a.file_url] || undefined }}
+                    style={{ width: 100, height: 100 }}
+                    resizeMode="cover"
+                    onError={() => {}}
+                  />
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: "rgba(0,0,0,0.3)",
+                    }}
+                  >
+                    <Ionicons
+                      name="play-circle"
+                      size={32}
+                      color="rgba(255,255,255,0.9)"
+                    />
+                  </View>
+                </TouchableOpacity>
+              ) : (
                 <TouchableOpacity
                   onPress={() =>
                     setLightboxImage({ url: a.file_url, caption: a.caption })
@@ -5024,26 +5193,43 @@ useEffect(() => {
                   position: "relative",
                 }}
               >
-               {file.isVideo ? (
-  <TouchableOpacity
-    style={{ width: 100, height: 100 }}
-    onPress={() => setLightboxImage({ url: file.uri, caption: "Video preview", isVideo: true })}
-    activeOpacity={0.85}
-  >
-   <Image
-  source={{ uri: thumbs[file.uri] }}
-  style={{ width: 100, height: 100 }}
-  resizeMode="cover"
-/>
-    <View style={{
-      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-      alignItems: "center", justifyContent: "center",
-      backgroundColor: "rgba(0,0,0,0.25)",
-    }}>
-      <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.9)" />
-    </View>
-  </TouchableOpacity>
-) : (
+                {file.isVideo ? (
+                  <TouchableOpacity
+                    style={{ width: 100, height: 100 }}
+                    onPress={() =>
+                      setLightboxImage({
+                        url: file.uri,
+                        caption: "Video preview",
+                        isVideo: true,
+                      })
+                    }
+                    activeOpacity={0.85}
+                  >
+                    <Image
+                      source={{ uri: thumbs[file.uri] }}
+                      style={{ width: 100, height: 100 }}
+                      resizeMode="cover"
+                    />
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "rgba(0,0,0,0.25)",
+                      }}
+                    >
+                      <Ionicons
+                        name="play-circle"
+                        size={32}
+                        color="rgba(255,255,255,0.9)"
+                      />
+                    </View>
+                  </TouchableOpacity>
+                ) : (
                   <TouchableOpacity
                     onPress={() =>
                       setLightboxImage({ url: file.uri, caption: "New photo" })
@@ -5238,10 +5424,10 @@ useEffect(() => {
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN SCREEN
 ═══════════════════════════════════════════════════════════════════════════ */
-   export default function EBlotterScreen({ navigation, route }) {
-     const insets = useSafeAreaInsets();
-     // tab bar height for FAB positioning (hook must live inside the component)
-     const tabBarHeight = useBottomTabBarHeight();
+export default function EBlotterScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
+  // tab bar height for FAB positioning (hook must live inside the component)
+  const tabBarHeight = useBottomTabBarHeight();
   const { regions, loadingR, getProvinces, getCities, getBarangays } =
     usePSGC();
 
@@ -5282,6 +5468,7 @@ useEffect(() => {
   const [acceptMode, setAcceptMode] = useState(false);
   const [editId, setEditId] = useState(null);
   const [viewData, setViewData] = useState(null);
+  const [auditSummary, setAuditSummary] = useState(null);
   const [mLoad, setMLoad] = useState(false);
   const [isImportedRecord, setIsImportedRecord] = useState(false);
 
@@ -5367,11 +5554,21 @@ useEffect(() => {
 
   const listRef = useRef(null);
   const fabScale = useRef(new Animated.Value(0)).current;
-useEffect(() => {
-  Animated.spring(fabScale, { toValue: 1, friction: 5, useNativeDriver: true }).start();
-}, []);
-const pressIn = () => Animated.spring(fabScale, { toValue: 0.9, useNativeDriver: true }).start();
-const pressOut = () => Animated.spring(fabScale, { toValue: 1, friction: 4, useNativeDriver: true }).start();
+  useEffect(() => {
+    Animated.spring(fabScale, {
+      toValue: 1,
+      friction: 5,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+  const pressIn = () =>
+    Animated.spring(fabScale, { toValue: 0.9, useNativeDriver: true }).start();
+  const pressOut = () =>
+    Animated.spring(fabScale, {
+      toValue: 1,
+      friction: 4,
+      useNativeDriver: true,
+    }).start();
   const STEPS = 3;
   const paged = allData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const activeFC = [
@@ -5545,6 +5742,7 @@ const pressOut = () => Animated.spring(fabScale, { toValue: 1, friction: 4, useN
     setAcceptMode(false);
     setEditId(null);
     setViewData(null);
+    setAuditSummary(null);
     setMLoad(false);
     setIsImportedRecord(false);
     setCPr({});
@@ -5570,8 +5768,8 @@ const pressOut = () => Animated.spring(fabScale, { toValue: 1, friction: 4, useN
     reset();
   };
   const closeSuccessModal = () => {
-  setSuccessModal({ show: false, reportId: "", message: "" });
-};
+    setSuccessModal({ show: false, reportId: "", message: "" });
+  };
   const askClose = () => {
     if (viewMode) {
       closeModal();
@@ -5623,6 +5821,9 @@ const pressOut = () => Animated.spring(fabScale, { toValue: 1, friction: 4, useN
       setViewData(data.data);
       setMLoad(false);
       fetchAttachments(id);
+      api(`/blotters/${id}/audit-summary`).then((au) => {
+        setAuditSummary(au?.success ? au.data : null);
+      });
     },
     [api],
   );
@@ -5637,12 +5838,12 @@ const pressOut = () => Animated.spring(fabScale, { toValue: 1, friction: 4, useN
   }, [route?.params?.openBlotterId]);
 
   useEffect(() => {
-  const initialTab = route?.params?.initialReportTab;
-  if (initialTab) {
-    setActiveReportTab(initialTab);
-    navigation.setParams({ initialReportTab: undefined });
-  }
-}, [route?.params?.initialReportTab]);
+    const initialTab = route?.params?.initialReportTab;
+    if (initialTab) {
+      setActiveReportTab(initialTab);
+      navigation.setParams({ initialReportTab: undefined });
+    }
+  }, [route?.params?.initialReportTab]);
 
   /* ── Edit ─────────────────────────────────────────────────────────────── */
   const handleEdit = useCallback(
@@ -6409,17 +6610,17 @@ const pressOut = () => Animated.spring(fabScale, { toValue: 1, friction: 4, useN
                 await uploadAttachment(newId, file);
               }
             }
-           setSaving(false);
-setModal(false); // close form modal FIRST
-setTimeout(() => {
-  setSuccessModal({
-    show: true,
-    reportId: data.data.blotter_entry_number,
-    message: "Report Entry Created Successfully!",
-  });
-  load(filters, activeReportTab);
-}, 350); // wait for modal close animation
-reset();
+            setSaving(false);
+            setModal(false); // close form modal FIRST
+            setTimeout(() => {
+              setSuccessModal({
+                show: true,
+                reportId: data.data.blotter_entry_number,
+                message: "Report Entry Created Successfully!",
+              });
+              load(filters, activeReportTab);
+            }, 350); // wait for modal close animation
+            reset();
           }
         } else {
           setSaving(false);
@@ -6452,42 +6653,61 @@ reset();
     [api],
   );
 
-const uploadAttachment = useCallback(async (id, file) => {
-  try {
-    const token = await AsyncStorage.getItem("auth_token");
-    const formData = new FormData();
-    const isVideo = file.isVideo || file.mimeType?.startsWith("video/");
-    const ext = (file.uri || file.fileName || "").split(".").pop()?.toLowerCase();
-    let resolvedType = file.mimeType;
-    if (isVideo) {
-      if (ext === "mov") resolvedType = "video/quicktime";
-      else if (ext === "webm") resolvedType = "video/webm";
-      else resolvedType = "video/mp4";
-    } else if (!resolvedType) {
-      resolvedType = "image/jpeg";
+  const uploadAttachment = useCallback(async (id, file) => {
+    try {
+      const token = await AsyncStorage.getItem("auth_token");
+      const formData = new FormData();
+      const isVideo = file.isVideo || file.mimeType?.startsWith("video/");
+      const ext = (file.uri || file.fileName || "")
+        .split(".")
+        .pop()
+        ?.toLowerCase();
+      let resolvedType = file.mimeType;
+      if (isVideo) {
+        if (ext === "mov") resolvedType = "video/quicktime";
+        else if (ext === "webm") resolvedType = "video/webm";
+        else resolvedType = "video/mp4";
+      } else if (!resolvedType) {
+        resolvedType = "image/jpeg";
+      }
+      formData.append("file", {
+        uri: file.uri,
+        type: resolvedType,
+        name:
+          file.fileName ||
+          (isVideo
+            ? `video_${Date.now()}.${ext === "mov" ? "mov" : "mp4"}`
+            : `photo_${Date.now()}.jpg`),
+      });
+      const res = await fetch(`${API}/blotters/${id}/attachments`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const json = await res.json();
+      if (!json.success) {
+        console.error("Upload failed:", json.message);
+        showConfirm(
+          "Upload Failed",
+          json.message || "Could not upload file.",
+          "OK",
+          C.navyMid,
+          hideConfirm,
+        );
+      }
+      return json;
+    } catch (e) {
+      console.error("uploadAttachment error:", e.message);
+      showConfirm(
+        "Upload Error",
+        "Network error while uploading. Check your connection.",
+        "OK",
+        C.navyMid,
+        hideConfirm,
+      );
+      return null;
     }
-    formData.append("file", {
-      uri: file.uri,
-      type: resolvedType,
-      name: file.fileName || (isVideo ? `video_${Date.now()}.${ext === "mov" ? "mov" : "mp4"}` : `photo_${Date.now()}.jpg`),
-    });
-    const res = await fetch(`${API}/blotters/${id}/attachments`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
-    const json = await res.json();
-    if (!json.success) {
-      console.error("Upload failed:", json.message);
-      showConfirm("Upload Failed", json.message || "Could not upload file.", "OK", C.navyMid, hideConfirm);
-    }
-    return json;
-  } catch (e) {
-    console.error("uploadAttachment error:", e.message);
-    showConfirm("Upload Error", "Network error while uploading. Check your connection.", "OK", C.navyMid, hideConfirm);
-    return null;
-  }
-}, []);
+  }, []);
 
   const deleteAttachment = useCallback(
     async (blotterId, attachmentId) => {
@@ -6540,19 +6760,19 @@ const uploadAttachment = useCallback(async (id, file) => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-  setShowGpsForPin(false); // close GPS overlay first
-  setGpsLoading(false);
-  setTimeout(() => {
-    showConfirm(
-      "Permission Denied",
-      "Location permission is required to use this feature.",
-      "OK",
-      C.navyMid,
-      hideConfirm,
-    );
-  }, 300);
-  return;
-}
+        setShowGpsForPin(false); // close GPS overlay first
+        setGpsLoading(false);
+        setTimeout(() => {
+          showConfirm(
+            "Permission Denied",
+            "Location permission is required to use this feature.",
+            "OK",
+            C.navyMid,
+            hideConfirm,
+          );
+        }, 300);
+        return;
+      }
       const loc = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
@@ -6585,19 +6805,19 @@ const uploadAttachment = useCallback(async (id, file) => {
             }
           }
           if (!inside) {
-  setShowGpsForPin(false);
-  setGpsLoading(false);
-  setTimeout(() => {
-    showConfirm(
-      "Outside Barangay",
-      `Your current location is outside ${caseD.place_barangay}. Please drop the pin manually on the map instead.`,
-      "OK",
-      C.navyMid,
-      hideConfirm,
-    );
-  }, 300);
-  return;
-}
+            setShowGpsForPin(false);
+            setGpsLoading(false);
+            setTimeout(() => {
+              showConfirm(
+                "Outside Barangay",
+                `Your current location is outside ${caseD.place_barangay}. Please drop the pin manually on the map instead.`,
+                "OK",
+                C.navyMid,
+                hideConfirm,
+              );
+            }, 300);
+            return;
+          }
         }
       }
 
@@ -6636,22 +6856,28 @@ const uploadAttachment = useCallback(async (id, file) => {
       );
       return;
     }
-   const result = await ImagePicker.launchImageLibraryAsync({
-  mediaTypes: ["videos"],
-  allowsEditing: false,
-  quality: 1,
-});
-   if (!result.canceled && result.assets?.[0]) {
-  const asset = result.assets[0];
-  const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm"];
-  if (asset.mimeType && !allowedVideoTypes.includes(asset.mimeType)) {
-  showConfirm("Invalid File", "Only MP4, MOV, or WebM videos allowed.", "OK", C.navyMid, hideConfirm);
-  return;
-}
-     if (asset.fileSize && asset.fileSize > 180 * 1024 * 1024) {
-  showConfirm(
-    "File Too Large",
-    "Max 180MB per video.",
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["videos"],
+      allowsEditing: false,
+      quality: 1,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      const asset = result.assets[0];
+      const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm"];
+      if (asset.mimeType && !allowedVideoTypes.includes(asset.mimeType)) {
+        showConfirm(
+          "Invalid File",
+          "Only MP4, MOV, or WebM videos allowed.",
+          "OK",
+          C.navyMid,
+          hideConfirm,
+        );
+        return;
+      }
+      if (asset.fileSize && asset.fileSize > 180 * 1024 * 1024) {
+        showConfirm(
+          "File Too Large",
+          "Max 180MB per video.",
           "OK",
           C.navyMid,
           hideConfirm,
@@ -6674,23 +6900,29 @@ const uploadAttachment = useCallback(async (id, file) => {
       );
       return;
     }
-   const result = await ImagePicker.launchCameraAsync({
-  mediaTypes: ["videos"],  
-  allowsEditing: false,
-  quality: 1,
-  videoMaxDuration: 60,
-});
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["videos"],
+      allowsEditing: false,
+      quality: 1,
+      videoMaxDuration: 60,
+    });
     if (!result.canceled && result.assets?.[0]) {
       const asset = result.assets[0];
       const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm"];
-if (asset.mimeType && !allowedVideoTypes.includes(asset.mimeType)) {
-  showConfirm("Invalid File", "Only MP4, MOV, or WebM videos allowed.", "OK", C.navyMid, hideConfirm);
-  return;
-}
-     if (asset.fileSize && asset.fileSize > 180 * 1024 * 1024) {
-  showConfirm(
-    "File Too Large",
-    "Max 180MB per video.",
+      if (asset.mimeType && !allowedVideoTypes.includes(asset.mimeType)) {
+        showConfirm(
+          "Invalid File",
+          "Only MP4, MOV, or WebM videos allowed.",
+          "OK",
+          C.navyMid,
+          hideConfirm,
+        );
+        return;
+      }
+      if (asset.fileSize && asset.fileSize > 180 * 1024 * 1024) {
+        showConfirm(
+          "File Too Large",
+          "Max 180MB per video.",
           "OK",
           C.navyMid,
           hideConfirm,
@@ -6714,21 +6946,34 @@ if (asset.mimeType && !allowedVideoTypes.includes(asset.mimeType)) {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ["images"],
       allowsEditing: false,
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.[0]) {
       const asset = result.assets[0];
-      const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"];
-if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
-  showConfirm("Invalid File", "Only JPG, PNG, WebP, or HEIC images allowed.", "OK", C.navyMid, hideConfirm);
-  return;
-}
-     if (asset.fileSize && asset.fileSize > 12 * 1024 * 1024) {
-  showConfirm(
-    "File Too Large",
-    "Max 12MB per photo.",
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+      ];
+      if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
+        showConfirm(
+          "Invalid File",
+          "Only JPG, PNG, WebP, or HEIC images allowed.",
+          "OK",
+          C.navyMid,
+          hideConfirm,
+        );
+        return;
+      }
+      if (asset.fileSize && asset.fileSize > 12 * 1024 * 1024) {
+        showConfirm(
+          "File Too Large",
+          "Max 12MB per photo.",
           "OK",
           C.navyMid,
           hideConfirm,
@@ -6740,24 +6985,36 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
   }, []);
 
   const takePhoto = useCallback(async () => {
-  const { status } = await ImagePicker.requestCameraPermissionsAsync();
-  if (status !== "granted") {
-    showConfirm("Permission Denied", "Camera permission is required.", "OK", C.navyMid, hideConfirm);
-    return;
-  }
-  const result = await ImagePicker.launchCameraAsync({
-    allowsEditing: false,
-    quality: 0.8,
-  });
-  if (!result.canceled && result.assets?.[0]) {
-    const asset = result.assets[0];
-    if (asset.fileSize && asset.fileSize > 12 * 1024 * 1024) {
-      showConfirm("File Too Large", "Max 12MB per photo.", "OK", C.navyMid, hideConfirm);
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      showConfirm(
+        "Permission Denied",
+        "Camera permission is required.",
+        "OK",
+        C.navyMid,
+        hideConfirm,
+      );
       return;
     }
-    setPendingFiles((prev) => [...prev, asset]);
-  }
-}, []);
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: false,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 12 * 1024 * 1024) {
+        showConfirm(
+          "File Too Large",
+          "Max 12MB per photo.",
+          "OK",
+          C.navyMid,
+          hideConfirm,
+        );
+        return;
+      }
+      setPendingFiles((prev) => [...prev, asset]);
+    }
+  }, []);
   /* ── Updaters ─────────────────────────────────────────────────────────── */
   const uC = useCallback(
     (i, f, v) =>
@@ -6937,33 +7194,36 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
   ════════════════════════════════════════════════════════════════════════ */
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }}>
-  <StatusBar barStyle="light-content" backgroundColor={C.navy} />
-  <ConfirmModal
-    visible={confirm.visible}
-    title={confirm.title}
-    message={confirm.message}
-    confirmText={confirm.confirmText}
-    confirmColor={confirm.confirmColor}
-    onConfirm={confirm.onConfirm}
-    onCancel={hideConfirm}
-  />
+      <StatusBar barStyle="light-content" backgroundColor={C.navy} />
+      <ConfirmModal
+        visible={confirm.visible}
+        title={confirm.title}
+        message={confirm.message}
+        confirmText={confirm.confirmText}
+        confirmColor={confirm.confirmColor}
+        onConfirm={confirm.onConfirm}
+        onCancel={hideConfirm}
+      />
 
-  {/* Header */}
+      {/* Header */}
       <View style={ml.header}>
         <View>
           <Text style={ml.headerTitle}>Reporting Records</Text>
           <Text style={ml.headerSub}>B.A.N.T.A.Y. Reporting</Text>
         </View>
         <View style={{ flexDirection: "row", gap: 10 }}>
-       <TouchableOpacity
-  style={ml.trashBtn}
-  onPress={() => { setTrashModal(true); setTrashPage(1); loadTrash(); }}
-  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
->
-  <Ionicons name="archive-outline" size={16} color={C.white} />
-  <Text style={ml.trashBtnTxt}>Deleted Records</Text>
-</TouchableOpacity>
-        
+          <TouchableOpacity
+            style={ml.trashBtn}
+            onPress={() => {
+              setTrashModal(true);
+              setTrashPage(1);
+              loadTrash();
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="archive-outline" size={16} color={C.white} />
+            <Text style={ml.trashBtnTxt}>Deleted Records</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -7402,121 +7662,183 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
 
       {/* ═══ FORM MODAL ═══ */}
       <Modal visible={modal} animationType="slide" onRequestClose={askClose}>
-  <View style={{ flex: 1, backgroundColor: C.navy, paddingTop: insets.top }}>
-    <StatusBar barStyle="light-content" backgroundColor={C.navy} />
-
-             <ConfirmModal
-        visible={confirm.visible}
-        title={confirm.title}
-        message={confirm.message}
-        confirmText={confirm.confirmText}
-        confirmColor={confirm.confirmColor}
-        onConfirm={confirm.onConfirm}
-        onCancel={hideConfirm}
-      />
-
-       {/* ═══ SAVING OVERLAY ═══ */}
-    {saving && (
-  <View style={{
-    position: "absolute",
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: "rgba(11,36,71,0.7)",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 20,
-    zIndex: 9999,
-  }}>
-    <View style={{
-      backgroundColor: C.white,
-      borderRadius: 20,
-      padding: 32,
-      alignItems: "center",
-      gap: 16,
-      width: "75%",
-    }}>
-      <ActivityIndicator size="large" color={C.navyMid} />
-      <Text style={{
-        fontSize: 15,
-        fontWeight: "800",
-        color: C.navy,
-        textAlign: "center",
-      }}>
-        {acceptMode
-          ? "Accepting Referral…"
-          : editMode
-            ? "Updating Report…"
-            : "Creating Report…"}
-      </Text>
-      {pendingFiles.length > 0 && (
-        <>
-          <Text style={{ fontSize: 13, color: C.sub, textAlign: "center" }}>
-            Uploading {pendingFiles.length} file
-            {pendingFiles.length > 1 ? "s" : ""}…
-          </Text>
-          <Text style={{
-            fontSize: 11,
-            color: C.muted,
-            textAlign: "center",
-            paddingHorizontal: 10,
-          }}>
-            Large videos may take a moment. Please keep the app open.
-          </Text>
-        </>
-      )}
-    </View>
-  </View>
-)}
-
-      {showGpsForPin && (
-  <View style={{
-    position: "absolute",
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
-  }}>
-    <View style={{
-      backgroundColor: C.white,
-      borderRadius: 16,
-      padding: 24,
-      width: "80%",
-      alignItems: "center",
-      gap: 10,
-    }}>
-      <Text style={{ fontSize: 16, fontWeight: "800", color: C.navy, textAlign: "center" }}>
-        Set Pin to My Location
-      </Text>
-      <Text style={{ fontSize: 13, color: C.sub, textAlign: "center", lineHeight: 20 }}>
-        This will use your current GPS coordinates as the crime incident pin location.
-      </Text>
-      <View style={{ flexDirection: "row", gap: 10, width: "100%", marginTop: 8 }}>
-        <TouchableOpacity
-          style={{
-            flex: 1, paddingVertical: 12, borderRadius: 10,
-            borderWidth: 1.5, borderColor: C.border, alignItems: "center",
-          }}
-          onPress={() => setShowGpsForPin(false)}
+        <View
+          style={{ flex: 1, backgroundColor: C.navy, paddingTop: insets.top }}
         >
-          <Text style={{ fontWeight: "600", color: C.sub }}>Cancel</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={{
-            flex: 1, paddingVertical: 12, borderRadius: 10,
-            backgroundColor: C.navyMid, alignItems: "center",
-            flexDirection: "row", justifyContent: "center", gap: 6,
-          }}
-          onPress={useMyLocationAsPin}
-        >
-          {gpsLoading
-            ? <ActivityIndicator size="small" color={C.white} />
-            : <Text style={{ fontWeight: "600", color: C.white }}>Use My Location</Text>
-          }
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-)}
+          <StatusBar barStyle="light-content" backgroundColor={C.navy} />
+
+          <ConfirmModal
+            visible={confirm.visible}
+            title={confirm.title}
+            message={confirm.message}
+            confirmText={confirm.confirmText}
+            confirmColor={confirm.confirmColor}
+            onConfirm={confirm.onConfirm}
+            onCancel={hideConfirm}
+          />
+
+          {/* ═══ SAVING OVERLAY ═══ */}
+          {saving && (
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(11,36,71,0.7)",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 20,
+                zIndex: 9999,
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: C.white,
+                  borderRadius: 20,
+                  padding: 32,
+                  alignItems: "center",
+                  gap: 16,
+                  width: "75%",
+                }}
+              >
+                <ActivityIndicator size="large" color={C.navyMid} />
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "800",
+                    color: C.navy,
+                    textAlign: "center",
+                  }}
+                >
+                  {acceptMode
+                    ? "Accepting Referral…"
+                    : editMode
+                      ? "Updating Report…"
+                      : "Creating Report…"}
+                </Text>
+                {pendingFiles.length > 0 && (
+                  <>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: C.sub,
+                        textAlign: "center",
+                      }}
+                    >
+                      Uploading {pendingFiles.length} file
+                      {pendingFiles.length > 1 ? "s" : ""}…
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        color: C.muted,
+                        textAlign: "center",
+                        paddingHorizontal: 10,
+                      }}
+                    >
+                      Large videos may take a moment. Please keep the app open.
+                    </Text>
+                  </>
+                )}
+              </View>
+            </View>
+          )}
+
+          {showGpsForPin && (
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(0,0,0,0.45)",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 9999,
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: C.white,
+                  borderRadius: 16,
+                  padding: 24,
+                  width: "80%",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "800",
+                    color: C.navy,
+                    textAlign: "center",
+                  }}
+                >
+                  Set Pin to My Location
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: C.sub,
+                    textAlign: "center",
+                    lineHeight: 20,
+                  }}
+                >
+                  This will use your current GPS coordinates as the crime
+                  incident pin location.
+                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    gap: 10,
+                    width: "100%",
+                    marginTop: 8,
+                  }}
+                >
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      paddingVertical: 12,
+                      borderRadius: 10,
+                      borderWidth: 1.5,
+                      borderColor: C.border,
+                      alignItems: "center",
+                    }}
+                    onPress={() => setShowGpsForPin(false)}
+                  >
+                    <Text style={{ fontWeight: "600", color: C.sub }}>
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      flex: 1,
+                      paddingVertical: 12,
+                      borderRadius: 10,
+                      backgroundColor: C.navyMid,
+                      alignItems: "center",
+                      flexDirection: "row",
+                      justifyContent: "center",
+                      gap: 6,
+                    }}
+                    onPress={useMyLocationAsPin}
+                  >
+                    {gpsLoading ? (
+                      <ActivityIndicator size="small" color={C.white} />
+                    ) : (
+                      <Text style={{ fontWeight: "600", color: C.white }}>
+                        Use My Location
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* Modal Header */}
           <View style={ml.modalHeader}>
@@ -7564,6 +7886,7 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
                 offenseSelModus={selM}
                 modalAttachments={modalAttachments}
                 setLightboxImage={setLightboxImage}
+                auditSummary={auditSummary}
               />
               <View style={ml.modalFooter}>
                 <TouchableOpacity
@@ -7745,18 +8068,20 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
         animationType="slide"
         onRequestClose={() => setTrashModal(false)}
       >
-      <View style={{ flex: 1, backgroundColor: C.navy, paddingTop: insets.top }}>
-  <StatusBar barStyle="light-content" backgroundColor={C.navy} />
-  <ConfirmModal
-    visible={confirm.visible}
-    title={confirm.title}
-    message={confirm.message}
-    confirmText={confirm.confirmText}
-    confirmColor={confirm.confirmColor}
-    onConfirm={confirm.onConfirm}
-    onCancel={hideConfirm}
-  />
-  <View style={ml.modalHeader}>
+        <View
+          style={{ flex: 1, backgroundColor: C.navy, paddingTop: insets.top }}
+        >
+          <StatusBar barStyle="light-content" backgroundColor={C.navy} />
+          <ConfirmModal
+            visible={confirm.visible}
+            title={confirm.title}
+            message={confirm.message}
+            confirmText={confirm.confirmText}
+            confirmColor={confirm.confirmColor}
+            onConfirm={confirm.onConfirm}
+            onCancel={hideConfirm}
+          />
+          <View style={ml.modalHeader}>
             <TouchableOpacity
               onPress={() => setTrashModal(false)}
               style={ml.modalCloseBtn}
@@ -7916,70 +8241,134 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
         </View>
       </Modal>
 
-{/* ═══ SUCCESS MODAL ═══ */}
-<Modal
-  visible={successModal.show}
-  transparent
-  animationType="fade"
-  onRequestClose={closeSuccessModal}
->
-  <View style={{
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  }}>
-    <View style={{
-      backgroundColor: "white",
-      borderRadius: 16,
-      width: "100%",
-      maxWidth: 400,
-      overflow: "hidden",
-    }}>
-      <View style={{ backgroundColor: "#16a34a", padding: 24, alignItems: "center" }}>
-        <View style={{
-          width: 64, height: 64, borderRadius: 32,
-          backgroundColor: "rgba(255,255,255,0.2)",
-          alignItems: "center", justifyContent: "center", marginBottom: 12,
-        }}>
-          <Ionicons name="checkmark-circle" size={48} color="white" />
-        </View>
-        <Text style={{ color: "white", fontSize: 20, fontWeight: "700", textAlign: "center" }}>
-          {successModal.message}
-        </Text>
-      </View>
-      <View style={{ padding: 24 }}>
-        <View style={{
-          backgroundColor: "#f0fdf4", borderRadius: 8, padding: 16,
-          borderWidth: 1, borderColor: "#86efac", marginBottom: 20,
-        }}>
-          <Text style={{ fontSize: 12, fontWeight: "600", color: "#166534", marginBottom: 8, textTransform: "uppercase" }}>
-            Report ID
-          </Text>
-          <Text style={{
-            fontSize: 18, fontWeight: "700", color: "#15803d",
-            fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
-          }}>
-            {successModal.reportId}
-          </Text>
-        </View>
-        <Text style={{ fontSize: 13, color: "#64748b", lineHeight: 20, textAlign: "center" }}>
-          Your report has been successfully recorded.
-        </Text>
-      </View>
-      <View style={{ padding: 16, borderTopWidth: 1, borderTopColor: "#e5e7eb", backgroundColor: "#f8fafc" }}>
-        <TouchableOpacity
-          onPress={closeSuccessModal}
-          style={{ backgroundColor: "#16a34a", paddingVertical: 14, borderRadius: 8, alignItems: "center" }}
+      {/* ═══ SUCCESS MODAL ═══ */}
+      <Modal
+        visible={successModal.show}
+        transparent
+        animationType="fade"
+        onRequestClose={closeSuccessModal}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
         >
-          <Text style={{ color: "white", fontSize: 15, fontWeight: "700" }}>Done</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-</Modal>
-     
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 400,
+              overflow: "hidden",
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: "#16a34a",
+                padding: 24,
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <Ionicons name="checkmark-circle" size={48} color="white" />
+              </View>
+              <Text
+                style={{
+                  color: "white",
+                  fontSize: 20,
+                  fontWeight: "700",
+                  textAlign: "center",
+                }}
+              >
+                {successModal.message}
+              </Text>
+            </View>
+            <View style={{ padding: 24 }}>
+              <View
+                style={{
+                  backgroundColor: "#f0fdf4",
+                  borderRadius: 8,
+                  padding: 16,
+                  borderWidth: 1,
+                  borderColor: "#86efac",
+                  marginBottom: 20,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "600",
+                    color: "#166534",
+                    marginBottom: 8,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Report ID
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "700",
+                    color: "#15803d",
+                    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+                  }}
+                >
+                  {successModal.reportId}
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: "#64748b",
+                  lineHeight: 20,
+                  textAlign: "center",
+                }}
+              >
+                Your report has been successfully recorded.
+              </Text>
+            </View>
+            <View
+              style={{
+                padding: 16,
+                borderTopWidth: 1,
+                borderTopColor: "#e5e7eb",
+                backgroundColor: "#f8fafc",
+              }}
+            >
+              <TouchableOpacity
+                onPress={closeSuccessModal}
+                style={{
+                  backgroundColor: "#16a34a",
+                  paddingVertical: 14,
+                  borderRadius: 8,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{ color: "white", fontSize: 15, fontWeight: "700" }}
+                >
+                  Done
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* LIGHTBOX */}
       {lightboxImage && (
         <Modal
@@ -7999,21 +8388,21 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
             activeOpacity={1}
             onPress={() => setLightboxImage(null)}
           >
-          {lightboxImage.isVideo ? (
-  <Video
-    source={{ uri: lightboxImage.url }}
-    style={{ width: "100%", height: 300, borderRadius: 10 }}
-    resizeMode={ResizeMode.CONTAIN}
-    useNativeControls
-    shouldPlay
-  />
-) : (
-  <Image
-    source={{ uri: lightboxImage.url }}
-    style={{ width: "100%", height: 300, borderRadius: 10 }}
-    resizeMode="contain"
-  />
-)}
+            {lightboxImage.isVideo ? (
+              <Video
+                source={{ uri: lightboxImage.url }}
+                style={{ width: "100%", height: 300, borderRadius: 10 }}
+                resizeMode={ResizeMode.CONTAIN}
+                useNativeControls
+                shouldPlay
+              />
+            ) : (
+              <Image
+                source={{ uri: lightboxImage.url }}
+                style={{ width: "100%", height: 300, borderRadius: 10 }}
+                resizeMode="contain"
+              />
+            )}
             {lightboxImage.caption ? (
               <Text
                 style={{
@@ -8079,29 +8468,38 @@ if (asset.mimeType && !allowedTypes.includes(asset.mimeType)) {
         }}
       />
       <Animated.View
-  style={{
-    position: "absolute",
-    right: 20,
-    bottom: tabBarHeight + 16,
-    transform: [{ scale: fabScale }],
-  }}
->
-  <TouchableOpacity
-    style={{
-      width: 58, height: 58, borderRadius: 29,
-      backgroundColor: C.red,
-      alignItems: "center", justifyContent: "center",
-      elevation: 6, shadowColor: "#000", shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.3, shadowRadius: 6,
-    }}
-    activeOpacity={0.85}
-    onPressIn={pressIn}
-    onPressOut={pressOut}
-    onPress={() => { reset(); setModal(true); }}
-  >
-    <Ionicons name="document-attach-outline" size={26} color={C.white} />
-  </TouchableOpacity>
-</Animated.View>
+        style={{
+          position: "absolute",
+          right: 20,
+          bottom: tabBarHeight + 16,
+          transform: [{ scale: fabScale }],
+        }}
+      >
+        <TouchableOpacity
+          style={{
+            width: 58,
+            height: 58,
+            borderRadius: 29,
+            backgroundColor: C.red,
+            alignItems: "center",
+            justifyContent: "center",
+            elevation: 6,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.3,
+            shadowRadius: 6,
+          }}
+          activeOpacity={0.85}
+          onPressIn={pressIn}
+          onPressOut={pressOut}
+          onPress={() => {
+            reset();
+            setModal(true);
+          }}
+        >
+          <Ionicons name="document-attach-outline" size={26} color={C.white} />
+        </TouchableOpacity>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -8256,15 +8654,15 @@ const ml = StyleSheet.create({
     justifyContent: "center",
   },
   trashBtn: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 6,
-  paddingHorizontal: 12,
-  paddingVertical: 8,
-  borderRadius: 10,
-  backgroundColor: "rgba(255,255,255,0.12)",
-},
-trashBtnTxt: { fontSize: 12, fontWeight: "700", color: C.white },
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  trashBtnTxt: { fontSize: 12, fontWeight: "700", color: C.white },
   tabRow: {
     flexDirection: "row",
     backgroundColor: C.white,
