@@ -200,8 +200,12 @@ export default function LoginActivityScreen({ navigation }) {
       if (selected?.token_id === tokenId) {
         setSelected((prev) => (prev ? { ...prev, is_revoked: true, revoked_at: revokedAt } : prev));
       }
-    } catch {
-      setError("Network error. Please try again.");
+    } catch (e) {
+      setError(
+        e?.message && !/network/i.test(e.message)
+          ? e.message
+          : "Network error. Please try again."
+      );
     } finally {
       setRevokingId(null);
     }

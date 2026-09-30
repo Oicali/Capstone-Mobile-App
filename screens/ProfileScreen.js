@@ -59,7 +59,7 @@ import {
   KeyboardAvoidingView,
   RefreshControl, // ← pull-to-refresh, replaces interval polling
 } from "react-native";
-import { BASE_URL } from "../screens/services/api";
+import { BASE_URL, clearSession, logout as apiLogout } from "../screens/services/api";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -853,7 +853,7 @@ export default function ProfileScreen({ navigation }) {
         },
       });
       if (res.status === 401) {
-        await AsyncStorage.clear();
+        await clearSession();
         navigation.reset({ index: 0, routes: [{ name: "Login" }] });
         return;
       }
@@ -894,7 +894,7 @@ export default function ProfileScreen({ navigation }) {
         },
       });
       if (res.status === 401) {
-        await AsyncStorage.clear();
+        await clearSession();
         navigation.reset({ index: 0, routes: [{ name: "Login" }] });
         return;
       }
@@ -1505,7 +1505,8 @@ export default function ProfileScreen({ navigation }) {
       async () => {
         hideConfirm();
         await clearPushToken(); // ← clear FCM token BEFORE wiping session
-        await AsyncStorage.clear();
+        const tokenForLogout = await AsyncStorage.getItem("auth_token");
+        await apiLogout(tokenForLogout); // revokes on server, removes only auth keys
         navigation.reset({ index: 0, routes: [{ name: "Login" }] });
       },
       "Logout",

@@ -1,12 +1,59 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform } from "react-native";
+import { Platform, AppState } from "react-native";
 
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
+// ─── GLOBAL SESSION GUARD ──────────────────────────────────────────────────
+// Any authenticated request that comes back 401 with a "session is dead"
+// code triggers one app-wide logout, from whatever screen the user is on.
+const SESSION_DEAD_CODES = [
+  "SESSION_REVOKED",
+  "SESSION_INVALID",
+  "SESSION_EXPIRED",
+  "TOKEN_EXPIRED",
+  "INVALID_TOKEN",
+];
+let onSessionDead = null;
+let sessionDeadHandled = false;
+
+export const setSessionDeadHandler = (fn) => {
+  onSessionDead = fn;
+};
+export const resetSessionGuard = () => {
+  sessionDeadHandled = false;
+};
+
+if (!global.__sessionGuardInstalled) {
+  global.__sessionGuardInstalled = true;
+  const originalFetch = global.fetch;
+  global.fetch = async (input, init) => {
+    const res = await originalFetch(input, init);
+    try {
+
+      if (res.status === 401 && !sessionDeadHandled) {
+        const url = typeof input === "string" ? input : input?.url;
+        const h = init?.headers || {};
+        const hadAuth = !!(h.Authorization || h.authorization);
+        if (hadAuth && url && BASE_URL && url.startsWith(BASE_URL)) {
+          const body = await res.clone().json().catch(() => null);
+          if (body && SESSION_DEAD_CODES.includes(body.code) && onSessionDead) {
+            sessionDeadHandled = true;
+            stopSessionWatch();
+            onSessionDead(body.code, body.message);
+          }
+        }
+      }
+    } catch {}
+    return res;
+  };
+}
+
 const validateResponse = async (response) => {
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Request failed");
+    const error = await response.json().catch(() => ({}));
+    const err = new Error(error.message || "Request failed");
+    err.code = error.code;
+    throw err;
   }
   return response.json();
 };
@@ -73,6 +120,9 @@ export const login = async (username, password) => {
 
 export const logout = async (token) => {
   try {
+    // User-initiated logout: don't let a 401 here trigger the
+    // "session dead" handler (resetSessionGuard runs on next login).
+    sessionDeadHandled = true;
     if (token) {
       await fetch(`${BASE_URL}/auth/logout`, {
         method: "POST",
@@ -301,13 +351,89 @@ export const removeTrustedDevice = async (tokenId) => {
 
 // ─── AUTH SESSION (local storage) ──────────────────────────────────────────
 
+// ─── SESSION WATCH ─────────────────────────────────────────────────────────
+// Pings an authenticated endpoint so a session revoked from another device
+// is noticed within seconds, even if the user isn't doing anything. The
+// global fetch guard above turns the 401 SESSION_REVOKED into a logout.
+const SESSION_WATCH_MS = 2000;
+let watchTimer = null;
+let watchAppStateSub = null;
+
+const pingSession = async () => {
+  try {
+    const token = await AsyncStorage.getItem("auth_token");
+
+    if (!token) {
+      stopSessionWatch();
+      return;
+    }
+
+    const response = await fetch(`${BASE_URL}/auth/session-check?t=${Date.now()}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Cache-Control": "no-cache",
+      },
+    });
+
+
+
+    if (response.status === 401) {
+  let data = {};
+
+  try {
+    data = await response.json();
+  } catch {}
+
+  const code = data?.code || "SESSION_REVOKED";
+
+
+  // The session-check endpoint exists specifically to determine
+  // whether this device's session is still valid.
+  if (onSessionDead && !sessionDeadHandled) {
+    sessionDeadHandled = true;
+    stopSessionWatch();
+
+    await onSessionDead(
+      code,
+      data?.message || "This device was logged out from another device."
+    );
+  }
+
+  return;
+}
+  } catch (e) {
+    
+    
+  }
+};
+
+export const startSessionWatch = () => {
+  if (watchTimer) return;
+  pingSession();
+  watchTimer = setInterval(pingSession, SESSION_WATCH_MS);
+  watchAppStateSub = AppState.addEventListener("change", (state) => {
+    if (state === "active") pingSession();
+  });
+};
+
+export const stopSessionWatch = () => {
+  clearInterval(watchTimer);
+  watchTimer = null;
+  watchAppStateSub?.remove();
+  watchAppStateSub = null;
+};
+
 export const saveSession = async (token, user) => {
+  resetSessionGuard();
   await AsyncStorage.setItem("auth_token", token);
   await AsyncStorage.setItem("auth_user", JSON.stringify(user));
+  startSessionWatch();
 };
 
 // ✅ FIX: Only remove auth keys, don't wipe all of AsyncStorage
 export const clearSession = async () => {
+  stopSessionWatch();
   await AsyncStorage.multiRemove(["auth_token", "auth_user"]);
 };
 
@@ -337,6 +463,7 @@ export const validateToken = async (token) => {
     }
 
     const data = await res.json();
+    if (data.success === true) startSessionWatch();
     return data.success === true;
   } catch {
     // Network error or timeout — don't kill the session, assume still valid

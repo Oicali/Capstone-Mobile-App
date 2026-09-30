@@ -10,7 +10,12 @@ import {
   DeviceEventEmitter,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { approveLoginNotification, denyLoginNotification } from "./services/api";
+import {
+  approveLoginNotification,
+  denyLoginNotification,
+  getDeviceId,
+  getSession,
+} from "./services/api";
 
 export default function LoginApprovalModal() {
   const [visible, setVisible] = useState(false);
@@ -20,8 +25,18 @@ export default function LoginApprovalModal() {
   const [resolved, setResolved] = useState(null); // 'approved' | 'denied' | null
 
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener("loginApprovalRequest", (data) => {
+    const sub = DeviceEventEmitter.addListener("loginApprovalRequest", async (data) => {
       if (!data?.notificationId) return;
+
+      // Only a logged-in device can approve anything
+      const session = await getSession();
+      if (!session?.token) return;
+
+      // Never show the prompt on the device that is asking for approval
+      const myDeviceId = await getDeviceId();
+      const requester =
+        data.requesting_device_id || data.metadata?.requesting_device_id;
+      if (requester && requester === myDeviceId) return;
       setRequest(data);
       setTrustChecked(false);
       setResolved(null);

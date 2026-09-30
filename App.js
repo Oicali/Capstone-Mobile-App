@@ -1,24 +1,36 @@
 import "./tasks/locationTask";
 import * as Notifications from "expo-notifications"; // ← add this
 
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, CommonActions, } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useEffect } from "react";
-import { Text, View, Platform } from "react-native";
+import {
+  Text, 
+  View,
+  Platform,
+  Alert,
+  AppState,
+  Modal,
+  Pressable,
+} from "react-native";
 import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import {
+  BASE_URL,
   getSession,
   validateToken,
   clearSession,
+  setSessionDeadHandler,
+  startSessionWatch,
 } from "./screens/services/api";
 import {
   registerForPushNotifications,
   savePushToken,
+  clearPushToken,
   setupNotificationHandlers,
   navigationRef,
 } from "./screens/services/pushNotifications";
@@ -204,6 +216,8 @@ function MainTabs() {
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(null);
+  const [sessionLogoutVisible, setSessionLogoutVisible] = useState(false);
+const [sessionLogoutMessage, setSessionLogoutMessage] = useState("");
 
   useEffect(() => {
     if (Platform.OS === "android") {
@@ -215,6 +229,41 @@ export default function App() {
     checkLogin();
     return cleanup; // ← resets handlersInitialized on unmount
   }, []); // ← empty deps, good
+
+  // ── Remote-logout detection (works from ANY screen) ─────────────────────
+useEffect(() => {
+  setSessionDeadHandler(async (code) => {
+    console.log("🚨 GLOBAL SESSION DEAD:", code);
+
+    await clearSession();
+
+    setSessionLogoutMessage(
+      code === "SESSION_REVOKED"
+        ? "This device was logged out from another device."
+        : "Your session has expired. Please log in again."
+    );
+
+    // Make sure the Login screen is the only screen left.
+    if (navigationRef.isReady()) {
+      navigationRef.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: "Login" }],
+        })
+      );
+    }
+
+    // Keep the modal visible until the user chooses Cancel/OK.
+    setSessionLogoutVisible(true);
+
+    // Best-effort cleanup AFTER the modal is up.
+    clearPushToken().catch(() => {});
+  });
+
+  return () => {
+    setSessionDeadHandler(null);
+  };
+}, []);
 
   // ✅ Only register token once we know user is logged in
   useEffect(() => {
@@ -244,10 +293,23 @@ export default function App() {
         return;
       }
       setIsLoggedIn(true);
+startSessionWatch();
     } catch (error) {
       console.error("checkLogin error:", error);
       await clearSession();
       setIsLoggedIn(false);
+    }
+  };
+
+  const closeSessionModal = () => {
+    setSessionLogoutVisible(false);
+    if (navigationRef.isReady()) {
+      navigationRef.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: "Login" }],
+        }),
+      );
     }
   };
 
@@ -320,6 +382,136 @@ export default function App() {
         </Stack.Navigator>
       </NavigationContainer>
       <LoginApprovalModal />
+              <Modal
+        visible={sessionLogoutVisible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => {
+          // Do nothing. Android back button cannot dismiss this modal.
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0, 0, 0, 0.55)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 24,
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              maxWidth: 380,
+              backgroundColor: "#FFFFFF",
+              borderRadius: 10,
+              overflow: "hidden",
+              elevation: 12,
+            }}
+          >
+            {/* Header */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+                paddingVertical: 18,
+                paddingHorizontal: 20,
+                backgroundColor: "#0B2447",
+                borderBottomWidth: 3,
+                borderBottomColor: "#dc2626",
+              }}
+            >
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  backgroundColor: "rgba(255,255,255,0.15)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{ fontSize: 16, fontWeight: "700", color: "#FFFFFF" }}
+                >
+                  Logged out
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(255,255,255,0.6)",
+                    marginTop: 2,
+                  }}
+                >
+                  Your session has ended
+                </Text>
+              </View>
+            </View>
+
+            {/* Body */}
+            <View style={{ padding: 24 }}>
+              <Text style={{ fontSize: 14, lineHeight: 22, color: "#374151" }}>
+                {sessionLogoutMessage}
+              </Text>
+            </View>
+
+            {/* Footer */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "flex-end",
+                gap: 12,
+                paddingVertical: 16,
+                paddingHorizontal: 24,
+                borderTopWidth: 1,
+                borderTopColor: "#e5e7eb",
+                backgroundColor: "#f9fafb",
+              }}
+            >
+              <Pressable
+                onPress={closeSessionModal}
+                style={{
+                  minWidth: 80,
+                  paddingVertical: 11,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                  backgroundColor: "#E9ECEF",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{ fontSize: 14, fontWeight: "700", color: "#495057" }}
+                >
+                  Cancel
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={closeSessionModal}
+                style={{
+                  minWidth: 80,
+                  paddingVertical: 11,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                  backgroundColor: "#19376D",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{ fontSize: 14, fontWeight: "700", color: "#FFFFFF" }}
+                >
+                  OK
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaProvider>
   );
 }

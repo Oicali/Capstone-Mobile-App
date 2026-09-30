@@ -477,8 +477,11 @@ export default function LoginScreen({ navigation }) {
       const data = await pollDeviceLogin(pendingId);
       if (data.success && data.status === "approved") {
         clearInterval(approvalPollingRef.current);
-        setDeviceToken(data.token || null);
-        setCurrentView("device-trust-confirm");
+        // Trust for this device is decided entirely by the approver's own
+        // "Also trust that new device for 30 days" checkbox (see
+        // LoginApprovalModal.js) — skip the separate device-trust-confirm
+        // screen here so the same choice isn't asked twice on two devices.
+        finishDeviceLogin();
         return;
       }
       if (!data.success && (data.denied || data.expired)) {
