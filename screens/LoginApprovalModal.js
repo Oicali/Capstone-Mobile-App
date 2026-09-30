@@ -78,6 +78,16 @@ export default function LoginApprovalModal() {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
       <View style={s.overlay}>
         <View style={s.card}>
+          <TouchableOpacity
+            style={s.closeBtn}
+            onPress={close}
+            disabled={loading}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Close"
+          >
+            <Ionicons name="close" size={24} color="#94A3B8" />
+          </TouchableOpacity>
+
           <View style={s.iconWrap}>
             <Ionicons name="shield-checkmark" size={28} color="#1e3a8a" />
           </View>
@@ -133,6 +143,7 @@ export default function LoginApprovalModal() {
 }
 
 const s = StyleSheet.create({
+  closeBtn: { position: "absolute", top: 12, right: 12, zIndex: 1 },
   overlay: { flex: 1, backgroundColor: "rgba(7,29,71,0.6)", justifyContent: "center", alignItems: "center", padding: 24 },
   card: { backgroundColor: "#fff", borderRadius: 20, padding: 24, width: "100%", maxWidth: 360, alignItems: "center" },
   iconWrap: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#EEF3FF", alignItems: "center", justifyContent: "center", marginBottom: 14 },
