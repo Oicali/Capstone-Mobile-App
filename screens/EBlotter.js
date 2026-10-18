@@ -3803,6 +3803,15 @@ const BlotterCard = memo(function BlotterCard({
                       Accept
                     </Text>
                   </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={bcc.delBtn}
+                    onPress={onDelete}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  >
+                    <Ionicons name="trash-outline" size={13} color={C.red} />
+                    <Text style={bcc.delTxt}>Delete</Text>
+                  </TouchableOpacity>
                 </>
               )}
 
@@ -4837,7 +4846,7 @@ const ViewContent = memo(function ViewContent({
                           </TouchableOpacity>
                         )}
                       </View>
-                                    ))}
+                    ))}
                   </View>
                 </View>
               </Sec>
@@ -4856,15 +4865,21 @@ const ViewContent = memo(function ViewContent({
             )}
             {VI(
               "Date Created",
-              auditSummary?.created ? fmt(auditSummary.created.at) : "Not recorded",
+              auditSummary?.created
+                ? fmt(auditSummary.created.at)
+                : "Not recorded",
             )}
             {VI(
               "Last Updated By",
-              auditSummary?.updated ? auditSummary.updated.name : "Not recorded",
+              auditSummary?.updated
+                ? auditSummary.updated.name
+                : "Not recorded",
             )}
             {VI(
               "Last Updated",
-              auditSummary?.updated ? fmt(auditSummary.updated.at) : "Not recorded",
+              auditSummary?.updated
+                ? fmt(auditSummary.updated.at)
+                : "Not recorded",
             )}
           </View>
         </Sec>

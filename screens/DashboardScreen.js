@@ -254,6 +254,9 @@ const granLbl = (g) => (g === "daily" ? "Daily" : "Monthly");
 // constant, so nothing else needs to change.
 const DEFAULT_PRESET = "365d";
 
+// Display-only role label; never use for logic checks
+const roleLabel = (r) => (r === "Patrol" ? "Patrol Officer" : r);
+
 const BLANK = () => {
   const r = getPresetRange(DEFAULT_PRESET);
   return {
@@ -2782,7 +2785,7 @@ export default function DashboardScreen({ navigation }) {
     (applied.preset !== DEFAULT_PRESET ? 1 : 0);
   const userName = user?.first_name || "Officer";
   const userPic = user?.profile_picture || null;
-  const userRole = user?.role || "";
+  const userRole = roleLabel(user?.role || "");
   const presetLbl =
     PRESETS.find((p) => p.key === applied.preset)?.label || "Custom";
   const gran = getGranularity(applied.preset, applied.dateFrom, applied.dateTo);

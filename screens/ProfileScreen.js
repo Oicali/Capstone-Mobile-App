@@ -158,6 +158,9 @@ const V = {
   },
 };
 
+// Display-only role label; never use for logic checks
+const roleLabel = (r) => (r === "Patrol" ? "Patrol Officer" : r);
+
 // ── Loading Overlay ────────────────────────────────────────────────────────────
 function LoadingOverlay({ visible, message = "Please wait…" }) {
   if (!visible) return null;
@@ -2481,7 +2484,7 @@ export default function ProfileScreen({ navigation }) {
                   style={st.rolePill}
                 >
                   <Ionicons name="shield-checkmark" size={11} color="#4A3B00" />
-                  <Text style={st.rolePillTxt}>{profileData.role}</Text>
+                  <Text style={st.rolePillTxt}>{roleLabel(profileData.role)}</Text>
                 </LinearGradient>
               )}
             </View>
@@ -2736,7 +2739,7 @@ export default function ProfileScreen({ navigation }) {
                 label="Role"
                 iconColor={C.navy}
                 iconBg={C.navyLight}
-                value={profileData.role || "—"}
+                value={roleLabel(profileData.role) || "—"}
               />
               <InfoRow
                 icon="medal-outline"
