@@ -2,6 +2,7 @@ import * as NavigationBar from "expo-navigation-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { DeviceEventEmitter } from "react-native";
+import { getMyBarangayName } from "./services/barangayLock";
 import {
   View,
   Text,
@@ -2670,6 +2671,23 @@ export default function DashboardScreen({ navigation }) {
       if (u) role = JSON.parse(u)?.role;
     } catch (_) {}
 
+    // Barangay users: lock the dashboard to their own barangay
+    if (/barangay|brgy/i.test(String(role || ""))) {
+      const name = await getMyBarangayName();
+      if (!name) {
+        setError("No barangay assigned to this account.");
+        setLoading(false);
+        return;
+      }
+      setIsPatrol(true); // reuses the existing "locked barangay" filter UI
+      setHasPatrolAssignment(true);
+      setPatrolAssignedBarangays([name]);
+      const f = BLANK_FOR(true, [name]);
+      setApplied(f);
+      doFetch(f, false);
+      return;
+    }
+
     if (role !== "Patrol") {
       setIsPatrol(false);
       doFetch(BLANK());
@@ -2710,7 +2728,7 @@ export default function DashboardScreen({ navigation }) {
     setHasPatrolAssignment(false);
     setPatrolAssignedBarangays([]);
     doFetch(BLANK());
-  };
+  };;
 
   // Re-read the cached profile every time this tab regains focus. The
   // initial mount effect above only runs once, so without this, editing

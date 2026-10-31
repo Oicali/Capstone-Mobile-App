@@ -13,6 +13,7 @@
 import * as TaskManager from "expo-task-manager";
 import { LOCATION_TASK_NAME } from "../tasks/locationTask";
 import React, { useEffect, useRef, useCallback, useState } from "react";
+import { getMyBarangayName } from "./services/barangayLock";
 import {
   View,
   Text,
@@ -896,6 +897,7 @@ export default function MapScreen({ navigation }) {
   const [patrolAssignmentLoading, setPatrolAssignmentLoading] = useState(true);
 
   const [styleReady, setStyleReady] = useState(false);
+  const [brgyLock, setBrgyLock] = useState(null);
 
   // Get user role on mount
   useEffect(() => {
@@ -1464,7 +1466,14 @@ export default function MapScreen({ navigation }) {
   const onToDateChange = useCallback((d) => setFilterDateTo(fmtISODate(d)), []);
 
   const isPatrol = userRole === "Patrol";
-  const isBarangayUser = userRole === "Barangay Official";
+  const isBarangayUser = /barangay|brgy/i.test(userRole || "");
+  const lockedBarangays =
+    isPatrol && hasPatrolAssignment
+      ? patrolAssignedBarangays
+      : isBarangayUser && brgyLock
+        ? [brgyLock]
+        : [];
+  const filtersLocked = lockedBarangays.length > 0;
   const isInvestigator = userRole === "Investigator";
 
   useEffect(() => {
@@ -1472,6 +1481,45 @@ export default function MapScreen({ navigation }) {
       setActiveTab("legend");
     }
   }, [isBarangayUser, isInvestigator, activeTab]);
+
+  // Lock barangay users to their own barangay
+  useEffect(() => {
+    if (!isBarangayUser) return;
+    let alive = true;
+    (async () => {
+      const name = await getMyBarangayName();
+      if (!alive || !name) return;
+      setBrgyLock(name);
+      setFilterBarangays([name]);
+      setAppliedBarangays([name]);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [isBarangayUser]);
+
+  // Zoom to their barangay once the polygons are loaded
+  useEffect(() => {
+    if (!brgyLock || !rawGeoJSON) return;
+    const feature = rawGeoJSON.features.find(
+      (f) => f.properties.name_db === brgyLock,
+    );
+    if (!feature) return;
+    const coords =
+      feature.geometry.type === "Polygon"
+        ? feature.geometry.coordinates[0]
+        : feature.geometry.coordinates[0][0];
+    const lngs = coords.map((c) => c[0]);
+    const lats = coords.map((c) => c[1]);
+    setTimeout(() => {
+      cameraRef.current?.fitBounds(
+        [Math.max(...lngs), Math.max(...lats)],
+        [Math.min(...lngs), Math.min(...lats)],
+        40,
+        800,
+      );
+    }, 600);
+  }, [brgyLock, rawGeoJSON]);
 
   const thresholds = getRiskThresholds(appliedDateFrom, appliedDateTo);
   const dayCount =
@@ -1553,8 +1601,6 @@ export default function MapScreen({ navigation }) {
             onPress={() => {
               const from = getPHTOneYearAgo();
               const to = getPHTToday();
-              const lockedBarangays =
-                isPatrol && hasPatrolAssignment ? patrolAssignedBarangays : [];
 
               setFilterDateFrom(from);
               setFilterDateTo(to);
@@ -1569,7 +1615,7 @@ export default function MapScreen({ navigation }) {
               setShowCrimeTypeFilter(false);
               setShowBarangayFilter(false);
 
-              if (!(isPatrol && hasPatrolAssignment)) {
+              if (!filtersLocked) {
                 cameraRef.current?.setCamera({
                   centerCoordinate: BACOOR_CENTER,
                   zoomLevel: 12,
@@ -1620,7 +1666,7 @@ export default function MapScreen({ navigation }) {
             }
           }}
           // ~4.5 fits the whole archipelago on a phone screen
-minZoomLevel={4.5}
+          minZoomLevel={4.5}
           maxZoomLevel={18}
         >
           <Camera
@@ -1722,7 +1768,8 @@ minZoomLevel={4.5}
                   iconAllowOverlap: true,
                   iconIgnorePlacement: true,
                   iconAnchor: "bottom",
-                  visibility: !heatmapMode && mapZoom >= 13 ? "visible" : "none",
+                  visibility:
+                    !heatmapMode && mapZoom >= 13 ? "visible" : "none",
                 }}
               />
             </ShapeSource>
@@ -2049,7 +2096,7 @@ minZoomLevel={4.5}
                   </Text>
                 </View>
               ))}
-                       <TouchableOpacity
+            <TouchableOpacity
               style={styles.popupToggleBtn}
               onPress={() => setShowMorePopup((v) => !v)}
             >
@@ -2058,18 +2105,24 @@ minZoomLevel={4.5}
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.popupViewFullBtn}
-              onPress={() => {
-                const id = selectedPin.blotter_id;
-                setSelectedPin(null);
-                setShowMorePopup(false);
-                navigation.navigate("Reporting", { openBlotterId: id });
-              }}
-            >
-              <Ionicons name="document-text-outline" size={14} color="#ffffff" />
-              <Text style={styles.popupViewFullText}>View Full Case</Text>
-            </TouchableOpacity>
+            {!isBarangayUser && (
+              <TouchableOpacity
+                style={styles.popupViewFullBtn}
+                onPress={() => {
+                  const id = selectedPin.blotter_id;
+                  setSelectedPin(null);
+                  setShowMorePopup(false);
+                  navigation.navigate("Reporting", { openBlotterId: id });
+                }}
+              >
+                <Ionicons
+                  name="document-text-outline"
+                  size={14}
+                  color="#ffffff"
+                />
+                <Text style={styles.popupViewFullText}>View Full Case</Text>
+              </TouchableOpacity>
+            )}
           </ScrollView>
         </View>
       )}
@@ -2187,9 +2240,9 @@ minZoomLevel={4.5}
                   <TouchableOpacity
                     style={styles.dateFilterBtn}
                     onPress={() => {
-  setShowSidebar(false);
-  setTimeout(() => setShowCrimeTypeFilter(true), 350);
-}}
+                      setShowSidebar(false);
+                      setTimeout(() => setShowCrimeTypeFilter(true), 350);
+                    }}
                   >
                     <Ionicons name="flag-outline" size={14} color="#1e3a5f" />
                     <Text style={styles.dateFilterBtnText}>
@@ -2206,7 +2259,7 @@ minZoomLevel={4.5}
                 </View>
 
                 {/* Barangay section — locked for patrol users with an ongoing schedule */}
-                {isPatrol && hasPatrolAssignment ? (
+                {filtersLocked ? (
                   <View style={styles.dateFilterRow}>
                     <View style={styles.lockedFilterBox}>
                       <Ionicons
@@ -2215,8 +2268,9 @@ minZoomLevel={4.5}
                         color="#6b7280"
                       />
                       <Text style={styles.lockedFilterText}>
-                        {patrolAssignedBarangays.length} Assigned Barangay
-                        {patrolAssignedBarangays.length !== 1 ? "s" : ""}
+                        {lockedBarangays.length === 1
+                          ? formatBarangayLabel(lockedBarangays[0])
+                          : `${lockedBarangays.length} Assigned Barangays`}
                       </Text>
                     </View>
                   </View>
@@ -2225,9 +2279,9 @@ minZoomLevel={4.5}
                     <TouchableOpacity
                       style={styles.dateFilterBtn}
                       onPress={() => {
-  setShowSidebar(false);
-  setTimeout(() => setShowBarangayFilter(true), 350);
-}}
+                        setShowSidebar(false);
+                        setTimeout(() => setShowBarangayFilter(true), 350);
+                      }}
                     >
                       <Ionicons
                         name="location-outline"
@@ -2314,10 +2368,6 @@ minZoomLevel={4.5}
                     onPress={() => {
                       const from = getPHTOneYearAgo();
                       const to = getPHTToday();
-                      const lockedBarangays =
-                        isPatrol && hasPatrolAssignment
-                          ? patrolAssignedBarangays
-                          : [];
 
                       setFilterDateFrom(from);
                       setFilterDateTo(to);
@@ -2332,7 +2382,7 @@ minZoomLevel={4.5}
                       setShowCrimeTypeFilter(false);
                       setShowBarangayFilter(false);
 
-                      if (!(isPatrol && hasPatrolAssignment)) {
+                      if (!filtersLocked) {
                         cameraRef.current?.setCamera({
                           centerCoordinate: BACOOR_CENTER,
                           zoomLevel: 12,
@@ -2683,9 +2733,9 @@ minZoomLevel={4.5}
         selected={filterIncidentTypes}
         searchable={false}
         onClose={() => {
-    setShowCrimeTypeFilter(false);
-    setTimeout(() => setShowSidebar(true), 300);
-  }}
+          setShowCrimeTypeFilter(false);
+          setTimeout(() => setShowSidebar(true), 300);
+        }}
         onApply={(sel) => setFilterIncidentTypes(sel)}
       />
 
@@ -2699,10 +2749,10 @@ minZoomLevel={4.5}
         legacy={LEGACY_OPTIONS}
         selected={filterBarangays}
         searchable={true}
-         onClose={() => {
-    setShowBarangayFilter(false);
-    setTimeout(() => setShowSidebar(true), 300);
-  }}
+        onClose={() => {
+          setShowBarangayFilter(false);
+          setTimeout(() => setShowSidebar(true), 300);
+        }}
         onApply={(sel) => setFilterBarangays(sel)}
       />
     </SafeAreaView>

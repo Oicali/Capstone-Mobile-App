@@ -56,6 +56,7 @@ import AfterPatrolScreen from "./screens/AfterPatrolScreen";
 import AfterPatrolHistoryScreen from "./screens/AfterPatrolHistoryScreen";
 import AIAssessmentScreen from "./screens/AIAssessmentScreen";
 import BarangayReportScreen from "./screens/BarangayReportScreen";
+import ResidentsScreen from "./screens/ResidentsScreen";
 
 // Module-level — runs once before anything mounts
 Notifications.setNotificationHandler({
@@ -216,7 +217,79 @@ function MainTabs() {
     </Tab.Navigator>
   );
 }
+function BarangayTabs() {
+  const insets = useSafeAreaInsets();
 
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarStyle: {
+          height: 55 + Math.max(insets.bottom, 25),
+          paddingBottom: Math.max(insets.bottom, 25),
+          paddingTop: 8,
+          backgroundColor: "#FFFFFF",
+          borderTopWidth: 1,
+          borderTopColor: "#dee2e6",
+          elevation: 10,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.1,
+          shadowRadius: 10,
+          position: "absolute",
+        },
+      }}
+    >
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName={focused ? "home" : "home-outline"} label="Home" />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="BarangayReport"
+        component={BarangayReportScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName={focused ? "document-text" : "document-text-outline"} label="Report" />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Residents"
+        component={ResidentsScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName={focused ? "people" : "people-outline"} label="Residents" />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Map"
+        component={MapScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName={focused ? "map" : "map-outline"} label="Map" />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} iconName={focused ? "person" : "person-outline"} label="Profile" />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
+    
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(null);
   const [sessionLogoutVisible, setSessionLogoutVisible] = useState(false);
@@ -386,11 +459,10 @@ startSessionWatch();
             options={{ animation: "slide_from_right" }}
           />
           <Stack.Screen
-            name="BarangayReport"
-            component={BarangayReportScreen}
+            name="BarangayMain"
+            component={BarangayTabs}
             options={{ gestureEnabled: false }}
           />
-          <Stack.Screen name="BarangayProfile" component={ProfileScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       <LoginApprovalModal />
