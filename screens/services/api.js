@@ -503,31 +503,21 @@ const offsetDate = (days) => {
   return new Date(phtMs).toISOString().slice(0, 10);
 };
 
+// Resolves a preset key to a { from, to } PHT range using UTC getters only (same fix as web)
 export const getPresetRange = (key) => {
   const phtToday = getPhtToday();
   const t = phtToday.toISOString().slice(0, 10);
+  const y = phtToday.getUTCFullYear();
+  const m = phtToday.getUTCMonth(); // 0-based
 
-  if (key === "this_month") {
-    const from = `${phtToday.getFullYear()}-${String(phtToday.getMonth() + 1).padStart(2, "0")}-01`;
-    return { from, to: t };
-  }
+  // 1st of the given month as YYYY-MM-DD; Date.UTC rolls negative/overflow months
+  const firstOfMonth = (year, month) =>
+    new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
+
+  if (key === "this_month") return { from: firstOfMonth(y, m), to: t };
   if (key === "7d") return { from: offsetDate(-6), to: t };
-  if (key === "3m") {
-    // 3-month range: start from 2 months ago (1st) → today, same as web
-    const from = new Date(phtToday.getFullYear(), phtToday.getMonth() - 2, 1);
-    return {
-      from: `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}-01`,
-      to: t,
-    };
-  }
-  if (key === "365d") {
-    // Snap to 1 year ago, 1st of that month — same as web
-    const from = new Date(phtToday.getFullYear() - 1, phtToday.getMonth(), 1);
-    return {
-      from: `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}-01`,
-      to: t,
-    };
-  }
+  if (key === "3m") return { from: firstOfMonth(y, m - 2), to: t };
+  if (key === "365d") return { from: firstOfMonth(y - 1, m), to: t };
   return null;
 };
 

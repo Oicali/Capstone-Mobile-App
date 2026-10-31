@@ -1,6 +1,7 @@
 import "./tasks/locationTask";
 import * as Notifications from "expo-notifications"; // ← add this
 
+
 import { NavigationContainer, CommonActions, } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -54,6 +55,7 @@ import RoleBasedPatrolScreen from "./screens/RoleBasedPatrolScreen";
 import AfterPatrolScreen from "./screens/AfterPatrolScreen";
 import AfterPatrolHistoryScreen from "./screens/AfterPatrolHistoryScreen";
 import AIAssessmentScreen from "./screens/AIAssessmentScreen";
+import BarangayReportScreen from "./screens/BarangayReportScreen";
 
 // Module-level — runs once before anything mounts
 Notifications.setNotificationHandler({
@@ -355,10 +357,7 @@ startSessionWatch();
             name="ChangePassword"
             component={ChangePasswordScreen}
           />
-          <Stack.Screen
-            name="LoginActivity"
-            component={LoginActivityScreen}
-          />
+          <Stack.Screen name="LoginActivity" component={LoginActivityScreen} />
 
           {/*
             PatrolDetailScreen lives on the root stack (not inside tabs)
@@ -386,10 +385,16 @@ startSessionWatch();
             component={AIAssessmentScreen}
             options={{ animation: "slide_from_right" }}
           />
+          <Stack.Screen
+            name="BarangayReport"
+            component={BarangayReportScreen}
+            options={{ gestureEnabled: false }}
+          />
+          <Stack.Screen name="BarangayProfile" component={ProfileScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       <LoginApprovalModal />
-              <Modal
+      <Modal
         visible={sessionLogoutVisible}
         transparent
         animationType="fade"

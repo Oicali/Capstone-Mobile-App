@@ -1,41 +1,66 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  View, Text, StyleSheet, SectionList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Image, StatusBar,
-  Animated, Easing,
+  View,
+  Text,
+  StyleSheet,
+  SectionList,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Image,
+  StatusBar,
+  Animated,
+  Easing,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { getNotifications, markNotificationRead, markAllNotificationsRead } from "./services/api";
-import { useFocusEffect } from '@react-navigation/native';
+import {
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "./services/api";
+import { useFocusEffect } from "@react-navigation/native";
 import { DeviceEventEmitter } from "react-native";
-const NAVY   = "#0a1628";
+const NAVY = "#0a1628";
 const NAVY_M = "#1e3a5f";
-const WHITE  = "#ffffff";
-const G50    = "#f8f9fa";
-const G100   = "#e9ecef";
-const G200   = "#dee2e6";
-const G400   = "#adb5bd";
-const G600   = "#6c757d";
-const G700   = "#495057";
-const G900   = "#212529";
+const WHITE = "#ffffff";
+const G50 = "#f8f9fa";
+const G100 = "#e9ecef";
+const G200 = "#dee2e6";
+const G400 = "#adb5bd";
+const G600 = "#6c757d";
+const G700 = "#495057";
+const G900 = "#212529";
 
 const TYPE_CONFIG = {
-  NEW_REFERRAL:      { icon: "alert-circle",     color: "#ef4444", label: "Referral" },
-  REFERRAL_ACCEPTED: { icon: "checkmark-circle", color: "#22c55e", label: "Accepted" },
-  REFERRAL_DELETED:  { icon: "trash",            color: "#6b7280", label: "Deleted"  },
-  PATROL_ASSIGNED:   { icon: "shield-checkmark", color: "#3b82f6", label: "Patrol"  },
-  CASE_ASSIGNED:     { icon: "document-text",    color: "#f59e0b", label: "Case"    },
-  USER_REGISTERED:   { icon: "person-add",       color: "#8b5cf6", label: "User"    },
-  ACCOUNT_LOCKED:    { icon: "lock-closed",      color: "#dc2626", label: "Security"},
+  NEW_REFERRAL: { icon: "alert-circle", color: "#ef4444", label: "Referral" },
+  REFERRAL_ACCEPTED: {
+    icon: "checkmark-circle",
+    color: "#22c55e",
+    label: "Accepted",
+  },
+  REFERRAL_DELETED: { icon: "trash", color: "#6b7280", label: "Deleted" },
+  PATROL_ASSIGNED: {
+    icon: "shield-checkmark",
+    color: "#3b82f6",
+    label: "Patrol",
+  },
+  CASE_ASSIGNED: { icon: "document-text", color: "#f59e0b", label: "Case" },
+  USER_REGISTERED: { icon: "person-add", color: "#8b5cf6", label: "User" },
+  ACCOUNT_LOCKED: { icon: "lock-closed", color: "#dc2626", label: "Security" },
+  REFERRAL_RESPONDED: {
+    icon: "person-circle",
+    color: "#3b82f6",
+    label: "Responder",
+  },
 };
 const DEFAULT_CONFIG = { icon: "notifications", color: NAVY_M, label: "Info" };
 
 // ─── GROUPING LOGIC ───────────────────────────────────────────────────────────
 const getGroup = (dateStr) => {
-  const now  = new Date();
+  const now = new Date();
   const date = new Date(dateStr);
-  const diffMs   = now - date;
+  const diffMs = now - date;
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
 
   if (date.toDateString() === now.toDateString()) return "Today";
@@ -44,21 +69,32 @@ const getGroup = (dateStr) => {
   yesterday.setDate(now.getDate() - 1);
   if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
 
-  if (diffDays < 7)  return "This Week";
+  if (diffDays < 7) return "This Week";
   if (diffDays < 30) return "This Month";
   if (diffDays < 365) return "This Year";
   return "Older";
 };
 
-const GROUP_ORDER = ["Today", "Yesterday", "This Week", "This Month", "This Year", "Older"];
+const GROUP_ORDER = [
+  "Today",
+  "Yesterday",
+  "This Week",
+  "This Month",
+  "This Year",
+  "Older",
+];
 
 const GROUP_META = {
-  Today:       { icon: "sunny-outline",          color: "#f59e0b", bg: "#fffbeb" },
-  Yesterday:   { icon: "partly-sunny-outline",   color: "#f97316", bg: "#fff7ed" },
-  "This Week": { icon: "calendar-outline",       color: "#3b82f6", bg: "#eff6ff" },
-  "This Month":{ icon: "calendar-clear-outline", color: "#8b5cf6", bg: "#f5f3ff" },
-  "This Year": { icon: "time-outline",           color: "#22c55e", bg: "#f0fdf4" },
-  Older:       { icon: "archive-outline",        color: "#6b7280", bg: "#f9fafb" },
+  Today: { icon: "sunny-outline", color: "#f59e0b", bg: "#fffbeb" },
+  Yesterday: { icon: "partly-sunny-outline", color: "#f97316", bg: "#fff7ed" },
+  "This Week": { icon: "calendar-outline", color: "#3b82f6", bg: "#eff6ff" },
+  "This Month": {
+    icon: "calendar-clear-outline",
+    color: "#8b5cf6",
+    bg: "#f5f3ff",
+  },
+  "This Year": { icon: "time-outline", color: "#22c55e", bg: "#f0fdf4" },
+  Older: { icon: "archive-outline", color: "#6b7280", bg: "#f9fafb" },
 };
 
 const groupNotifications = (notifs) => {
@@ -68,30 +104,34 @@ const groupNotifications = (notifs) => {
     if (!map[g]) map[g] = [];
     map[g].push(n);
   });
-  return GROUP_ORDER
-    .filter((g) => map[g])
-    .map((g) => ({ title: g, data: map[g] }));
+  return GROUP_ORDER.filter((g) => map[g]).map((g) => ({
+    title: g,
+    data: map[g],
+  }));
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const timeAgo = (dateStr) => {
   const diff = Date.now() - new Date(dateStr).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1)  return "just now";
+  if (m < 1) return "just now";
   if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ago`;
   const d = Math.floor(h / 24);
-  if (d < 7)  return `${d}d ago`;
+  if (d < 7) return `${d}d ago`;
   const wk = Math.floor(d / 7);
   if (wk < 5) return `${wk}w ago`;
-  return new Date(dateStr).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+  return new Date(dateStr).toLocaleDateString("en-PH", {
+    month: "short",
+    day: "numeric",
+  });
 };
 
 // ─── ANIMATED NOTIFICATION ITEM ───────────────────────────────────────────────
 function NotifItem({ item, index, onPress }) {
   const config = TYPE_CONFIG[item.type] || DEFAULT_CONFIG;
-  const anim   = useRef(new Animated.Value(0)).current;
+  const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(anim, {
@@ -103,7 +143,10 @@ function NotifItem({ item, index, onPress }) {
     }).start();
   }, []);
 
-  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] });
+  const translateY = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [24, 0],
+  });
 
   return (
     <Animated.View style={{ opacity: anim, transform: [{ translateY }] }}>
@@ -114,24 +157,42 @@ function NotifItem({ item, index, onPress }) {
       >
         {!item.is_read && <View style={s.unreadBar} />}
 
-        <View style={[s.avatar, { backgroundColor: config.color + "18", borderColor: config.color + "44" }]}>
-          {item.sender_avatar
-            ? <Image source={{ uri: item.sender_avatar }} style={s.avatarImg} />
-            : <Ionicons name={config.icon} size={20} color={config.color} />
-          }
+        <View
+          style={[
+            s.avatar,
+            {
+              backgroundColor: config.color + "18",
+              borderColor: config.color + "44",
+            },
+          ]}
+        >
+          {item.sender_avatar ? (
+            <Image source={{ uri: item.sender_avatar }} style={s.avatarImg} />
+          ) : (
+            <Ionicons name={config.icon} size={20} color={config.color} />
+          )}
         </View>
 
         <View style={s.content}>
           <View style={s.titleRow}>
-            <Text style={[s.title, !item.is_read && s.titleUnread]} numberOfLines={1}>
+            <Text
+              style={[s.title, !item.is_read && s.titleUnread]}
+              numberOfLines={1}
+            >
               {item.title}
             </Text>
-            <View style={[s.typePill, { backgroundColor: config.color + "18" }]}>
-              <Text style={[s.typePillTxt, { color: config.color }]}>{config.label}</Text>
+            <View
+              style={[s.typePill, { backgroundColor: config.color + "18" }]}
+            >
+              <Text style={[s.typePillTxt, { color: config.color }]}>
+                {config.label}
+              </Text>
             </View>
           </View>
 
-          <Text style={s.message} numberOfLines={2}>{item.message}</Text>
+          <Text style={s.message} numberOfLines={2}>
+            {item.message}
+          </Text>
 
           <View style={s.metaRow}>
             {item.sender_name && (
@@ -146,10 +207,16 @@ function NotifItem({ item, index, onPress }) {
           </View>
         </View>
 
-        {!item.is_read
-          ? <View style={s.unreadDot} />
-          : <Ionicons name="checkmark-done" size={14} color={G200} style={{ flexShrink: 0 }} />
-        }
+        {!item.is_read ? (
+          <View style={s.unreadDot} />
+        ) : (
+          <Ionicons
+            name="checkmark-done"
+            size={14}
+            color={G200}
+            style={{ flexShrink: 0 }}
+          />
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -162,7 +229,8 @@ function SectionHeader({ title, count }) {
 
   useEffect(() => {
     Animated.timing(anim, {
-      toValue: 1, duration: 300,
+      toValue: 1,
+      duration: 300,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start();
@@ -170,10 +238,10 @@ function SectionHeader({ title, count }) {
 
   return (
     <Animated.View style={[s.sectionHdr, { opacity: anim }]}>
-  <Text style={s.sectionTitle}>{title}</Text>
-  <View style={s.sectionLine} />
-  <Text style={s.sectionCountTxt}>{count}</Text>
-</Animated.View>
+      <Text style={s.sectionTitle}>{title}</Text>
+      <View style={s.sectionLine} />
+      <Text style={s.sectionCountTxt}>{count}</Text>
+    </Animated.View>
   );
 }
 
@@ -203,10 +271,17 @@ function StatsStrip({ total, unread }) {
 function EmptyState() {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.spring(anim, { toValue: 1, speed: 10, bounciness: 8, useNativeDriver: true }).start();
+    Animated.spring(anim, {
+      toValue: 1,
+      speed: 10,
+      bounciness: 8,
+      useNativeDriver: true,
+    }).start();
   }, []);
   return (
-    <Animated.View style={[s.center, { opacity: anim, transform: [{ scale: anim }] }]}>
+    <Animated.View
+      style={[s.center, { opacity: anim, transform: [{ scale: anim }] }]}
+    >
       <View style={s.emptyCircle}>
         <Ionicons name="notifications-off-outline" size={38} color={NAVY_M} />
       </View>
@@ -218,34 +293,47 @@ function EmptyState() {
 
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 export default function NotificationsScreen({ navigation }) {
-  const [notifs, setNotifs]      = useState([]);
-  const [unread, setUnread]      = useState(0);
-  const [loading, setLoading]    = useState(true);
+  const [notifs, setNotifs] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefresh] = useState(false);
 
   const headerAnim = useRef(new Animated.Value(-90)).current;
   useEffect(() => {
-    Animated.spring(headerAnim, { toValue: 0, speed: 14, bounciness: 5, useNativeDriver: true }).start();
+    Animated.spring(headerAnim, {
+      toValue: 0,
+      speed: 14,
+      bounciness: 5,
+      useNativeDriver: true,
+    }).start();
   }, []);
 
   const fetchNotifs = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefresh(true); else setLoading(true);
+    if (isRefresh) setRefresh(true);
+    else setLoading(true);
     try {
       const data = await getNotifications();
-      if (data.success) { setNotifs(data.data || []); setUnread(data.unread || 0); }
-    } catch (e) { 
-      console.error(e); 
+      if (data.success) {
+        setNotifs(data.data || []);
+        setUnread(data.unread || 0);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+      setRefresh(false);
     }
-    finally { setLoading(false); setRefresh(false); }
   }, []);
 
-  useEffect(() => { fetchNotifs(); }, []);
-useFocusEffect(
-  useCallback(() => {
+  useEffect(() => {
     fetchNotifs();
-  }, [])
-);
-const LINK_TO_TAB = {
+  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchNotifs();
+    }, []),
+  );
+  const LINK_TO_TAB = {
     "/e-blotter": "Reporting",
     "/brgy-report": "Reporting",
     "/case-management": "Dashboard",
@@ -254,7 +342,9 @@ const LINK_TO_TAB = {
 
   const handleMarkOne = (notif) => {
     if (!notif.is_read) {
-      setNotifs((prev) => prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n)));
+      setNotifs((prev) =>
+        prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n)),
+      );
       setUnread((prev) => Math.max(0, prev - 1));
       markNotificationRead(notif.id).catch(console.error);
     }
@@ -271,14 +361,21 @@ const LINK_TO_TAB = {
     }
 
     if (notif.link_to) {
-  const basePath = notif.link_to.split("?")[0];
-  const tab = LINK_TO_TAB[basePath];
-  if (tab) {
-    const screenParams =
-      notif.type === "NEW_REFERRAL" ? { initialReportTab: "referred" } : undefined;
-    navigation.navigate("Main", { screen: tab, params: screenParams });
-  }
-}
+      const basePath = notif.link_to.split("?")[0];
+      if (basePath === "/brgy-report") {
+        // barangay officials: go back to their screen on the My Reports tab
+        navigation.popTo("BarangayReport", { initialTab: "reports" });
+        return;
+      }
+      const tab = LINK_TO_TAB[basePath];
+      if (tab) {
+        const screenParams =
+          notif.type === "NEW_REFERRAL"
+            ? { initialReportTab: "referred" }
+            : undefined;
+        navigation.navigate("Main", { screen: tab, params: screenParams });
+      }
+    }
   };
 
   const handleMarkAll = () => {
@@ -293,9 +390,14 @@ const LINK_TO_TAB = {
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="light-content" backgroundColor={NAVY} />
 
-      <Animated.View style={[s.header, { transform: [{ translateY: headerAnim }] }]}>
+      <Animated.View
+        style={[s.header, { transform: [{ translateY: headerAnim }] }]}
+      >
         <View style={s.headerTop}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={s.backBtn}
+          >
             <Ionicons name="arrow-back" size={20} color={WHITE} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
@@ -315,7 +417,9 @@ const LINK_TO_TAB = {
       {loading ? (
         <View style={s.center}>
           <ActivityIndicator size="large" color={NAVY_M} />
-          <Text style={{ marginTop: 10, fontSize: 13, color: G600 }}>Loading notifications…</Text>
+          <Text style={{ marginTop: 10, fontSize: 13, color: G600 }}>
+            Loading notifications…
+          </Text>
         </View>
       ) : notifs.length === 0 ? (
         <EmptyState />
@@ -362,101 +466,183 @@ const s = StyleSheet.create({
     zIndex: 10,
   },
   headerTop: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
   },
   backBtn: {
-    width: 36, height: 36, borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.12)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
-    alignItems: "center", justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: { fontSize: 20, fontWeight: "700", color: WHITE },
-  headerSub:   { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 1 },
+  headerSub: { fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 1 },
   markAllBtn: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    paddingHorizontal: 12, paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
   },
   markAllTxt: { fontSize: 12, fontWeight: "600", color: WHITE },
 
   statsStrip: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 20, paddingVertical: 12,
-    borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.07)",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.07)",
   },
-  statBox:  { flex: 1, alignItems: "center" },
-  statNum:  { fontSize: 18, fontWeight: "700", color: WHITE },
-  statLbl:  { fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: "600", marginTop: 1 },
-  statDiv:  { width: 1, height: 28, backgroundColor: "rgba(255,255,255,0.1)" },
+  statBox: { flex: 1, alignItems: "center" },
+  statNum: { fontSize: 18, fontWeight: "700", color: WHITE },
+  statLbl: {
+    fontSize: 10,
+    color: "rgba(255,255,255,0.45)",
+    fontWeight: "600",
+    marginTop: 1,
+  },
+  statDiv: { width: 1, height: 28, backgroundColor: "rgba(255,255,255,0.1)" },
 
   // Section header — sticky
   sectionHdr: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    paddingHorizontal: 16, paddingVertical: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     backgroundColor: G50,
-    borderBottomWidth: 1, borderBottomColor: G100,
+    borderBottomWidth: 1,
+    borderBottomColor: G100,
   },
   sectionIconWrap: {
-    width: 24, height: 24, borderRadius: 6,
-    alignItems: "center", justifyContent: "center",
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  sectionTitle: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.7, color: G900 },
-  sectionLine:     { flex: 1, height: 1, backgroundColor: G200 },
-  sectionCount:    { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+    color: G900,
+  },
+  sectionLine: { flex: 1, height: 1, backgroundColor: G200 },
+  sectionCount: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
   sectionCountTxt: { fontSize: 11, fontWeight: "700", color: G700 },
 
   // Items
   item: {
-    flexDirection: "row", alignItems: "flex-start",
-    paddingHorizontal: 16, paddingVertical: 14, gap: 12,
-    backgroundColor: WHITE, position: "relative",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+    backgroundColor: WHITE,
+    position: "relative",
   },
   itemUnread: { backgroundColor: "#f0f5ff" },
   unreadBar: {
-    position: "absolute", left: 0, top: 0, bottom: 0,
-    width: 3, backgroundColor: "#3b82f6",
-    borderTopRightRadius: 3, borderBottomRightRadius: 3,
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: "#3b82f6",
+    borderTopRightRadius: 3,
+    borderBottomRightRadius: 3,
   },
 
   avatar: {
-    width: 44, height: 44, borderRadius: 22, borderWidth: 1.5,
-    alignItems: "center", justifyContent: "center", flexShrink: 0,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
   avatarImg: { width: 44, height: 44, borderRadius: 22 },
 
-  content:     { flex: 1, minWidth: 0 },
-  titleRow:    { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" },
-  title:       { fontSize: 13, fontWeight: "500", color: G900, flex: 1 },
+  content: { flex: 1, minWidth: 0 },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 3,
+    flexWrap: "wrap",
+  },
+  title: { fontSize: 13, fontWeight: "500", color: G900, flex: 1 },
   titleUnread: { fontWeight: "700", color: NAVY },
 
-  typePill:    { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
-  typePillTxt: { fontSize: 9, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4 },
+  typePill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
+  typePillTxt: {
+    fontSize: 9,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
 
   message: { fontSize: 12, color: G600, lineHeight: 18, marginBottom: 6 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  sender:  { fontSize: 11, fontWeight: "600", color: G700 },
-  time:    { fontSize: 11, color: G400 },
-  metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: G400, marginHorizontal: 2 },
+  sender: { fontSize: 11, fontWeight: "600", color: G700 },
+  time: { fontSize: 11, color: G400 },
+  metaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: G400,
+    marginHorizontal: 2,
+  },
 
   unreadDot: {
-    width: 9, height: 9, borderRadius: 5,
-    backgroundColor: "#3b82f6", flexShrink: 0, marginTop: 5,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: "#3b82f6",
+    flexShrink: 0,
+    marginTop: 5,
   },
 
   sep: { height: 1, backgroundColor: G100, marginLeft: 72 },
 
   center: {
-    flex: 1, backgroundColor: G50,
-    alignItems: "center", justifyContent: "center", gap: 10, padding: 32,
+    flex: 1,
+    backgroundColor: G50,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    padding: 32,
   },
   emptyCircle: {
-    width: 88, height: 88, borderRadius: 44,
-    backgroundColor: WHITE, borderWidth: 2, borderColor: G200,
-    alignItems: "center", justifyContent: "center", marginBottom: 8,
-    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: G200,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   emptyTitle: { fontSize: 17, fontWeight: "700", color: NAVY },
-  emptyTxt:   { fontSize: 13, color: G600, textAlign: "center", lineHeight: 20 },
+  emptyTxt: { fontSize: 13, color: G600, textAlign: "center", lineHeight: 20 },
 });

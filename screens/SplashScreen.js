@@ -9,6 +9,8 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getSession } from "./services/api";
+import { isBarangayRole } from "./BarangayReportScreen";
 
 export default function SplashScreen({ navigation, route }) {
   const isLoggedIn = route.params?.isLoggedIn ?? false;
@@ -40,7 +42,11 @@ export default function SplashScreen({ navigation, route }) {
       const seenOnboarding = await AsyncStorage.getItem(
         "onboarding_permissions_done",
       );
-
+      let home = "Main";
+      if (isLoggedIn) {
+        const session = await getSession();
+        if (isBarangayRole(session?.user?.role)) home = "BarangayReport";
+      }
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 600,
@@ -49,7 +55,7 @@ export default function SplashScreen({ navigation, route }) {
         if (!seenOnboarding) {
           navigation.replace("NotificationsPermission", { isLoggedIn });
         } else {
-          navigation.replace(isLoggedIn ? "Main" : "Login");
+          navigation.replace(isLoggedIn ? home : "Login");
         }
       });
     }, 3000);
