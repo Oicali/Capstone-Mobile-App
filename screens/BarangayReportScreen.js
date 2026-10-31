@@ -1,7 +1,3 @@
-
-// ================================================================================
-// FILE 2: Capstone-Mobile-App/screens/BarangayReportScreen.js   (paste the whole file)
-// ================================================================================
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -17,24 +13,26 @@ import {
   RefreshControl,
   Platform,
   KeyboardAvoidingView,
+  StatusBar,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import DateTimePicker, {
   DateTimePickerAndroid,
 } from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
-import { BASE_URL, getSession, getDeviceId, logout } from "./services/api";
+import { BASE_URL, getSession } from "./services/api";
 
-// ── Change these if your navigator uses different route names ──
-
+// ── Route names ──
 const ROUTES = {
   login: "Login",
   notifications: "Notifications",
-  profile: "BarangayProfile",
 };
 
-// Use this in LoginScreen / SplashScreen to decide who sees this screen
+// Used by LoginScreen / SplashScreen to decide who sees this screen
 export const isBarangayRole = (role = "") =>
   /barangay|brgy/i.test(String(role));
 
@@ -50,10 +48,17 @@ const CRIME_TYPES = [
   "Theft",
 ];
 const PERSON_ROLES = ["Victim", "Complainant", "Witness", "Respondent"];
+const ROLE_META = {
+  Victim: { color: "#c1272d", icon: "person-outline" },
+  Complainant: { color: "#2563eb", icon: "chatbubble-ellipses-outline" },
+  Witness: { color: "#d97706", icon: "eye-outline" },
+  Respondent: { color: "#7c3aed", icon: "shield-outline" },
+};
 const PHOTO_MAX = 5;
 const VIDEO_MAX = 1;
 const PHOTO_MAX_MB = 8;
 const VIDEO_MAX_MB = 80;
+const NARRATIVE_MAX = 3000;
 const MONTHS = [
   "Jan",
   "Feb",
@@ -69,12 +74,32 @@ const MONTHS = [
   "Dec",
 ];
 
+const DARK = "#0a1628";
 const NAVY = "#1e3a5f";
 const RED = "#c1272d";
+const BG = "#f1f5f9";
+
+const STATUS_META = {
+  Pending: { bg: "#fef3c7", fg: "#92400e", icon: "time-outline" },
+  "Under Investigation": {
+    bg: "#dbeafe",
+    fg: "#1e40af",
+    icon: "search-outline",
+  },
+  Solved: { bg: "#d1fae5", fg: "#065f46", icon: "checkmark-circle-outline" },
+  Cleared: { bg: "#ccfbf1", fg: "#0f766e", icon: "shield-checkmark-outline" },
+};
+const STATUS_FILTERS = [
+  "All",
+  "Pending",
+  "Under Investigation",
+  "Solved",
+  "Cleared",
+];
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 const pad = (n) => String(n).padStart(2, "0");
-// Local "YYYY-MM-DDTHH:mm" — the same format the web datetime-local input sends
+// Local "YYYY-MM-DDTHH:mm" — same format the web datetime-local input sends
 const toLocalString = (d) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const fmtDateTime = (d) => {
@@ -137,19 +162,49 @@ const openDateTime = (current, onPicked) => {
   });
 };
 
-const statusColors = (status) => {
-  if (status === "Under Investigation") return { bg: "#dbeafe", fg: "#1e40af" };
-  if (status === "Solved") return { bg: "#d1fae5", fg: "#065f46" };
-  if (status === "Cleared") return { bg: "#ccfbf1", fg: "#0f766e" };
-  return { bg: "#fef3c7", fg: "#92400e" }; // Pending
-};
-
 // ── small UI pieces ─────────────────────────────────────────────────────────
+function SectionCard({ icon, title, subtitle, children }) {
+  return (
+    <View style={s.card}>
+      <View style={s.cardHead}>
+        <View style={s.cardIcon}>
+          <Ionicons name={icon} size={16} color="#fff" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cardTitle}>{title}</Text>
+          {!!subtitle && <Text style={s.cardSub}>{subtitle}</Text>}
+        </View>
+      </View>
+      <View style={s.cardBody}>{children}</View>
+    </View>
+  );
+}
+
+function Field({ label, required, error, hint, children, style }) {
+  return (
+    <View style={[s.group, style]}>
+      <Text style={s.label}>
+        {label}
+        {required ? <Text style={s.req}> *</Text> : null}
+      </Text>
+      {children}
+      {!!hint && !error && <Text style={s.hint}>{hint}</Text>}
+      {!!error && (
+        <View style={s.errRow}>
+          <Ionicons name="alert-circle" size={13} color={RED} />
+          <Text style={s.err}> {error}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 function Chip({ label, active, onPress }) {
   return (
     <TouchableOpacity
       onPress={onPress}
       style={[s.chip, active && s.chipActive]}
+      activeOpacity={0.8}
     >
       <Text style={[s.chipTxt, active && s.chipTxtActive]}>{label}</Text>
     </TouchableOpacity>
@@ -158,19 +213,25 @@ function Chip({ label, active, onPress }) {
 
 function DateField({ label, value, onChange, error }) {
   return (
-    <View style={s.group}>
-      <Text style={s.label}>
-        {label} <Text style={s.req}>*</Text>
-      </Text>
+    <Field label={label} required error={error}>
       {Platform.OS === "android" ? (
         <TouchableOpacity
           style={[s.input, s.rowBetween, !!error && s.inputErr]}
           onPress={() => openDateTime(value, onChange)}
+          activeOpacity={0.8}
         >
-          <Text style={value ? s.inputTxt : s.placeholder}>
-            {fmtDateTime(value)}
-          </Text>
-          <Ionicons name="calendar-outline" size={18} color="#64748b" />
+          <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+            <Ionicons
+              name="calendar-outline"
+              size={17}
+              color={value ? NAVY : "#9ca3af"}
+              style={{ marginRight: 10 }}
+            />
+            <Text style={value ? s.inputTxt : s.placeholder}>
+              {fmtDateTime(value)}
+            </Text>
+          </View>
+          <Ionicons name="chevron-down" size={16} color="#9ca3af" />
         </TouchableOpacity>
       ) : (
         <View style={{ alignItems: "flex-start" }}>
@@ -183,19 +244,75 @@ function DateField({ label, value, onChange, error }) {
           />
         </View>
       )}
-      <TouchableOpacity onPress={() => onChange(new Date())}>
-        <Text style={s.link}>Use current time</Text>
+      <TouchableOpacity style={s.nowBtn} onPress={() => onChange(new Date())}>
+        <Ionicons name="time-outline" size={13} color="#2563eb" />
+        <Text style={s.nowTxt}> Use current time</Text>
       </TouchableOpacity>
-      {!!error && <Text style={s.err}>{error}</Text>}
+    </Field>
+  );
+}
+
+function DetectStatus({ detect }) {
+  const map = {
+    detecting: {
+      bg: "#eff6ff",
+      fg: "#1e40af",
+      icon: null,
+      txt: "AI is analyzing your narrative...",
+    },
+    ok: {
+      bg: "#ecfdf5",
+      fg: "#065f46",
+      icon: "sparkles",
+      txt: "Auto-detected by AI",
+    },
+    guess: {
+      bg: "#fffbeb",
+      fg: "#92400e",
+      icon: "alert-circle",
+      txt: "AI best guess — please verify",
+    },
+    notIndexed: {
+      bg: "#fef2f2",
+      fg: "#991b1b",
+      icon: "close-circle",
+      txt: "Not a valid index crime — please choose one manually",
+    },
+    limited: {
+      bg: "#fffbeb",
+      fg: "#92400e",
+      icon: "hourglass-outline",
+      txt: "AI limit reached — choose the crime type manually",
+    },
+    error: {
+      bg: "#fffbeb",
+      fg: "#92400e",
+      icon: "cloud-offline-outline",
+      txt: "AI detection failed — choose the crime type manually",
+    },
+  };
+  const m = map[detect];
+  if (!m) return null;
+  return (
+    <View style={[s.detectBox, { backgroundColor: m.bg }]}>
+      {m.icon ? (
+        <Ionicons name={m.icon} size={14} color={m.fg} />
+      ) : (
+        <ActivityIndicator size="small" color={m.fg} />
+      )}
+      <Text style={[s.detectTxt, { color: m.fg }]}>{m.txt}</Text>
     </View>
   );
 }
 
 // ── screen ──────────────────────────────────────────────────────────────────
 export default function BarangayReportScreen({ navigation, route }) {
-    const [tab, setTab] = useState(
-      route?.params?.initialTab === "reports" ? "reports" : "submit",
-    );
+  const insets = useSafeAreaInsets();
+  const TAB_H = 55 + Math.max(insets.bottom, 25); // matches the tab bar in App.js
+
+  const [tab, setTab] = useState(
+    route?.params?.initialTab === "reports" ? "reports" : "submit",
+  );
   const [barangay, setBarangay] = useState("");
   const [loadingProfile, setLoadingProfile] = useState(true);
 
@@ -216,6 +333,7 @@ export default function BarangayReportScreen({ navigation, route }) {
   const [reports, setReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("All");
 
   // Barangay lock — same logic as the web form
   useEffect(() => {
@@ -268,15 +386,16 @@ export default function BarangayReportScreen({ navigation, route }) {
   useEffect(() => {
     loadReports();
   }, [loadReports]);
+
   useEffect(() => {
     if (route?.params?.initialTab) setTab(route.params.initialTab);
   }, [route?.params?.initialTab]);
 
   useEffect(() => {
-    const unsub = navigation.addListener("focus", loadReports); // refresh when coming back from Notifications/Profile
+    const unsub = navigation.addListener("focus", loadReports); // refresh when tab regains focus
     return unsub;
   }, [navigation, loadReports]);
-  
+
   // Live status updates while the "My Reports" tab is open
   useEffect(() => {
     if (tab !== "reports") return;
@@ -491,160 +610,204 @@ export default function BarangayReportScreen({ navigation, route }) {
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert("Log out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Log out",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const deviceId = await getDeviceId();
-            await authFetch("/notifications/push-token", {
-              method: "DELETE",
-              headers: { "X-Device-Id": deviceId },
-            });
-          } catch {}
-          const session = await getSession();
-          await logout(session?.token);
-          navigation.reset({ index: 0, routes: [{ name: ROUTES.login }] });
-        },
-      },
-    ]);
-  };
-
+  // ── derived ──
   const photoCount = files.filter((f) => f.kind === "photo").length;
   const videoCount = files.filter((f) => f.kind === "video").length;
 
+  const checks = [
+    !!commission,
+    !!reported,
+    street.trim().length >= 2,
+    narrative.trim().length >= 20,
+    persons.every((p) => p.first_name.trim() && p.last_name.trim()),
+  ];
+  const doneCount = checks.filter(Boolean).length;
+  const progress = doneCount / checks.length;
+  const errorCount = Object.keys(errors).length;
+
+  const statusCounts = STATUS_FILTERS.reduce((acc, st) => {
+    acc[st] =
+      st === "All"
+        ? reports.length
+        : reports.filter((r) => r.status === st).length;
+    return acc;
+  }, {});
+  const filteredReports =
+    statusFilter === "All"
+      ? reports
+      : reports.filter((r) => r.status === statusFilter);
+
+  const narrLen = narrative.length;
+  const narrColor =
+    narrLen > NARRATIVE_MAX * 0.9 ? RED : narrLen >= 20 ? "#16a34a" : "#9ca3af";
+
   // ── render ──
   return (
-    <SafeAreaView style={s.safe} edges={["top", "bottom"]}>
-      <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.hTitle}>B.A.N.T.A.Y.</Text>
-          <Text style={s.hSub}>
-            {loadingProfile
-              ? "Loading..."
-              : barangay
-                ? `Brgy. ${barangay}`
-                : "No barangay assigned"}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={s.iconBtn}
-          onPress={() => navigation.navigate(ROUTES.notifications)}
-        >
-          <Ionicons name="notifications-outline" size={22} color="#fff" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={s.iconBtn}
-          onPress={() => navigation.navigate(ROUTES.profile)}
-        >
-          <Ionicons name="person-circle-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-        <TouchableOpacity style={s.iconBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={22} color="#fff" />
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={s.safe} edges={["top"]}>
+      <StatusBar barStyle="light-content" backgroundColor={DARK} />
 
-      <View style={s.tabs}>
-        <TouchableOpacity
-          style={[s.tab, tab === "submit" && s.tabActive]}
-          onPress={() => setTab("submit")}
-        >
-          <Text style={[s.tabTxt, tab === "submit" && s.tabTxtActive]}>
-            Submit Report
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.tab, tab === "reports" && s.tabActive]}
-          onPress={() => setTab("reports")}
-        >
-          <Text style={[s.tabTxt, tab === "reports" && s.tabTxtActive]}>
-            My Reports ({reports.length})
-          </Text>
-        </TouchableOpacity>
+      {/* HEADER */}
+      <View style={s.header}>
+        <View style={s.headerTop}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.hTitle}>B.A.N.T.A.Y.</Text>
+            <View style={s.brgyPill}>
+              <Ionicons name="location" size={11} color="#93c5fd" />
+              <Text style={s.brgyPillTxt}>
+                {loadingProfile
+                  ? " Loading..."
+                  : barangay
+                    ? ` Brgy. ${barangay}`
+                    : " No barangay assigned"}
+              </Text>
+            </View>
+          </View>
+          <View style={s.logoCircle}>
+            <Ionicons name="shield-checkmark" size={22} color="#fff" />
+          </View>
+        </View>
+
+        <View style={s.segment}>
+          <TouchableOpacity
+            style={[s.segBtn, tab === "submit" && s.segBtnOn]}
+            onPress={() => setTab("submit")}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name="create-outline"
+              size={15}
+              color={tab === "submit" ? DARK : "rgba(255,255,255,0.7)"}
+            />
+            <Text style={[s.segTxt, tab === "submit" && s.segTxtOn]}>
+              {" "}
+              Submit Report
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.segBtn, tab === "reports" && s.segBtnOn]}
+            onPress={() => setTab("reports")}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name="folder-open-outline"
+              size={15}
+              color={tab === "reports" ? DARK : "rgba(255,255,255,0.7)"}
+            />
+            <Text style={[s.segTxt, tab === "reports" && s.segTxtOn]}>
+              {" "}
+              My Reports
+            </Text>
+            <View
+              style={[
+                s.countBadge,
+                tab === "reports" && { backgroundColor: RED },
+              ]}
+            >
+              <Text style={s.countBadgeTxt}>{reports.length}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {tab === "submit" ? (
         <KeyboardAvoidingView
-          style={{ flex: 1 }}
+          style={{ flex: 1, backgroundColor: BG }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <ScrollView
-            contentContainerStyle={s.scroll}
+            contentContainerStyle={[s.scroll, { paddingBottom: TAB_H + 24 }]}
             keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            <View style={s.alert}>
-              <Ionicons name="warning-outline" size={16} color={RED} />
-              <Text style={s.alertTxt}>
-                This report goes directly to PNP Bacoor for review. Filing a
-                false report is punishable by law.
+            {/* Legal notice */}
+            <View style={s.notice}>
+              <View style={s.noticeIcon}>
+                <Ionicons name="shield-half-outline" size={18} color={RED} />
+              </View>
+              <Text style={s.noticeTxt}>
+                This report goes directly to{" "}
+                <Text style={{ fontWeight: "800" }}>PNP Bacoor</Text> for
+                review. Filing a false report is punishable by law.
               </Text>
             </View>
 
-            {/* Incident details */}
-            <View style={s.card}>
-              <Text style={s.cardTitle}>Incident Details</Text>
+            {/* Progress */}
+            <View style={s.progressCard}>
+              <View style={s.rowBetween}>
+                <Text style={s.progressTitle}>Form progress</Text>
+                <Text style={s.progressCount}>
+                  {doneCount} of {checks.length} required done
+                </Text>
+              </View>
+              <View style={s.progressTrack}>
+                <View
+                  style={[
+                    s.progressFill,
+                    {
+                      width: `${progress * 100}%`,
+                      backgroundColor: progress === 1 ? "#16a34a" : "#2563eb",
+                    },
+                  ]}
+                />
+              </View>
+            </View>
 
-              <View style={s.group}>
-                <Text style={s.label}>Crime Type</Text>
+            {errorCount > 0 && (
+              <View style={s.errBanner}>
+                <Ionicons name="alert-circle" size={16} color={RED} />
+                <Text style={s.errBannerTxt}>
+                  {" "}
+                  {errorCount} field{errorCount > 1 ? "s need" : " needs"} your
+                  attention
+                </Text>
+              </View>
+            )}
+
+            {/* 1. Incident details */}
+            <SectionCard
+              icon="alert-circle-outline"
+              title="Incident Details"
+              subtitle="What happened and when"
+            >
+              <Field label="Crime Type" error={errors.crime}>
                 <TouchableOpacity
                   style={[s.input, s.rowBetween, !!errors.crime && s.inputErr]}
                   onPress={() => setShowCrimeModal(true)}
+                  activeOpacity={0.8}
                 >
-                  <Text style={crimeType ? s.inputTxt : s.placeholder}>
-                    {crimeType || "Auto-detect with AI"}
-                  </Text>
-                  <Ionicons name="chevron-down" size={18} color="#64748b" />
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      flex: 1,
+                    }}
+                  >
+                    <Ionicons
+                      name={crimeType ? "flag" : "sparkles"}
+                      size={16}
+                      color={crimeType ? NAVY : "#7c3aed"}
+                      style={{ marginRight: 10 }}
+                    />
+                    <Text style={crimeType ? s.inputTxt : s.placeholder}>
+                      {crimeType || "Auto-detect with AI"}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-down" size={16} color="#9ca3af" />
                 </TouchableOpacity>
-                {detect === "detecting" && (
-                  <Text style={s.badgeInfo}>Detecting crime type...</Text>
+                {crimeSource === "manual" && detect === "idle" && (
+                  <View style={[s.detectBox, { backgroundColor: "#f1f5f9" }]}>
+                    <Ionicons
+                      name="hand-left-outline"
+                      size={14}
+                      color="#475569"
+                    />
+                    <Text style={[s.detectTxt, { color: "#475569" }]}>
+                      Selected manually
+                    </Text>
+                  </View>
                 )}
-                {detect === "ok" && (
-                  <Text style={s.badgeOk}>✓ Auto-detected by AI</Text>
-                )}
-                {detect === "guess" && (
-                  <Text style={s.badgeWarn}>
-                    ⚠ AI best guess — please verify
-                  </Text>
-                )}
-                {detect === "notIndexed" && (
-                  <Text style={s.badgeBad}>
-                    ✗ Not a valid index crime — please review
-                  </Text>
-                )}
-                {detect === "limited" && (
-                  <Text style={s.badgeWarn}>
-                    AI limit reached — choose the crime type manually
-                  </Text>
-                )}
-                {detect === "error" && (
-                  <Text style={s.badgeWarn}>
-                    AI detection failed — choose the crime type manually
-                  </Text>
-                )}
-                {!!errors.crime && <Text style={s.err}>{errors.crime}</Text>}
-              </View>
-
-              <View style={s.group}>
-                <Text style={s.label}>
-                  Barangay <Text style={s.req}>*</Text>
-                </Text>
-                <View style={[s.input, s.locked]}>
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={14}
-                    color="#64748b"
-                  />
-                  <Text style={[s.inputTxt, { marginLeft: 8 }]}>
-                    {barangay || "—"}
-                  </Text>
-                </View>
-                {!!errors.barangay && (
-                  <Text style={s.err}>{errors.barangay}</Text>
-                )}
-              </View>
+                <DetectStatus detect={detect} />
+              </Field>
 
               <DateField
                 label="Date & Time of Incident"
@@ -658,11 +821,27 @@ export default function BarangayReportScreen({ navigation, route }) {
                 onChange={setReported}
                 error={errors.reported}
               />
+            </SectionCard>
 
-              <View style={s.group}>
-                <Text style={s.label}>
-                  Street / Location <Text style={s.req}>*</Text>
-                </Text>
+            {/* 2. Location */}
+            <SectionCard
+              icon="location-outline"
+              title="Location"
+              subtitle="Where it happened"
+            >
+              <Field label="Barangay" required error={errors.barangay}>
+                <View style={[s.input, s.locked]}>
+                  <Ionicons name="lock-closed" size={14} color="#64748b" />
+                  <Text
+                    style={[s.inputTxt, { marginLeft: 10, fontWeight: "700" }]}
+                  >
+                    {barangay || "—"}
+                  </Text>
+                </View>
+                <Text style={s.hint}>Locked to your assigned barangay</Text>
+              </Field>
+
+              <Field label="Street / Location" required error={errors.street}>
                 <TextInput
                   style={[s.input, !!errors.street && s.inputErr]}
                   value={street}
@@ -672,13 +851,16 @@ export default function BarangayReportScreen({ navigation, route }) {
                     setStreet(t.replace(/[^A-Za-z0-9Ññ.,\s-]/g, ""))
                   }
                 />
-                {!!errors.street && <Text style={s.err}>{errors.street}</Text>}
-              </View>
+              </Field>
+            </SectionCard>
 
-              <View style={s.group}>
-                <Text style={s.label}>
-                  Narrative <Text style={s.req}>*</Text>
-                </Text>
+            {/* 3. Narrative */}
+            <SectionCard
+              icon="document-text-outline"
+              title="Narrative"
+              subtitle="Describe what happened in detail"
+            >
+              <Field label="Narrative" required error={errors.narrative}>
                 <TextInput
                   style={[
                     s.input,
@@ -687,8 +869,8 @@ export default function BarangayReportScreen({ navigation, route }) {
                   ]}
                   value={narrative}
                   multiline
-                  maxLength={3000}
-                  placeholder="Describe what happened in detail (minimum 20 characters)"
+                  maxLength={NARRATIVE_MAX}
+                  placeholder="Who, what, when, where, and how? (minimum 20 characters)"
                   placeholderTextColor="#9ca3af"
                   onChangeText={(t) => {
                     setNarrative(t);
@@ -697,255 +879,353 @@ export default function BarangayReportScreen({ navigation, route }) {
                   }}
                   onBlur={detectCrime}
                 />
-                <Text style={s.hint}>{narrative.length}/3000 characters</Text>
-                {!!errors.narrative && (
-                  <Text style={s.err}>{errors.narrative}</Text>
-                )}
-              </View>
-            </View>
-
-            {/* Persons involved */}
-            <View style={s.card}>
-              <Text style={s.cardTitle}>Persons Involved</Text>
-              {persons.map((p, i) => (
-                <View key={i} style={s.person}>
-                  <View style={s.rowBetween}>
-                    <Text style={s.personTitle}>
-                      {p.role} #{i + 1}
+                <View style={[s.rowBetween, { marginTop: 6 }]}>
+                  {narrative.trim().length >= 20 && crimeSource !== "manual" ? (
+                    <TouchableOpacity
+                      style={s.detectBtn}
+                      onPress={detectCrime}
+                      disabled={detect === "detecting"}
+                    >
+                      <Ionicons name="sparkles" size={12} color="#7c3aed" />
+                      <Text style={s.detectBtnTxt}> Detect crime type</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text style={s.hintInline}>
+                      AI detects the crime type from this
                     </Text>
-                    {persons.length > 1 && (
-                      <TouchableOpacity
-                        onPress={() =>
-                          setPersons((prev) =>
-                            prev.filter((_, idx) => idx !== i),
-                          )
-                        }
+                  )}
+                  <Text style={[s.counter, { color: narrColor }]}>
+                    {narrLen}/{NARRATIVE_MAX}
+                  </Text>
+                </View>
+              </Field>
+            </SectionCard>
+
+            {/* 4. Persons */}
+            <SectionCard
+              icon="people-outline"
+              title="Persons Involved"
+              subtitle="Victims, complainants, witnesses, respondents"
+            >
+              {persons.map((p, i) => {
+                const rc = ROLE_META[p.role];
+                return (
+                  <View
+                    key={i}
+                    style={[s.person, { borderLeftColor: rc.color }]}
+                  >
+                    <View style={s.personHead}>
+                      <View
+                        style={[s.personBadge, { backgroundColor: rc.color }]}
                       >
-                        <Text style={s.remove}>Remove</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                        <Ionicons name={rc.icon} size={13} color="#fff" />
+                      </View>
+                      <Text style={s.personTitle}>
+                        {p.role} #{i + 1}
+                      </Text>
+                      {persons.length > 1 && (
+                        <TouchableOpacity
+                          style={s.removeBtn}
+                          onPress={() =>
+                            setPersons((prev) =>
+                              prev.filter((_, idx) => idx !== i),
+                            )
+                          }
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={13}
+                            color={RED}
+                          />
+                          <Text style={s.removeTxt}> Remove</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
 
-                  <View style={s.chipRow}>
-                    {PERSON_ROLES.map((r) => (
-                      <Chip
-                        key={r}
-                        label={r}
-                        active={p.role === r}
-                        onPress={() => updatePerson(i, "role", r)}
-                      />
-                    ))}
-                  </View>
-
-                  <View style={s.group}>
-                    <Text style={s.label}>
-                      First Name <Text style={s.req}>*</Text>
-                    </Text>
-                    <TextInput
-                      style={[s.input, !!errors[`p${i}_first`] && s.inputErr]}
-                      value={p.first_name}
-                      maxLength={50}
-                      placeholder="First name"
-                      placeholderTextColor="#9ca3af"
-                      onChangeText={(t) =>
-                        updatePerson(
-                          i,
-                          "first_name",
-                          t.replace(/[^A-Za-zÑñ\s'-]/g, ""),
-                        )
-                      }
-                    />
-                    {!!errors[`p${i}_first`] && (
-                      <Text style={s.err}>{errors[`p${i}_first`]}</Text>
-                    )}
-                  </View>
-                  <View style={s.group}>
-                    <Text style={s.label}>Middle Name</Text>
-                    <TextInput
-                      style={s.input}
-                      value={p.middle_name}
-                      maxLength={50}
-                      placeholder="Middle name"
-                      placeholderTextColor="#9ca3af"
-                      onChangeText={(t) =>
-                        updatePerson(
-                          i,
-                          "middle_name",
-                          t.replace(/[^A-Za-zÑñ\s'-]/g, ""),
-                        )
-                      }
-                    />
-                  </View>
-                  <View style={s.group}>
-                    <Text style={s.label}>
-                      Last Name <Text style={s.req}>*</Text>
-                    </Text>
-                    <TextInput
-                      style={[s.input, !!errors[`p${i}_last`] && s.inputErr]}
-                      value={p.last_name}
-                      maxLength={50}
-                      placeholder="Last name"
-                      placeholderTextColor="#9ca3af"
-                      onChangeText={(t) =>
-                        updatePerson(
-                          i,
-                          "last_name",
-                          t.replace(/[^A-Za-zÑñ\s'-]/g, ""),
-                        )
-                      }
-                    />
-                    {!!errors[`p${i}_last`] && (
-                      <Text style={s.err}>{errors[`p${i}_last`]}</Text>
-                    )}
-                  </View>
-                  <View style={s.group}>
-                    <Text style={s.label}>Contact Number</Text>
-                    <TextInput
-                      style={[s.input, !!errors[`p${i}_contact`] && s.inputErr]}
-                      value={p.contact_number}
-                      keyboardType="number-pad"
-                      maxLength={11}
-                      placeholder="09XXXXXXXXX"
-                      placeholderTextColor="#9ca3af"
-                      onChangeText={(t) =>
-                        updatePerson(i, "contact_number", t.replace(/\D/g, ""))
-                      }
-                    />
-                    {!!errors[`p${i}_contact`] && (
-                      <Text style={s.err}>{errors[`p${i}_contact`]}</Text>
-                    )}
-                  </View>
-                  <View style={s.group}>
-                    <Text style={s.label}>House / Street Address</Text>
-                    <TextInput
-                      style={s.input}
-                      value={p.house_street}
-                      maxLength={200}
-                      placeholder="House No. / Street (optional)"
-                      placeholderTextColor="#9ca3af"
-                      onChangeText={(t) => updatePerson(i, "house_street", t)}
-                    />
-                  </View>
-                  <View style={s.group}>
-                    <Text style={s.label}>Gender</Text>
                     <View style={s.chipRow}>
-                      {["Male", "Female"].map((g) => (
+                      {PERSON_ROLES.map((r) => (
                         <Chip
-                          key={g}
-                          label={g}
-                          active={p.gender === g}
-                          onPress={() => updatePerson(i, "gender", g)}
+                          key={r}
+                          label={r}
+                          active={p.role === r}
+                          onPress={() => updatePerson(i, "role", r)}
                         />
                       ))}
                     </View>
-                  </View>
-                  {p.role === "Witness" && (
-                    <View style={s.group}>
-                      <Text style={s.label}>Witness Statement (optional)</Text>
+
+                    <View style={s.twoCol}>
+                      <Field
+                        label="First Name"
+                        required
+                        error={errors[`p${i}_first`]}
+                        style={{ flex: 1 }}
+                      >
+                        <TextInput
+                          style={[
+                            s.input,
+                            !!errors[`p${i}_first`] && s.inputErr,
+                          ]}
+                          value={p.first_name}
+                          maxLength={50}
+                          placeholder="First name"
+                          placeholderTextColor="#9ca3af"
+                          onChangeText={(t) =>
+                            updatePerson(
+                              i,
+                              "first_name",
+                              t.replace(/[^A-Za-zÑñ\s'-]/g, ""),
+                            )
+                          }
+                        />
+                      </Field>
+                      <Field
+                        label="Last Name"
+                        required
+                        error={errors[`p${i}_last`]}
+                        style={{ flex: 1 }}
+                      >
+                        <TextInput
+                          style={[
+                            s.input,
+                            !!errors[`p${i}_last`] && s.inputErr,
+                          ]}
+                          value={p.last_name}
+                          maxLength={50}
+                          placeholder="Last name"
+                          placeholderTextColor="#9ca3af"
+                          onChangeText={(t) =>
+                            updatePerson(
+                              i,
+                              "last_name",
+                              t.replace(/[^A-Za-zÑñ\s'-]/g, ""),
+                            )
+                          }
+                        />
+                      </Field>
+                    </View>
+
+                    <Field label="Middle Name">
                       <TextInput
-                        style={[s.input, s.textarea]}
-                        value={p.witness_statement}
-                        multiline
-                        maxLength={500}
-                        placeholder="Brief statement of what was witnessed..."
+                        style={s.input}
+                        value={p.middle_name}
+                        maxLength={50}
+                        placeholder="Middle name (optional)"
                         placeholderTextColor="#9ca3af"
                         onChangeText={(t) =>
-                          updatePerson(i, "witness_statement", t)
+                          updatePerson(
+                            i,
+                            "middle_name",
+                            t.replace(/[^A-Za-zÑñ\s'-]/g, ""),
+                          )
                         }
                       />
-                    </View>
-                  )}
-                </View>
-              ))}
-              <View style={s.chipRow}>
+                    </Field>
+
+                    <Field label="Gender">
+                      <View style={s.genderRow}>
+                        {["Male", "Female"].map((g) => (
+                          <TouchableOpacity
+                            key={g}
+                            style={[
+                              s.genderBtn,
+                              p.gender === g && s.genderBtnOn,
+                            ]}
+                            onPress={() => updatePerson(i, "gender", g)}
+                            activeOpacity={0.85}
+                          >
+                            <Ionicons
+                              name={g === "Male" ? "male" : "female"}
+                              size={15}
+                              color={p.gender === g ? "#fff" : "#64748b"}
+                            />
+                            <Text
+                              style={[
+                                s.genderTxt,
+                                p.gender === g && { color: "#fff" },
+                              ]}
+                            >
+                              {" "}
+                              {g}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </Field>
+
+                    <Field
+                      label="Contact Number"
+                      error={errors[`p${i}_contact`]}
+                    >
+                      <TextInput
+                        style={[
+                          s.input,
+                          !!errors[`p${i}_contact`] && s.inputErr,
+                        ]}
+                        value={p.contact_number}
+                        keyboardType="number-pad"
+                        maxLength={11}
+                        placeholder="09XXXXXXXXX"
+                        placeholderTextColor="#9ca3af"
+                        onChangeText={(t) =>
+                          updatePerson(
+                            i,
+                            "contact_number",
+                            t.replace(/\D/g, ""),
+                          )
+                        }
+                      />
+                    </Field>
+
+                    <Field label="House / Street Address">
+                      <TextInput
+                        style={s.input}
+                        value={p.house_street}
+                        maxLength={200}
+                        placeholder="House No. / Street (optional)"
+                        placeholderTextColor="#9ca3af"
+                        onChangeText={(t) => updatePerson(i, "house_street", t)}
+                      />
+                    </Field>
+
+                    {p.role === "Witness" && (
+                      <Field label="Witness Statement (optional)">
+                        <TextInput
+                          style={[s.input, s.textareaSm]}
+                          value={p.witness_statement}
+                          multiline
+                          maxLength={500}
+                          placeholder="Brief statement of what was witnessed..."
+                          placeholderTextColor="#9ca3af"
+                          onChangeText={(t) =>
+                            updatePerson(i, "witness_statement", t)
+                          }
+                        />
+                      </Field>
+                    )}
+                  </View>
+                );
+              })}
+
+              <Text style={s.addLabel}>Add another person</Text>
+              <View style={s.addGrid}>
                 {PERSON_ROLES.map((r) => (
                   <TouchableOpacity
                     key={r}
-                    style={s.addBtn}
+                    style={[s.addBtn, { borderColor: ROLE_META[r].color }]}
                     onPress={() =>
                       setPersons((prev) => [...prev, newPerson(r)])
                     }
+                    activeOpacity={0.8}
                   >
-                    <Text style={s.addBtnTxt}>+ Add {r}</Text>
+                    <Ionicons
+                      name="add-circle"
+                      size={16}
+                      color={ROLE_META[r].color}
+                    />
+                    <Text style={[s.addBtnTxt, { color: ROLE_META[r].color }]}>
+                      {" "}
+                      {r}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
+            </SectionCard>
 
-            {/* Evidence */}
-            <View style={s.card}>
-              <Text style={s.cardTitle}>Attach CCTV / Evidence (optional)</Text>
-              <Text style={s.hint}>
-                {photoCount}/{PHOTO_MAX} photos · {videoCount}/{VIDEO_MAX} video
-                · Photos under {PHOTO_MAX_MB}MB, videos under {VIDEO_MAX_MB}MB
-              </Text>
-              <View style={[s.chipRow, { marginTop: 10 }]}>
+            {/* 5. Evidence */}
+            <SectionCard
+              icon="camera-outline"
+              title="CCTV / Evidence"
+              subtitle="Optional — photos and video"
+            >
+              <View style={s.evidenceRow}>
                 <TouchableOpacity
-                  style={s.evBtn}
+                  style={[s.evTile, photoCount >= PHOTO_MAX && s.evTileOff]}
                   onPress={() => addMedia("photo", "camera")}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons name="camera-outline" size={16} color={NAVY} />
-                  <Text style={s.evBtnTxt}>Camera</Text>
+                  <Ionicons name="camera" size={22} color={NAVY} />
+                  <Text style={s.evTileTxt}>Camera</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={s.evBtn}
+                  style={[s.evTile, photoCount >= PHOTO_MAX && s.evTileOff]}
                   onPress={() => addMedia("photo", "library")}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons name="image-outline" size={16} color={NAVY} />
-                  <Text style={s.evBtnTxt}>Gallery</Text>
+                  <Ionicons name="images" size={22} color={NAVY} />
+                  <Text style={s.evTileTxt}>Gallery</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={s.evBtn}
+                  style={[s.evTile, videoCount >= VIDEO_MAX && s.evTileOff]}
                   onPress={() => addMedia("video", "library")}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons name="videocam-outline" size={16} color={NAVY} />
-                  <Text style={s.evBtnTxt}>Video</Text>
+                  <Ionicons name="videocam" size={22} color={NAVY} />
+                  <Text style={s.evTileTxt}>Video</Text>
                 </TouchableOpacity>
               </View>
-              <View style={s.thumbRow}>
-                {files.map((f, idx) => (
-                  <View key={idx} style={s.thumb}>
-                    {f.kind === "photo" ? (
-                      <Image source={{ uri: f.uri }} style={s.thumbImg} />
-                    ) : (
-                      <View style={[s.thumbImg, s.videoBox]}>
-                        <Ionicons name="videocam" size={26} color="#fff" />
-                      </View>
-                    )}
-                    <TouchableOpacity
-                      style={s.thumbX}
-                      onPress={() =>
-                        setFiles((prev) => prev.filter((_, k) => k !== idx))
-                      }
-                    >
-                      <Text style={{ color: "#fff", fontWeight: "700" }}>
-                        ×
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            </View>
 
+              <View style={[s.rowBetween, { marginTop: 10 }]}>
+                <Text style={s.hintInline}>
+                  {photoCount}/{PHOTO_MAX} photos · {videoCount}/{VIDEO_MAX}{" "}
+                  video
+                </Text>
+                <Text style={s.hintInline}>
+                  Max {PHOTO_MAX_MB}MB photo · {VIDEO_MAX_MB}MB video
+                </Text>
+              </View>
+
+              {files.length > 0 && (
+                <View style={s.thumbRow}>
+                  {files.map((f, idx) => (
+                    <View key={idx} style={s.thumb}>
+                      {f.kind === "photo" ? (
+                        <Image source={{ uri: f.uri }} style={s.thumbImg} />
+                      ) : (
+                        <View style={[s.thumbImg, s.videoBox]}>
+                          <Ionicons name="play-circle" size={30} color="#fff" />
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        style={s.thumbX}
+                        onPress={() =>
+                          setFiles((prev) => prev.filter((_, k) => k !== idx))
+                        }
+                      >
+                        <Ionicons name="close" size={13} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </SectionCard>
+
+            {/* Submit */}
             <TouchableOpacity
               style={[s.submit, submitting && { opacity: 0.6 }]}
               onPress={submit}
               disabled={submitting}
+              activeOpacity={0.85}
             >
               {submitting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <Ionicons name="send" size={16} color="#fff" />
+                  <Ionicons name="paper-plane" size={17} color="#fff" />
                   <Text style={s.submitTxt}> Submit Incident Report</Text>
                 </>
               )}
             </TouchableOpacity>
+            <Text style={s.disclaimer}>
+              By submitting, you confirm the information above is true and
+              accurate.
+            </Text>
           </ScrollView>
         </KeyboardAvoidingView>
       ) : (
         <ScrollView
-          contentContainerStyle={s.scroll}
+          style={{ backgroundColor: BG }}
+          contentContainerStyle={[s.scroll, { paddingBottom: TAB_H + 24 }]}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -953,51 +1233,167 @@ export default function BarangayReportScreen({ navigation, route }) {
                 setRefreshing(true);
                 loadReports();
               }}
+              colors={[NAVY]}
+              tintColor={NAVY}
             />
           }
         >
           {loadingReports ? (
-            <ActivityIndicator style={{ marginTop: 40 }} color={NAVY} />
+            <ActivityIndicator
+              style={{ marginTop: 40 }}
+              color={NAVY}
+              size="large"
+            />
           ) : reports.length === 0 ? (
             <View style={s.empty}>
-              <Ionicons
-                name="document-text-outline"
-                size={40}
-                color="#9ca3af"
-              />
+              <View style={s.emptyIcon}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={34}
+                  color="#9ca3af"
+                />
+              </View>
               <Text style={s.emptyTitle}>No reports submitted yet</Text>
-              <Text style={s.hint}>
-                Your submitted incident reports will appear here.
+              <Text style={s.emptySub}>
+                Incident reports you submit will appear here with their live
+                status.
               </Text>
+              <TouchableOpacity
+                style={s.emptyBtn}
+                onPress={() => setTab("submit")}
+              >
+                <Ionicons name="add" size={16} color="#fff" />
+                <Text style={s.emptyBtnTxt}> Submit a report</Text>
+              </TouchableOpacity>
             </View>
           ) : (
-            reports.map((r) => {
-              const c = statusColors(r.status);
-              const resp = r.responder;
-              return (
-                <View key={r.blotter_id} style={s.reportCard}>
-                  <View style={s.rowBetween}>
-                    <Text style={s.refNo}>{r.blotter_entry_number}</Text>
-                    <View style={[s.badge, { backgroundColor: c.bg }]}>
-                      <Text style={[s.badgeTxt, { color: c.fg }]}>
-                        {r.status}
+            <>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ flexGrow: 0, marginBottom: 12 }}
+                contentContainerStyle={{ gap: 8, paddingRight: 8 }}
+              >
+                {STATUS_FILTERS.map((st) => {
+                  const active = statusFilter === st;
+                  return (
+                    <TouchableOpacity
+                      key={st}
+                      style={[s.filterChip, active && s.filterChipOn]}
+                      onPress={() => setStatusFilter(st)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[s.filterChipTxt, active && { color: "#fff" }]}
+                      >
+                        {st}
                       </Text>
-                    </View>
-                  </View>
-                  <Text style={s.reportType}>{r.incident_type}</Text>
-                  <Text style={s.reportMeta}>{r.place_street}</Text>
-                  <Text style={s.reportMeta}>
-                    Reported: {fmtServerDate(r.date_time_reported)}
-                  </Text>
-                  <Text style={s.reportMeta}>
-                    Responder:{" "}
-                    {resp
-                      ? `${resp.rank_abbreviation ? resp.rank_abbreviation + ". " : ""}${resp.first_name || ""} ${resp.last_name || ""}`.trim()
-                      : "—"}
+                      <View
+                        style={[
+                          s.filterCount,
+                          active && {
+                            backgroundColor: "rgba(255,255,255,0.25)",
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            s.filterCountTxt,
+                            active && { color: "#fff" },
+                          ]}
+                        >
+                          {statusCounts[st]}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {filteredReports.length === 0 ? (
+                <View style={[s.empty, { marginTop: 30 }]}>
+                  <Text style={s.emptyTitle}>
+                    No {statusFilter.toLowerCase()} reports
                   </Text>
                 </View>
-              );
-            })
+              ) : (
+                filteredReports.map((r) => {
+                  const m = STATUS_META[r.status] || STATUS_META.Pending;
+                  const resp = r.responder;
+                  const respName = resp
+                    ? `${resp.rank_abbreviation ? resp.rank_abbreviation + ". " : ""}${resp.first_name || ""} ${resp.last_name || ""}`.trim()
+                    : "";
+                  return (
+                    <View
+                      key={r.blotter_id}
+                      style={[s.reportCard, { borderLeftColor: m.fg }]}
+                    >
+                      <View style={s.rowBetween}>
+                        <Text style={s.refNo}>{r.blotter_entry_number}</Text>
+                        <View style={[s.statusPill, { backgroundColor: m.bg }]}>
+                          <Ionicons name={m.icon} size={12} color={m.fg} />
+                          <Text style={[s.statusTxt, { color: m.fg }]}>
+                            {" "}
+                            {r.status}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Text style={s.reportType}>{r.incident_type}</Text>
+
+                      <View style={s.metaRow}>
+                        <Ionicons
+                          name="location-outline"
+                          size={13}
+                          color="#94a3b8"
+                        />
+                        <Text style={s.reportMeta}>
+                          {" "}
+                          {r.place_street || "—"}
+                        </Text>
+                      </View>
+                      <View style={s.metaRow}>
+                        <Ionicons
+                          name="calendar-outline"
+                          size={13}
+                          color="#94a3b8"
+                        />
+                        <Text style={s.reportMeta}>
+                          {" "}
+                          Reported {fmtServerDate(r.date_time_reported)}
+                        </Text>
+                      </View>
+
+                      <View style={s.responderRow}>
+                        <View
+                          style={[
+                            s.responderIcon,
+                            !resp && { backgroundColor: "#e5e7eb" },
+                          ]}
+                        >
+                          <Ionicons
+                            name="shield"
+                            size={13}
+                            color={resp ? "#fff" : "#9ca3af"}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.responderLbl}>Assigned responder</Text>
+                          <Text
+                            style={[
+                              s.responderName,
+                              !resp && { color: "#9ca3af", fontWeight: "500" },
+                            ]}
+                          >
+                            {respName || "Not yet assigned"}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </>
           )}
         </ScrollView>
       )}
@@ -1006,271 +1402,597 @@ export default function BarangayReportScreen({ navigation, route }) {
       <Modal
         visible={showCrimeModal}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setShowCrimeModal(false)}
       >
-        <TouchableOpacity
-          style={s.overlay}
-          activeOpacity={1}
-          onPress={() => setShowCrimeModal(false)}
-        >
-          <View style={s.sheet}>
-            <Text style={s.sheetTitle}>Crime Type</Text>
-            <TouchableOpacity
-              style={s.option}
-              onPress={() => {
-                setCrimeType("");
-                setCrimeSource("");
-                setDetect("idle");
-                setShowCrimeModal(false);
-              }}
+        <View style={s.overlay}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={1}
+            onPress={() => setShowCrimeModal(false)}
+          />
+          <View
+            style={[
+              s.sheet,
+              { paddingBottom: Math.max(insets.bottom + 12, 20) },
+            ]}
+          >
+            <View style={s.handle} />
+            <View style={[s.rowBetween, { marginBottom: 6 }]}>
+              <Text style={s.sheetTitle}>Crime Type</Text>
+              <TouchableOpacity onPress={() => setShowCrimeModal(false)}>
+                <Ionicons name="close" size={22} color={NAVY} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={{ maxHeight: 440 }}
             >
-              <Text style={[s.optionTxt, !crimeType && s.optionActive]}>
-                Auto-detect with AI
-              </Text>
-            </TouchableOpacity>
-            {CRIME_TYPES.map((c) => (
               <TouchableOpacity
-                key={c}
                 style={s.option}
                 onPress={() => {
-                  setCrimeType(c);
-                  setCrimeSource("manual");
+                  setCrimeType("");
+                  setCrimeSource("");
                   setDetect("idle");
                   setShowCrimeModal(false);
                 }}
               >
-                <Text style={[s.optionTxt, crimeType === c && s.optionActive]}>
-                  {c}
+                <View style={[s.optionIcon, { backgroundColor: "#ede9fe" }]}>
+                  <Ionicons name="sparkles" size={15} color="#7c3aed" />
+                </View>
+                <Text style={[s.optionTxt, !crimeType && s.optionActive]}>
+                  Auto-detect with AI
                 </Text>
+                {!crimeType && (
+                  <Ionicons name="checkmark-circle" size={20} color={RED} />
+                )}
               </TouchableOpacity>
-            ))}
+              {CRIME_TYPES.map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={s.option}
+                  onPress={() => {
+                    setCrimeType(c);
+                    setCrimeSource("manual");
+                    setDetect("idle");
+                    setShowCrimeModal(false);
+                  }}
+                >
+                  <View style={s.optionIcon}>
+                    <Ionicons name="flag" size={14} color={NAVY} />
+                  </View>
+                  <Text
+                    style={[s.optionTxt, crimeType === c && s.optionActive]}
+                  >
+                    {c}
+                  </Text>
+                  {crimeType === c && (
+                    <Ionicons name="checkmark-circle" size={20} color={RED} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </SafeAreaView>
   );
 }
 
+// ── styles ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#f1f5f9" },
+  safe: { flex: 1, backgroundColor: DARK },
+
+  // header
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: NAVY,
+    backgroundColor: DARK,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 14,
   },
-  hTitle: { color: "#fff", fontSize: 18, fontWeight: "800", letterSpacing: 1 },
-  hSub: { color: "#cbd5e1", fontSize: 12, marginTop: 2 },
-  iconBtn: { padding: 6, marginLeft: 4 },
-  tabs: {
+  headerTop: { flexDirection: "row", alignItems: "center" },
+  hTitle: { color: "#fff", fontSize: 20, fontWeight: "800", letterSpacing: 1 },
+  brgyPill: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
     alignItems: "center",
-    borderBottomWidth: 3,
-    borderBottomColor: "transparent",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(147,197,253,0.12)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 6,
   },
-  tabActive: { borderBottomColor: RED },
-  tabTxt: { fontSize: 14, fontWeight: "600", color: "#64748b" },
-  tabTxtActive: { color: RED },
-  scroll: { padding: 14, paddingBottom: 40 },
-  alert: {
+  brgyPillTxt: { color: "#dbeafe", fontSize: 11, fontWeight: "600" },
+  logoCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+  },
+  segment: {
     flexDirection: "row",
-    gap: 8,
-    backgroundColor: "#fef2f2",
-    borderLeftWidth: 4,
-    borderLeftColor: RED,
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 12,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 12,
+    padding: 4,
+    marginTop: 14,
   },
-  alertTxt: { flex: 1, fontSize: 12, color: "#7f1d1d" },
-  card: {
+  segBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 9,
+  },
+  segBtnOn: { backgroundColor: "#fff" },
+  segTxt: { fontSize: 13, fontWeight: "700", color: "rgba(255,255,255,0.7)" },
+  segTxtOn: { color: DARK },
+  countBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+    marginLeft: 6,
+  },
+  countBadgeTxt: { color: "#fff", fontSize: 11, fontWeight: "800" },
+
+  scroll: { padding: 14 },
+
+  // notice + progress
+  notice: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    gap: 10,
+  },
+  noticeIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#fee2e2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  noticeTxt: { flex: 1, fontSize: 12, color: "#7f1d1d", lineHeight: 17 },
+  progressCard: {
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 14,
-    marginBottom: 14,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: "#e2e8f0",
   },
-  cardTitle: {
-    fontSize: 15,
+  progressTitle: {
+    fontSize: 12,
     fontWeight: "800",
     color: NAVY,
-    marginBottom: 10,
     textTransform: "uppercase",
   },
-  group: { marginBottom: 12 },
+  progressCount: { fontSize: 11, color: "#64748b", fontWeight: "600" },
+  progressTrack: {
+    height: 6,
+    backgroundColor: "#e2e8f0",
+    borderRadius: 3,
+    marginTop: 10,
+    overflow: "hidden",
+  },
+  progressFill: { height: "100%", borderRadius: 3 },
+  errBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fef2f2",
+    borderLeftWidth: 4,
+    borderLeftColor: RED,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+  },
+  errBannerTxt: { color: "#991b1b", fontSize: 12, fontWeight: "700" },
+
+  // cards
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#e8edf3",
+    overflow: "hidden",
+  },
+  cardHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+    backgroundColor: "#fafbfd",
+  },
+  cardIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: NAVY,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardTitle: { fontSize: 15, fontWeight: "800", color: NAVY },
+  cardSub: { fontSize: 11, color: "#94a3b8", marginTop: 1 },
+  cardBody: { padding: 14, paddingBottom: 4 },
+
+  // fields
+  group: { marginBottom: 14 },
   label: {
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#475569",
-    marginBottom: 5,
+    marginBottom: 6,
     textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
   req: { color: RED },
   input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 14,
     color: "#0f172a",
-    backgroundColor: "#fff",
+    backgroundColor: "#f8fafc",
   },
   inputTxt: { fontSize: 14, color: "#0f172a" },
   placeholder: { fontSize: 14, color: "#9ca3af" },
-  inputErr: { borderColor: RED },
+  inputErr: { borderColor: RED, backgroundColor: "#fffafa" },
   locked: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f1f5f9",
+    backgroundColor: "#eef2f7",
+    borderColor: "#dbe2ea",
   },
-  textarea: { minHeight: 110, textAlignVertical: "top" },
+  textarea: { minHeight: 130, textAlignVertical: "top" },
+  textareaSm: { minHeight: 80, textAlignVertical: "top" },
   rowBetween: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  err: { color: RED, fontSize: 12, marginTop: 4 },
-  hint: { fontSize: 11, color: "#9ca3af", marginTop: 4 },
-  link: { color: "#2563eb", fontSize: 12, marginTop: 6, fontWeight: "600" },
-  badgeInfo: {
-    marginTop: 6,
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#1e40af",
+  twoCol: { flexDirection: "row", gap: 10 },
+  errRow: { flexDirection: "row", alignItems: "center", marginTop: 5 },
+  err: { color: RED, fontSize: 12, fontWeight: "600", flex: 1 },
+  hint: { fontSize: 11, color: "#94a3b8", marginTop: 5 },
+  hintInline: { fontSize: 11, color: "#94a3b8" },
+  counter: { fontSize: 11, fontWeight: "700" },
+  nowBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingVertical: 4,
   },
-  badgeOk: { marginTop: 6, fontSize: 11, fontWeight: "700", color: "#065f46" },
-  badgeWarn: {
-    marginTop: 6,
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#92400e",
+  nowTxt: { color: "#2563eb", fontSize: 12, fontWeight: "700" },
+
+  detectBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
   },
-  badgeBad: { marginTop: 6, fontSize: 11, fontWeight: "700", color: "#991b1b" },
+  detectTxt: { flex: 1, fontSize: 12, fontWeight: "700" },
+  detectBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f3ff",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  detectBtnTxt: { color: "#7c3aed", fontSize: 11, fontWeight: "800" },
+
+  // persons
   person: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 10,
+    borderColor: "#e8edf3",
+    borderLeftWidth: 4,
+    borderRadius: 12,
     padding: 12,
-    marginBottom: 12,
-    backgroundColor: "#f8fafc",
+    marginBottom: 14,
+    backgroundColor: "#fcfdff",
   },
-  personTitle: { fontSize: 13, fontWeight: "800", color: NAVY },
-  remove: { color: RED, fontWeight: "700", fontSize: 12 },
-  chipRow: {
+  personHead: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  personBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  personTitle: { flex: 1, fontSize: 14, fontWeight: "800", color: NAVY },
+  removeBtn: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginVertical: 8,
+    alignItems: "center",
+    backgroundColor: "#fef2f2",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
+  removeTxt: { color: RED, fontWeight: "700", fontSize: 12 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
+    borderWidth: 1.5,
+    borderColor: "#dbe2ea",
     backgroundColor: "#fff",
   },
   chipActive: { backgroundColor: NAVY, borderColor: NAVY },
-  chipTxt: { fontSize: 12, fontWeight: "600", color: "#475569" },
+  chipTxt: { fontSize: 12, fontWeight: "700", color: "#475569" },
   chipTxtActive: { color: "#fff" },
-  addBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: NAVY,
-    borderStyle: "dashed",
-  },
-  addBtnTxt: { color: NAVY, fontWeight: "700", fontSize: 12 },
-  evBtn: {
+  genderRow: { flexDirection: "row", gap: 10 },
+  genderBtn: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: NAVY,
+    justifyContent: "center",
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#f8fafc",
+  },
+  genderBtnOn: { backgroundColor: NAVY, borderColor: NAVY },
+  genderTxt: { fontSize: 13, fontWeight: "700", color: "#64748b" },
+  addLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  addGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  addBtn: {
+    width: "48%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
     backgroundColor: "#fff",
   },
-  evBtnTxt: { color: NAVY, fontWeight: "700", fontSize: 12 },
-  thumbRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
+  addBtnTxt: { fontSize: 12, fontWeight: "800" },
+
+  // evidence
+  evidenceRow: { flexDirection: "row", gap: 10 },
+  evTile: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "#b6c3d4",
+    backgroundColor: "#f8fafc",
+    gap: 6,
+  },
+  evTileOff: { opacity: 0.4 },
+  evTileTxt: { fontSize: 12, fontWeight: "800", color: NAVY },
+  thumbRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 14,
+    marginBottom: 10,
+  },
   thumb: { width: 84, height: 84 },
-  thumbImg: { width: 84, height: 84, borderRadius: 8 },
+  thumbImg: { width: 84, height: 84, borderRadius: 12 },
   videoBox: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#4f46e5",
     alignItems: "center",
     justifyContent: "center",
   },
   thumbX: {
     position: "absolute",
-    top: 4,
-    right: 4,
-    backgroundColor: "rgba(0,0,0,0.65)",
+    top: -6,
+    right: -6,
+    backgroundColor: RED,
     width: 22,
     height: 22,
     borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
   },
+
+  // submit
   submit: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: RED,
-    paddingVertical: 14,
-    borderRadius: 10,
+    paddingVertical: 16,
+    borderRadius: 14,
+    shadowColor: RED,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   submitTxt: { color: "#fff", fontSize: 15, fontWeight: "800" },
-  empty: { alignItems: "center", marginTop: 60 },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#374151",
+  disclaimer: {
+    textAlign: "center",
+    fontSize: 11,
+    color: "#94a3b8",
     marginTop: 10,
+    lineHeight: 16,
   },
+
+  // my reports
+  filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+  },
+  filterChipOn: { backgroundColor: NAVY, borderColor: NAVY },
+  filterChipTxt: { fontSize: 12, fontWeight: "700", color: "#475569" },
+  filterCount: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+    marginLeft: 6,
+  },
+  filterCountTxt: { fontSize: 11, fontWeight: "800", color: "#475569" },
   reportCard: {
     backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#e8edf3",
+    borderLeftWidth: 4,
   },
-  refNo: { fontSize: 13, fontWeight: "800", color: NAVY },
+  refNo: { fontSize: 12, fontWeight: "800", color: NAVY, letterSpacing: 0.3 },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  statusTxt: { fontSize: 11, fontWeight: "800" },
   reportType: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#111827",
-    marginTop: 6,
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0f172a",
+    marginTop: 10,
+    marginBottom: 6,
   },
-  reportMeta: { fontSize: 12, color: "#6b7280", marginTop: 3 },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  badgeTxt: { fontSize: 11, fontWeight: "700" },
+  metaRow: { flexDirection: "row", alignItems: "center", marginTop: 3 },
+  reportMeta: { fontSize: 12, color: "#64748b", flex: 1 },
+  responderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  responderIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: NAVY,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  responderLbl: {
+    fontSize: 10,
+    color: "#94a3b8",
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  responderName: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#0f172a",
+    marginTop: 1,
+  },
+
+  empty: { alignItems: "center", marginTop: 50, paddingHorizontal: 30 },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#e5e7eb",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: "800", color: "#374151" },
+  emptySub: {
+    fontSize: 12,
+    color: "#9ca3af",
+    textAlign: "center",
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  emptyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 16,
+    backgroundColor: NAVY,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 12,
+  },
+  emptyBtnTxt: { color: "#fff", fontWeight: "800", fontSize: 13 },
+
+  // crime modal (bottom sheet)
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    padding: 24,
+    justifyContent: "flex-end",
   },
-  sheet: { backgroundColor: "#fff", borderRadius: 14, padding: 16 },
-  sheetTitle: { fontSize: 16, fontWeight: "800", color: NAVY, marginBottom: 8 },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "#dee2e6",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  sheetTitle: { fontSize: 17, fontWeight: "800", color: NAVY },
   option: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
+    gap: 12,
   },
-  optionTxt: { fontSize: 15, color: "#374151" },
+  optionIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: "#e0e7f1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  optionTxt: { flex: 1, fontSize: 15, color: "#374151", fontWeight: "500" },
   optionActive: { color: RED, fontWeight: "800" },
 });

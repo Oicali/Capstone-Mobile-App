@@ -329,7 +329,7 @@ export default function LoginScreen({ navigation }) {
       index: 0,
       routes: [
         isBrgy
-          ? { name: "BarangayReport" }
+          ? { name: "BarangayMain" }
           : { name: "Main", params: { screen: "Dashboard" } },
       ],
     });

@@ -45,7 +45,7 @@ export default function SplashScreen({ navigation, route }) {
       let home = "Main";
       if (isLoggedIn) {
         const session = await getSession();
-        if (isBarangayRole(session?.user?.role)) home = "BarangayReport";
+        if (isBarangayRole(session?.user?.role)) home = "BarangayMain";
       }
       Animated.timing(fadeAnim, {
         toValue: 0,

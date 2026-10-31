@@ -364,7 +364,10 @@ export default function NotificationsScreen({ navigation }) {
       const basePath = notif.link_to.split("?")[0];
       if (basePath === "/brgy-report") {
         // barangay officials: go back to their screen on the My Reports tab
-        navigation.popTo("BarangayReport", { initialTab: "reports" });
+        navigation.popTo("BarangayMain", {
+          screen: "BarangayReport",
+          params: { initialTab: "reports" },
+        });
         return;
       }
       const tab = LINK_TO_TAB[basePath];
