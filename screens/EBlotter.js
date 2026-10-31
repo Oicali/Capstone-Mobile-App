@@ -7224,7 +7224,7 @@ export default function EBlotterScreen({ navigation, route }) {
       <View style={ml.header}>
         <View>
           <Text style={ml.headerTitle}>Reporting Records</Text>
-          <Text style={ml.headerSub}>B.A.N.T.A.Y. Reporting</Text>
+          <Text style={ml.headerSub}>BANTAY Reporting</Text>
         </View>
         <View style={{ flexDirection: "row", gap: 10 }}>
           <TouchableOpacity
