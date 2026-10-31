@@ -60,9 +60,17 @@ const BACOOR_BOUNDS = {
   ne: [121.025, 14.495], // northeast corner [lng, lat]
   sw: [120.895, 14.345], // southwest corner [lng, lat]
 };
+
+// Philippines-wide bounds so the user can pan/zoom out to see the whole country
+const PH_BOUNDS = {
+  ne: [127.0, 21.5], // northeast corner [lng, lat]
+  sw: [116.5, 4.0], // southwest corner [lng, lat]
+};
+
+// Clamp the map center to the Philippines instead of Bacoor
 const clampToBounds = ([lng, lat]) => [
-  Math.min(Math.max(lng, BACOOR_BOUNDS.sw[0]), BACOOR_BOUNDS.ne[0]),
-  Math.min(Math.max(lat, BACOOR_BOUNDS.sw[1]), BACOOR_BOUNDS.ne[1]),
+  Math.min(Math.max(lng, PH_BOUNDS.sw[0]), PH_BOUNDS.ne[0]),
+  Math.min(Math.max(lat, PH_BOUNDS.sw[1]), PH_BOUNDS.ne[1]),
 ];
 
 // ── Marker collision avoidance ──────────────────────────────
@@ -1611,7 +1619,8 @@ export default function MapScreen({ navigation }) {
               }
             }
           }}
-          minZoomLevel={11.5}
+          // ~4.5 fits the whole archipelago on a phone screen
+minZoomLevel={4.5}
           maxZoomLevel={18}
         >
           <Camera
@@ -1620,20 +1629,8 @@ export default function MapScreen({ navigation }) {
             centerCoordinate={BACOOR_CENTER}
             animationMode="flyTo"
             animationDuration={800}
-            maxBounds={BACOOR_BOUNDS}
+            maxBounds={PH_BOUNDS}
           />
-
-          {styleReady && (
-            <ShapeSource id="world-mask" shape={WORLD_MASK_GEOJSON}>
-              <FillLayer
-                id="world-mask-fill"
-                style={{
-                  fillColor: heatmapMode ? "#000000" : "#e5e7eb",
-                  fillOpacity: heatmapMode ? 0.6 : 0.55,
-                }}
-              />
-            </ShapeSource>
-          )}
 
           {styleReady && geoJSON && (
             <ShapeSource id="barangays" shape={geoJSON}>
