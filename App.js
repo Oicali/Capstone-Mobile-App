@@ -53,6 +53,7 @@ import PatrolDetailScreen from "./screens/PatrolDetailScreen";
 import RoleBasedPatrolScreen from "./screens/RoleBasedPatrolScreen";
 import AfterPatrolScreen from "./screens/AfterPatrolScreen";
 import AfterPatrolHistoryScreen from "./screens/AfterPatrolHistoryScreen";
+import AIAssessmentScreen from "./screens/AIAssessmentScreen";
 
 // Module-level — runs once before anything mounts
 Notifications.setNotificationHandler({
@@ -377,6 +378,12 @@ startSessionWatch();
           <Stack.Screen
             name="AfterPatrolHistory"
             component={AfterPatrolHistoryScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+          {/* Root stack so it renders above the tab bar */}
+          <Stack.Screen
+            name="AIAssessment"
+            component={AIAssessmentScreen}
             options={{ animation: "slide_from_right" }}
           />
         </Stack.Navigator>

@@ -490,7 +490,8 @@ export const checkBackendConnection = async () => {
 
 // PHT = UTC+8. Web computes "today" in PHT so both apps agree on date
 // boundaries even if the phone's local timezone differs.
-const getPhtToday = () => {
+// Exported so the assessment screen computes "today" in PHT like the rest of the app
+export const getPhtToday = () => {
   const now = new Date();
   const phtMs = now.getTime() + 8 * 60 * 60 * 1000;
   return new Date(phtMs);
@@ -583,6 +584,55 @@ export const getCrimeDashboard = async (filters) => {
   } catch (error) {
     // console.error("getCrimeDashboard Error:", error);
     throw error;
+  }
+};
+
+// Slow AI POST: own 120s timeout + external abort so the screen can cancel on unmount
+export const generateAIAssessment = async (payload, externalSignal) => {
+  const session = await getSession();
+  if (!session?.token) throw new Error("No auth token found");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120000);
+  const onExternalAbort = () => controller.abort();
+
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener("abort", onExternalAbort);
+  }
+
+  try {
+    const response = await fetch(`${BASE_URL}/ai-assessment/generate`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    // Handled here (not validateResponse) so we keep the HTTP status
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok || !json.success) {
+      const err = new Error(json.message || "Failed to generate assessment");
+      err.status = response.status;
+      err.code = json.code;
+      throw err;
+    }
+    return json;
+  } catch (e) {
+    if (e.name === "AbortError") {
+      const cancelled = !!externalSignal?.aborted;
+      const err = new Error(cancelled ? "Cancelled" : "The request timed out.");
+      err.aborted = cancelled;
+      err.timedOut = !cancelled;
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeout);
+    externalSignal?.removeEventListener("abort", onExternalAbort);
   }
 };
 
