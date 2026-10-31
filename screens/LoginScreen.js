@@ -29,7 +29,9 @@ import {
   requestDeviceApproval,
   pollDeviceLogin,
   trustCurrentDevice,
+  getSession,
 } from "./services/api";
+import { isBarangayRole } from "./BarangayReportScreen";
 
 // ── Countdown helper (same format as web) ──────────────────────────────────
 function fmtCountdown(msLeft) {
@@ -320,7 +322,18 @@ export default function LoginScreen({ navigation }) {
       otpRefs.current[index - 1]?.focus();
     }
   };
-
+  const goHome = async () => {
+    const session = await getSession(); // login()/verifyDeviceLogin() already saved it
+    const isBrgy = isBarangayRole(session?.user?.role);
+    nav.reset({
+      index: 0,
+      routes: [
+        isBrgy
+          ? { name: "BarangayReport" }
+          : { name: "Main", params: { screen: "Dashboard" } },
+      ],
+    });
+  };
   // ─── LOGIN ────────────────────────────────────────────────────────────────
   const handleLogin = async () => {
     setErrorMsg("");
@@ -369,10 +382,7 @@ export default function LoginScreen({ navigation }) {
           if (pushToken) await savePushToken(pushToken);
         } catch (err) {}
         setTimeout(() => {
-          nav.reset({
-            index: 0,
-            routes: [{ name: "Main", params: { screen: "Dashboard" } }],
-          });
+          goHome();
         }, 1000);
       } else {
         setUsername("");
@@ -402,10 +412,7 @@ export default function LoginScreen({ navigation }) {
       const pushToken = await registerForPushNotifications();
       if (pushToken) await savePushToken(pushToken);
     } catch (err) {}
-    nav.reset({
-      index: 0,
-      routes: [{ name: "Main", params: { screen: "Dashboard" } }],
-    });
+    await goHome();
   };
 
   const handleVerifyDeviceCode = async () => {
