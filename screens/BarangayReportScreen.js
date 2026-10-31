@@ -650,7 +650,7 @@ export default function BarangayReportScreen({ navigation, route }) {
       <View style={s.header}>
         <View style={s.headerTop}>
           <View style={{ flex: 1 }}>
-            <Text style={s.hTitle}>B.A.N.T.A.Y.</Text>
+            <Text style={s.hTitle}>Submit Report</Text>
             <View style={s.brgyPill}>
               <Ionicons name="location" size={11} color="#93c5fd" />
               <Text style={s.brgyPillTxt}>
