@@ -2786,6 +2786,9 @@ export default function DashboardScreen({ navigation }) {
   const userName = user?.first_name || "Officer";
   const userPic = user?.profile_picture || null;
   const userRole = roleLabel(user?.role || "");
+  // UI-only gate (not security); backend must enforce the role itself
+  const isAdmin =
+    user?.role === "Administrator" || user?.role === "Technical Administrator";
   const presetLbl =
     PRESETS.find((p) => p.key === applied.preset)?.label || "Custom";
   const gran = getGranularity(applied.preset, applied.dateFrom, applied.dateTo);
@@ -2797,8 +2800,8 @@ export default function DashboardScreen({ navigation }) {
       {/* HEADER */}
 <View style={s.header}>
   <View style={{ flex: 1 }}>
-    <Text style={s.hTitle}>Crime Dashboard</Text>
-    <Text style={s.hSub}>Index Crime Statistics · PNP Bacoor</Text>
+    <Text style={s.hTitle}>Dashboard</Text>
+    <Text style={s.hSub}>Index Crime Statistics</Text>
   </View>
   <View
     style={{
@@ -2857,6 +2860,16 @@ export default function DashboardScreen({ navigation }) {
         </View>
       )}
     </TouchableOpacity>
+    {/* AI ASSESSMENT — admin only, opens the root-stack screen with current filters */}
+    {isAdmin && (
+      <TouchableOpacity
+        style={s.hBtn}
+        disabled={loading || !db.summary.length}
+        onPress={() => navigation.navigate("AIAssessment", { filters: applied })}
+      >
+        <Ionicons name="sparkles-outline" size={18} color={WHITE} />
+      </TouchableOpacity>
+    )}
     {/* REFRESH — re-fetches current filters, shows spinner while loading */}
     <TouchableOpacity
       style={s.hBtn}
