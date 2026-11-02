@@ -1,396 +1,302 @@
-import React, { useState } from 'react';
-import { Dimensions, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// screens/PatrolLogScreen.js
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  // SafeAreaView,
   TextInput,
   Alert,
-} from 'react-native';
-import { SafeAreaView } from "react-native-safe-area-context";
-const { width } = Dimensions.get('window');
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { C, ScreenHeader, SectionLabel } from "./components/PatrolUI";
+
+const HISTORY = [
+  {
+    date: "Jan 20, 2026",
+    duration: "4h 30m",
+    time: "08:00 AM – 12:30 PM",
+    remarks: "Routine patrol completed",
+  },
+  {
+    date: "Jan 19, 2026",
+    duration: "3h 45m",
+    time: "02:00 PM – 05:45 PM",
+    remarks: "No incidents reported",
+  },
+  {
+    date: "Jan 18, 2026",
+    duration: "5h 15m",
+    time: "09:00 AM – 02:15 PM",
+    remarks: "Community engagement activities",
+  },
+];
 
 export default function PatrolLogScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [isOnPatrol, setIsOnPatrol] = useState(false);
   const [patrolStartTime, setPatrolStartTime] = useState(null);
-  const [remarks, setRemarks] = useState('');
+  const [remarks, setRemarks] = useState("");
 
   const handleStartPatrol = () => {
-    Alert.alert(
-      'Start Patrol',
-      'Begin patrol duty now?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Start',
-          onPress: () => {
-            setIsOnPatrol(true);
-            setPatrolStartTime(new Date());
-            Alert.alert('Patrol Started', 'GPS tracking active');
-          },
+    Alert.alert("Start patrol", "Begin patrol duty now?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Start",
+        onPress: () => {
+          setIsOnPatrol(true);
+          setPatrolStartTime(new Date());
+          Alert.alert("Patrol started", "GPS tracking active");
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleEndPatrol = () => {
-    Alert.alert(
-      'End Patrol',
-      'End patrol duty now?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'End',
-          onPress: () => {
-            setIsOnPatrol(false);
-            setPatrolStartTime(null);
-            setRemarks('');
-            Alert.alert('Patrol Ended', 'Log saved successfully');
-          },
+    Alert.alert("End patrol", "End patrol duty now?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "End",
+        onPress: () => {
+          setIsOnPatrol(false);
+          setPatrolStartTime(null);
+          setRemarks("");
+          Alert.alert("Patrol ended", "Log saved successfully");
         },
-      ]
-    );
+      },
+    ]);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#ffffff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Patrol Log</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <SafeAreaView style={s.safe} edges={["top"]}>
+      <ScreenHeader
+        title="Patrol Log"
+        subtitle="Duty status and recent logs"
+        onBack={() => navigation.goBack()}
+      />
 
-      <ScrollView style={styles.content}>
-        {/* Status Card */}
-        <View style={[styles.statusCard, isOnPatrol && styles.statusCardActive]}>
-          <View style={styles.statusHeader}>
-            <Text style={styles.statusLabel}>Current Status</Text>
-            <View style={[styles.statusBadge, isOnPatrol && styles.statusBadgeActive]}>
-              <View style={[styles.statusDot, isOnPatrol && styles.statusDotActive]} />
-              <Text style={[styles.statusText, isOnPatrol && styles.statusTextActive]}>
-                {isOnPatrol ? 'ON PATROL' : 'OFF DUTY'}
+      <ScrollView
+        style={{ backgroundColor: C.bg }}
+        contentContainerStyle={{
+          padding: 14,
+          paddingBottom: insets.bottom + 40,
+          gap: 14,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Status */}
+        <View style={[s.statusCard, isOnPatrol && s.statusCardOn]}>
+          <View style={s.statusTop}>
+            <View
+              style={[s.statusIcon, isOnPatrol && { backgroundColor: C.red }]}
+            >
+              <Ionicons
+                name={isOnPatrol ? "shield-checkmark" : "shield-outline"}
+                size={24}
+                color={isOnPatrol ? "#fff" : C.muted}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.statusLbl}>Current status</Text>
+              <Text style={[s.statusVal, isOnPatrol && { color: C.red }]}>
+                {isOnPatrol ? "ON PATROL" : "OFF DUTY"}
               </Text>
             </View>
+            <View
+              style={[s.pulse, isOnPatrol && { backgroundColor: "#22c55e" }]}
+            />
           </View>
 
           {isOnPatrol && (
-            <>
-              <View style={styles.infoRow}>
-                <Ionicons name="navigate-circle" size={18} color="#28a745" />
-                <Text style={styles.infoLabel}>GPS Tracking:</Text>
-                <Text style={styles.infoValue}>Active</Text>
+            <View style={s.statusInfo}>
+              <View style={s.infoRow}>
+                <Ionicons name="navigate-circle" size={18} color="#16a34a" />
+                <Text style={s.infoLbl}>GPS tracking</Text>
+                <Text style={[s.infoVal, { color: "#16a34a" }]}>Active</Text>
               </View>
-
-              <View style={styles.infoRow}>
-                <Ionicons name="time" size={18} color="#6c757d" />
-                <Text style={styles.infoLabel}>Started:</Text>
-                <Text style={styles.infoValue}>
+              <View style={s.infoRow}>
+                <Ionicons name="time" size={18} color={C.muted} />
+                <Text style={s.infoLbl}>Started</Text>
+                <Text style={s.infoVal}>
                   {patrolStartTime?.toLocaleTimeString()}
                 </Text>
               </View>
-            </>
+            </View>
           )}
         </View>
 
-        {/* Action Button */}
+        {/* Action */}
         {!isOnPatrol ? (
-          <TouchableOpacity style={styles.startButton} onPress={handleStartPatrol}>
-            <Ionicons name="play-circle" size={24} color="#FFFFFF" />
-            <Text style={styles.startButtonText}>START PATROL</Text>
+          <TouchableOpacity
+            style={[s.bigBtn, { backgroundColor: C.red }]}
+            onPress={handleStartPatrol}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="play-circle" size={22} color="#fff" />
+            <Text style={s.bigBtnTxt}>START PATROL</Text>
           </TouchableOpacity>
         ) : (
-          <View>
-            {/* Remarks Input */}
-            <View style={styles.formCard}>
-              <Text style={styles.label}>REMARKS (OPTIONAL)</Text>
+          <>
+            <View style={s.card}>
+              <Text style={s.label}>Remarks (optional)</Text>
               <TextInput
-                style={styles.textArea}
+                style={s.textArea}
                 placeholder="Add any notes or observations..."
-                placeholderTextColor="#adb5bd"
+                placeholderTextColor={C.faint}
                 value={remarks}
                 onChangeText={setRemarks}
                 multiline
-                numberOfLines={4}
                 textAlignVertical="top"
               />
             </View>
-
-            <TouchableOpacity style={styles.endButton} onPress={handleEndPatrol}>
-              <Ionicons name="stop-circle" size={24} color="#FFFFFF" />
-              <Text style={styles.endButtonText}>END PATROL</Text>
+            <TouchableOpacity
+              style={[s.bigBtn, { backgroundColor: C.dark }]}
+              onPress={handleEndPatrol}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="stop-circle" size={22} color="#fff" />
+              <Text style={s.bigBtnTxt}>END PATROL</Text>
             </TouchableOpacity>
-          </View>
+          </>
         )}
 
-        {/* Recent Patrol History */}
-        <View style={styles.historySection}>
-          <Text style={styles.sectionTitle}>Recent Patrol Logs</Text>
-
-          <View style={styles.historyCard}>
-            <View style={styles.historyHeader}>
-              <View style={styles.historyDateRow}>
-                <Ionicons name="calendar" size={16} color="#6c757d" />
-                <Text style={styles.historyDate}>Jan 20, 2026</Text>
+        {/* History */}
+        <View>
+          <SectionLabel title="Recent patrol logs" count={HISTORY.length} />
+          {HISTORY.map((h) => (
+            <View key={h.date} style={s.hCard}>
+              <View style={s.hTop}>
+                <View style={s.hDateRow}>
+                  <Ionicons name="calendar" size={15} color={C.navy} />
+                  <Text style={s.hDate}>{h.date}</Text>
+                </View>
+                <View style={s.hDuration}>
+                  <Ionicons name="time" size={12} color={C.navy} />
+                  <Text style={s.hDurationTxt}> {h.duration}</Text>
+                </View>
               </View>
-              <View style={styles.durationBadge}>
-                <Ionicons name="time" size={12} color="#1e3a5f" />
-                <Text style={styles.historyDuration}>4h 30m</Text>
-              </View>
+              <Text style={s.hTime}>{h.time}</Text>
+              <Text style={s.hRemarks}>{h.remarks}</Text>
             </View>
-            <Text style={styles.historyTime}>08:00 AM - 12:30 PM</Text>
-            <Text style={styles.historyRemarks}>Routine patrol completed</Text>
-          </View>
-
-          <View style={styles.historyCard}>
-            <View style={styles.historyHeader}>
-              <View style={styles.historyDateRow}>
-                <Ionicons name="calendar" size={16} color="#6c757d" />
-                <Text style={styles.historyDate}>Jan 19, 2026</Text>
-              </View>
-              <View style={styles.durationBadge}>
-                <Ionicons name="time" size={12} color="#1e3a5f" />
-                <Text style={styles.historyDuration}>3h 45m</Text>
-              </View>
-            </View>
-            <Text style={styles.historyTime}>02:00 PM - 05:45 PM</Text>
-            <Text style={styles.historyRemarks}>No incidents reported</Text>
-          </View>
-
-          <View style={styles.historyCard}>
-            <View style={styles.historyHeader}>
-              <View style={styles.historyDateRow}>
-                <Ionicons name="calendar" size={16} color="#6c757d" />
-                <Text style={styles.historyDate}>Jan 18, 2026</Text>
-              </View>
-              <View style={styles.durationBadge}>
-                <Ionicons name="time" size={12} color="#1e3a5f" />
-                <Text style={styles.historyDuration}>5h 15m</Text>
-              </View>
-            </View>
-            <Text style={styles.historyTime}>09:00 AM - 02:15 PM</Text>
-            <Text style={styles.historyRemarks}>Community engagement activities</Text>
-          </View>
+          ))}
         </View>
-
-        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-    paddingBottom: Platform.OS === 'ios' ? 0 : 10,
-  },
-  content: {
-    flex: 1,
-    padding: width > 768 ? 30 : 20,
-    paddingBottom: 100,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#0a285c',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e3a5f',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.dark },
   statusCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: '#dee2e6',
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: C.border,
   },
-  statusCardActive: {
-    borderColor: '#c1272d',
-    backgroundColor: '#fff5f5',
+  statusCardOn: { borderColor: "#fecaca", backgroundColor: "#fff8f8" },
+  statusTop: { flexDirection: "row", alignItems: "center", gap: 14 },
+  statusIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#eef2f6",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  statusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+  statusLbl: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: C.faint,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
-  statusLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6c757d',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  statusVal: { fontSize: 20, fontWeight: "800", color: C.muted, marginTop: 2 },
+  pulse: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#cbd5e1" },
+  statusInfo: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#fee2e2",
+    gap: 10,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#e9ecef',
-    gap: 6,
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  infoLbl: { flex: 1, fontSize: 13, color: C.muted },
+  infoVal: { fontSize: 13, fontWeight: "800", color: C.text },
+
+  bigBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 17,
+    borderRadius: 14,
   },
-  statusBadgeActive: {
-    backgroundColor: '#c1272d',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#6c757d',
-  },
-  statusDotActive: {
-    backgroundColor: '#ffffff',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#6c757d',
-  },
-  statusTextActive: {
-    color: '#ffffff',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: '#6c757d',
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0a1628',
-  },
-  startButton: {
-    flexDirection: 'row',
-    backgroundColor: '#c1272d',
-    padding: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    gap: 12,
-  },
-  startButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
+  bigBtnTxt: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "800",
     letterSpacing: 1,
   },
-  formCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
+
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: "#e8edf3",
   },
   label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#0a1628',
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#475569",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
     marginBottom: 8,
-    letterSpacing: 0.5,
   },
   textArea: {
-    borderWidth: 1,
-    borderColor: '#ced4da',
-    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 12,
     padding: 12,
     fontSize: 14,
-    color: '#0a1628',
+    color: C.text,
+    backgroundColor: "#f8fafc",
     height: 100,
-    textAlignVertical: 'top',
   },
-  endButton: {
-    flexDirection: 'row',
-    backgroundColor: '#0a1628',
-    padding: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 32,
-    gap: 12,
-  },
-  endButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  historySection: {
-    marginTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0a1628',
-    marginBottom: 16,
-  },
-  historyCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
+
+  hCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: "#e8edf3",
     borderLeftWidth: 4,
-    borderLeftColor: '#1e3a5f',
+    borderLeftColor: C.navy,
   },
-  historyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  hTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
   },
-  historyDateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  historyDate: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0a1628',
-  },
-  durationBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#f0f2f5',
-    paddingHorizontal: 8,
+  hDateRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  hDate: { fontSize: 14, fontWeight: "800", color: C.dark },
+  hDuration: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#e8eef6",
+    paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 10,
   },
-  historyDuration: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1e3a5f',
-  },
-  historyTime: {
-    fontSize: 13,
-    color: '#6c757d',
-    marginBottom: 6,
-  },
-  historyRemarks: {
-    fontSize: 13,
-    color: '#495057',
-    fontStyle: 'italic',
-  },
+  hDurationTxt: { fontSize: 12, fontWeight: "800", color: C.navy },
+  hTime: { fontSize: 12.5, color: C.muted, marginBottom: 4 },
+  hRemarks: { fontSize: 12.5, color: "#475569", fontStyle: "italic" },
 });
