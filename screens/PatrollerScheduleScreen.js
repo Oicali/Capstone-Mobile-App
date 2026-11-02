@@ -8,106 +8,39 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  StatusBar,
-  Dimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import MapboxGL from "@rnmapbox/maps";
 import { Asset } from "expo-asset";
+import {
+  C,
+  ScreenHeader,
+  HeaderButton,
+  StatusPill,
+  ShiftPill,
+  Segmented,
+  Chip,
+  SectionLabel,
+  EmptyState,
+  parseLocalDate,
+  toLocalDateStr,
+  todayStr,
+  generateDateRange,
+  formatDate,
+  formatDateShort,
+  formatTime,
+  getPatrolStatus,
+  STATUS_ORDER,
+  STATUS_META,
+} from "./components/PatrolUI";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const API_BASE = process.env.EXPO_PUBLIC_API_URL;
-
 MapboxGL.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_TOKEN);
-
-// ── Date helpers ──────────────────────────────────────────────────────────────
-const parseLocalDate = (d) => {
-  if (!d) return null;
-  const dt = new Date(d);
-  return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
-};
-
-const toLocalDateStr = (d) => {
-  const dt = parseLocalDate(d);
-  if (!dt) return null;
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-};
-
-const todayStr = () => toLocalDateStr(new Date());
-
-const generateDateRange = (start, end) => {
-  if (!start || !end) return [];
-  const dates = [];
-  const cur = parseLocalDate(start);
-  const last = parseLocalDate(end);
-  if (!cur || !last) return [];
-  while (cur <= last) {
-    dates.push(toLocalDateStr(cur));
-    cur.setDate(cur.getDate() + 1);
-  }
-  return dates;
-};
-
-const formatDate = (d) => {
-  const dt = parseLocalDate(d);
-  return dt
-    ? dt.toLocaleDateString("en-PH", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-    : "—";
-};
-
-const formatTabDate = (d) => {
-  const dt = parseLocalDate(d);
-  return dt
-    ? dt.toLocaleDateString("en-PH", { month: "short", day: "numeric" })
-    : "—";
-};
-
-const formatTime = (t) => (t ? t.substring(0, 5) : "—");
-
-const getPatrolStatus = (patrol) => {
-  const t = parseLocalDate(new Date());
-  const start = parseLocalDate(patrol.start_date);
-  const end = parseLocalDate(patrol.end_date);
-  if (!start || !end) return "unknown";
-  if (t < start) return "upcoming";
-  if (t > end) return "completed";
-  return "active";
-};
-
-const STATUS_ORDER = { active: 0, upcoming: 1, completed: 2, unknown: 3 };
-
-const STATUS_CONFIG = {
-  active: {
-    label: "Active",
-    bg: "#dcfce7",
-    color: "#166534",
-    border: "#86efac",
-  },
-  upcoming: {
-    label: "Upcoming",
-    bg: "#fef9c3",
-    color: "#854d0e",
-    border: "#fde047",
-  },
-  completed: {
-    label: "Completed",
-    bg: "#f1f5f9",
-    color: "#475569",
-    border: "#cbd5e1",
-  },
-  unknown: {
-    label: "Unknown",
-    bg: "#f1f5f9",
-    color: "#475569",
-    border: "#cbd5e1",
-  },
-};
 
 const getMyShiftsForPatrol = (patrol, myUserId) => {
   if (!myUserId || !patrol?.patrollers) return [];
@@ -120,53 +53,16 @@ const getMyShiftsForPatrol = (patrol, myUserId) => {
   ].sort();
 };
 
-// ── Status Badge ──────────────────────────────────────────────────────────────
-const StatusBadge = ({ status }) => {
-  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.unknown;
-  return (
-    <View
-      style={[
-        styles.statusBadge,
-        { backgroundColor: cfg.bg, borderColor: cfg.border },
-      ]}
-    >
-      <Text style={[styles.statusText, { color: cfg.color }]}>{cfg.label}</Text>
-    </View>
-  );
-};
+const getAreaBarangays = (patrol) => [
+  ...new Set(
+    (patrol?.routes || [])
+      .filter((r) => (r.stop_order || 0) <= 0 && r.barangay)
+      .map((r) => r.barangay)
+      .filter(Boolean),
+  ),
+];
 
-// ── Shift Pill ────────────────────────────────────────────────────────────────
-const ShiftPill = ({ shift }) => {
-  if (!shift) return null;
-  const isAM = shift === "AM";
-  return (
-    <View style={[styles.shiftPill, isAM ? styles.shiftAM : styles.shiftPM]}>
-      <Text
-        style={[
-          styles.shiftPillText,
-          isAM ? styles.shiftAMText : styles.shiftPMText,
-        ]}
-      >
-        {shift}
-      </Text>
-    </View>
-  );
-};
-
-// ── Filter Pill ───────────────────────────────────────────────────────────────
-const FilterPill = ({ label, active, onPress }) => (
-  <TouchableOpacity
-    style={[styles.pill, active && styles.pillActive]}
-    onPress={onPress}
-    activeOpacity={0.7}
-  >
-    <Text style={[styles.pillText, active && styles.pillTextActive]}>
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
-
-// ── Ongoing Shift Map ─────────────────────────────────────────────────────────
+// ── Map of the area of responsibility ───────────────────────────────────────
 const OngoingMap = ({ geoJSONData, barangays }) => {
   const cameraRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
@@ -258,7 +154,7 @@ const OngoingMap = ({ geoJSONData, barangays }) => {
   );
 };
 
-// ── Ongoing Shift Card ────────────────────────────────────────────────────────
+// ── Featured (ongoing / upcoming) shift card ────────────────────────────────
 const OngoingShiftCard = ({ patrol, geoJSONData, myShifts, isUpcoming }) => {
   const dateRange = generateDateRange(patrol?.start_date, patrol?.end_date);
   const today = todayStr();
@@ -266,16 +162,9 @@ const OngoingShiftCard = ({ patrol, geoJSONData, myShifts, isUpcoming }) => {
     dateRange.includes(today) ? today : dateRange[0] || null,
   );
   const [activeShift, setActiveShift] = useState(myShifts[0] || "AM");
-  const [showTasks, setShowTasks] = useState(false);
+  const [showTasks, setShowTasks] = useState(true);
 
-  const barangays = [
-    ...new Set(
-      (patrol?.routes || [])
-        .filter((r) => (r.stop_order || 0) <= 0 && r.barangay)
-        .map((r) => r.barangay),
-    ),
-  ];
-
+  const barangays = getAreaBarangays(patrol);
   const routesForDateShift = (patrol?.routes || [])
     .filter(
       (r) =>
@@ -286,147 +175,162 @@ const OngoingShiftCard = ({ patrol, geoJSONData, myShifts, isUpcoming }) => {
     .sort((a, b) => (a.stop_order || 0) - (b.stop_order || 0));
 
   return (
-    <View style={styles.ongoingCard}>
-      <View style={styles.ongoingHeader}>
+    <View style={s.featured}>
+      {/* Header */}
+      <View style={s.featHead}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.ongoingName} numberOfLines={1}>
+          <Text style={s.featName} numberOfLines={1}>
             {patrol.patrol_name}
           </Text>
-          <View style={styles.ongoingMeta}>
-            <Ionicons name="calendar-outline" size={12} color="#1e3a5f" />
-            <Text style={styles.ongoingDates}>
+          <View style={s.featMeta}>
+            <Ionicons
+              name="calendar-outline"
+              size={12}
+              color="rgba(255,255,255,0.7)"
+            />
+            <Text style={s.featMetaTxt}>
               {formatDate(patrol.start_date)} — {formatDate(patrol.end_date)}
             </Text>
           </View>
-          <View style={styles.ongoingMeta}>
-            <Ionicons name="car-outline" size={12} color="#6c757d" />
-            <Text style={styles.ongoingUnit}>
+          <View style={s.featMeta}>
+            <Ionicons
+              name="car-sport-outline"
+              size={12}
+              color="rgba(255,255,255,0.7)"
+            />
+            <Text style={s.featMetaTxt}>
               {patrol.mobile_unit_name || "No unit"}
             </Text>
-            {myShifts.map((s) => (
-              <ShiftPill key={s} shift={s} />
+            {myShifts.map((sh) => (
+              <ShiftPill key={sh} shift={sh} />
             ))}
           </View>
         </View>
-        <View style={[styles.livePill, isUpcoming && styles.upcomingPill]}>
-          <View style={[styles.liveDot, isUpcoming && styles.upcomingDot]} />
-          <Text style={[styles.liveText, isUpcoming && styles.upcomingText]}>
+        <View
+          style={[
+            s.livePill,
+            isUpcoming && { backgroundColor: "rgba(245,158,11,0.2)" },
+          ]}
+        >
+          <View
+            style={[s.liveDot, isUpcoming && { backgroundColor: "#f59e0b" }]}
+          />
+          <Text style={[s.liveTxt, isUpcoming && { color: "#fcd34d" }]}>
             {isUpcoming ? "UPCOMING" : "LIVE"}
           </Text>
         </View>
       </View>
 
-      <View style={styles.ongoingMap}>
+      {/* Map */}
+      <View style={s.featMap}>
         <OngoingMap geoJSONData={geoJSONData} barangays={barangays} />
         {barangays.length === 0 && (
-          <View style={styles.noAreaOverlay}>
-            <Text style={styles.noAreaText}>No area of responsibility set</Text>
+          <View style={s.noArea}>
+            <Text style={s.noAreaTxt}>No area of responsibility set</Text>
+          </View>
+        )}
+        {barangays.length > 0 && (
+          <View style={s.areaBadge}>
+            <Ionicons name="location" size={12} color={C.navy} />
+            <Text style={s.areaBadgeTxt}>
+              {barangays.length}{" "}
+              {barangays.length === 1 ? "barangay" : "barangays"}
+            </Text>
           </View>
         )}
       </View>
 
-      <View style={styles.schedulePanel}>
+      {/* Schedule */}
+      <View style={s.schedule}>
         {dateRange.length > 1 && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.dateTabs}
-            contentContainerStyle={styles.dateTabsInner}
+            contentContainerStyle={s.dateChips}
           >
             {dateRange.map((d) => (
               <TouchableOpacity
                 key={d}
-                style={[
-                  styles.dateTab,
-                  activeDate === d && styles.dateTabActive,
-                ]}
+                style={[s.dateChip, activeDate === d && s.dateChipOn]}
                 onPress={() => setActiveDate(d)}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
               >
                 <Text
-                  style={[
-                    styles.dateTabText,
-                    activeDate === d && styles.dateTabTextActive,
-                  ]}
+                  style={[s.dateChipTxt, activeDate === d && { color: "#fff" }]}
                 >
-                  {formatTabDate(d)}
+                  {formatDateShort(d)}
                 </Text>
-                {d === today && <View style={styles.todayDot} />}
+                {d === today && (
+                  <View
+                    style={[
+                      s.todayDot,
+                      activeDate === d && { backgroundColor: "#fff" },
+                    ]}
+                  />
+                )}
               </TouchableOpacity>
             ))}
           </ScrollView>
         )}
 
-        <View style={styles.shiftTabRow}>
-          {myShifts.map((s) => (
-            <TouchableOpacity
-              key={s}
-              style={[
-                styles.shiftTab,
-                activeShift === s && styles.shiftTabActive,
-              ]}
-              onPress={() => setActiveShift(s)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.shiftTabText,
-                  activeShift === s && styles.shiftTabTextActive,
-                ]}
-              >
-                {s} Shift
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {myShifts.length > 1 && (
+          <View style={{ paddingHorizontal: 14, marginBottom: 6 }}>
+            <Segmented
+              variant="light"
+              value={activeShift}
+              onChange={setActiveShift}
+              items={myShifts.map((sh) => ({
+                key: sh,
+                label: `${sh} Shift`,
+                icon: sh === "AM" ? "sunny" : "moon",
+              }))}
+            />
+          </View>
+        )}
 
         <TouchableOpacity
-          style={styles.timetableLabel}
-          onPress={() => setShowTasks((s) => !s)}
+          style={s.taskToggle}
+          onPress={() => setShowTasks((v) => !v)}
           activeOpacity={0.7}
         >
-          <Text style={styles.timetableLabelText}>
-            {activeShift} SHIFT — {formatTabDate(activeDate)}
+          <Text style={s.taskToggleLbl}>
+            {activeShift} SHIFT · {formatDateShort(activeDate)}
           </Text>
-          <View style={styles.timetableToggle}>
-            <Text style={styles.timetableToggleText}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Text style={s.taskToggleTxt}>
               {showTasks
-                ? "Hide Tasks"
-                : `Show Tasks${routesForDateShift.length ? ` (${routesForDateShift.length})` : ""}`}
+                ? "Hide tasks"
+                : `Show tasks${routesForDateShift.length ? ` (${routesForDateShift.length})` : ""}`}
             </Text>
             <Ionicons
               name={showTasks ? "chevron-up" : "chevron-down"}
               size={13}
-              color="#1e3a5f"
+              color={C.navy}
             />
           </View>
         </TouchableOpacity>
 
         {showTasks &&
           (routesForDateShift.length === 0 ? (
-            <Text style={styles.emptyNote}>
-              No tasks scheduled for this shift.
-            </Text>
+            <Text style={s.emptyNote}>No tasks scheduled for this shift.</Text>
           ) : (
             routesForDateShift.map((r, i) => (
-              <View
-                key={r.route_id}
-                style={[styles.routeRow, i === 0 && { borderTopWidth: 0 }]}
-              >
-                <View style={styles.routeTimeCol}>
-                  <Text style={styles.routeTimeText}>
-                    {formatTime(r.time_start)}
-                  </Text>
-                  <View style={styles.routeTimeLine} />
-                  <Text style={styles.routeTimeText}>
-                    {formatTime(r.time_end)}
+              <View key={r.route_id} style={s.taskRow}>
+                <View style={s.taskTime}>
+                  <Text style={s.timeMain}>{formatTime(r.time_start)}</Text>
+                  <View style={s.rail} />
+                  <Text style={s.timeSub}>{formatTime(r.time_end)}</Text>
+                </View>
+                <View
+                  style={[
+                    s.taskBody,
+                    i === routesForDateShift.length - 1 && { marginBottom: 4 },
+                  ]}
+                >
+                  <Text style={s.taskTxt}>
+                    {r.notes || <Text style={s.noTask}>No task set</Text>}
                   </Text>
                 </View>
-                <Text style={styles.routeTask}>
-                  {r.notes || (
-                    <Text style={styles.routeNoTask}>No task set</Text>
-                  )}
-                </Text>
               </View>
             ))
           ))}
@@ -435,70 +339,62 @@ const OngoingShiftCard = ({ patrol, geoJSONData, myShifts, isUpcoming }) => {
   );
 };
 
-// ── Patrol Card ───────────────────────────────────────────────────────────────
+// ── Patrol list card ────────────────────────────────────────────────────────
 const PatrolCard = ({ patrol, myUserId, onPress }) => {
   const status = getPatrolStatus(patrol);
+  const meta = STATUS_META[status] || STATUS_META.unknown;
   const myShifts = getMyShiftsForPatrol(patrol, myUserId);
-  const barangays = [
-    ...new Set(
-      (patrol.routes || [])
-        .filter((r) => (r.stop_order || 0) <= 0 && r.barangay)
-        .map((r) => r.barangay)
-        .filter(Boolean),
-    ),
-  ];
+  const barangays = getAreaBarangays(patrol);
 
   return (
     <TouchableOpacity
-      style={[
-        styles.patrolCard,
-        status === "active" && styles.patrolCardActive,
-      ]}
+      style={[s.card, { borderLeftColor: meta.accent }]}
       onPress={() => onPress(patrol)}
       activeOpacity={0.75}
     >
-      <View style={styles.patrolCardHeader}>
-        <Text style={styles.patrolCardTitle} numberOfLines={1}>
+      <View style={s.cardTop}>
+        <Text style={s.cardTitle} numberOfLines={1}>
           {patrol.patrol_name}
         </Text>
-        <StatusBadge status={status} />
+        <StatusPill status={status} />
       </View>
-      <View style={styles.patrolCardRow}>
-        <Ionicons name="car-outline" size={13} color="#1e3a5f" />
-        <Text style={styles.patrolCardUnit} numberOfLines={1}>
+      <View style={s.infoRow}>
+        <View style={s.infoIcon}>
+          <Ionicons name="car-sport-outline" size={14} color={C.navy} />
+        </View>
+        <Text style={s.infoTxt} numberOfLines={1}>
           {patrol.mobile_unit_name || "No unit"}
           {patrol.plate_number ? `  ·  ${patrol.plate_number}` : ""}
         </Text>
       </View>
-      <View style={styles.patrolCardRow}>
-        <Ionicons name="calendar-outline" size={13} color="#6c757d" />
-        <Text style={styles.patrolCardDuration}>
+      <View style={s.infoRow}>
+        <View style={s.infoIcon}>
+          <Ionicons name="calendar-outline" size={14} color={C.navy} />
+        </View>
+        <Text style={s.infoTxtMuted}>
           {formatDate(patrol.start_date)} — {formatDate(patrol.end_date)}
         </Text>
       </View>
-      {myShifts.length > 0 && (
-        <View style={styles.patrolCardRow}>
-          <Ionicons name="time-outline" size={13} color="#6c757d" />
-          <Text style={styles.patrolCardLabel}>My shift: </Text>
-          <View style={{ flexDirection: "row", gap: 4 }}>
-            {myShifts.map((s) => (
-              <ShiftPill key={s} shift={s} />
+      <View style={s.cardFoot}>
+        {myShifts.length > 0 && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={s.myShiftLbl}>My shift</Text>
+            {myShifts.map((sh) => (
+              <ShiftPill key={sh} shift={sh} />
             ))}
           </View>
-        </View>
-      )}
-      <View style={styles.patrolCardFooter}>
-        <View style={styles.patrolCardStat}>
-          <Ionicons name="location-outline" size={12} color="#166534" />
-          <Text style={styles.patrolCardStatText}>
+        )}
+        <View style={[s.stat, myShifts.length > 0 && { marginLeft: 12 }]}>
+          <Ionicons name="location" size={13} color="#166534" />
+          <Text style={s.statTxt}>
             {barangays.length}{" "}
             {barangays.length === 1 ? "Barangay" : "Barangays"}
           </Text>
         </View>
         <Ionicons
           name="chevron-forward"
-          size={15}
-          color="#adb5bd"
+          size={16}
+          color="#cbd5e1"
           style={{ marginLeft: "auto" }}
         />
       </View>
@@ -506,39 +402,34 @@ const PatrolCard = ({ patrol, myUserId, onPress }) => {
   );
 };
 
-// ── Main Screen ───────────────────────────────────────────────────────────────
+// ── Screen ──────────────────────────────────────────────────────────────────
 export default function PatrollerScheduleScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+  const TAB_H = 55 + Math.max(insets.bottom, 25);
+
   const [patrols, setPatrols] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [geoJSONData, setGeoJSONData] = useState(null);
   const [myUserId, setMyUserId] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("all"); // ← filter state
+  const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
-    const init = async () => {
+    (async () => {
       try {
         const raw = await AsyncStorage.getItem("auth_user");
-        if (raw) {
-          const user = JSON.parse(raw);
-          setMyUserId(user?.user_id ?? null);
-        }
-      } catch {
-        /* ignore */
-      }
-
+        if (raw) setMyUserId(JSON.parse(raw)?.user_id ?? null);
+      } catch {}
       try {
         const asset = Asset.fromModule(
           require("../assets/bacoor_barangays.geojson"),
         );
         await asset.downloadAsync();
-        const data = await (await fetch(asset.localUri)).json();
-        setGeoJSONData(data);
+        setGeoJSONData(await (await fetch(asset.localUri)).json());
       } catch (err) {
         console.warn("GeoJSON load failed:", err);
       }
-    };
-    init();
+    })();
   }, []);
 
   const fetchPatrols = useCallback(async (silent = false) => {
@@ -550,9 +441,7 @@ export default function PatrollerScheduleScreen({ navigation }) {
       });
       const data = await res.json();
       if (data.success) setPatrols(data.data);
-    } catch (err) {
-      // console.error("fetchMyPatrols error:", err);
-      // setErrorMsg("Network error. Check your connection.");
+    } catch {
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -563,11 +452,6 @@ export default function PatrollerScheduleScreen({ navigation }) {
     fetchPatrols();
   }, []);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchPatrols(true);
-  };
-
   const ongoingPatrol = patrols.find((p) => getPatrolStatus(p) === "active");
   const upcomingPatrol = !ongoingPatrol
     ? patrols
@@ -576,27 +460,23 @@ export default function PatrollerScheduleScreen({ navigation }) {
           (a, b) => parseLocalDate(a.start_date) - parseLocalDate(b.start_date),
         )[0] || null
     : null;
-
   const featuredPatrol = ongoingPatrol || upcomingPatrol;
   const isUpcoming = !ongoingPatrol && !!upcomingPatrol;
   const myShifts = featuredPatrol
     ? getMyShiftsForPatrol(featuredPatrol, myUserId)
     : [];
 
-  // ── Sorted + filtered patrols ─────────────────────────────────────────────
   const sortedPatrols = [...patrols].sort((a, b) => {
     const sa = STATUS_ORDER[getPatrolStatus(a)] ?? 3;
     const sb = STATUS_ORDER[getPatrolStatus(b)] ?? 3;
     if (sa !== sb) return sa - sb;
     return new Date(b.start_date) - new Date(a.start_date);
   });
-
   const filteredPatrols =
     statusFilter === "all"
       ? sortedPatrols
       : sortedPatrols.filter((p) => getPatrolStatus(p) === statusFilter);
 
-  // ── Counts for filter pills ───────────────────────────────────────────────
   const counts = {
     all: patrols.length,
     active: patrols.filter((p) => getPatrolStatus(p) === "active").length,
@@ -605,146 +485,114 @@ export default function PatrollerScheduleScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#0d1f3c" />
+    <SafeAreaView style={s.safe} edges={["top"]}>
+      <ScreenHeader
+        title="Patrol Assignment"
+        subtitle="Your patrol schedule"
+        right={
+          <HeaderButton icon="refresh-outline" onPress={() => fetchPatrols()} />
+        }
+      />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Patrol Assignment</Text>
-          <Text style={styles.headerSub}>Your patrol schedule</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.refreshBtn}
-          onPress={() => fetchPatrols()}
-        >
-          <Ionicons name="refresh-outline" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.contentArea}>
+      <View style={s.body}>
         {loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color="#1e3a5f" />
-            <Text style={styles.loadingText}>Loading patrols...</Text>
+          <View style={s.center}>
+            <ActivityIndicator size="large" color={C.navy} />
+            <Text style={s.loadTxt}>Loading patrols...</Text>
           </View>
         ) : (
           <ScrollView
-            style={styles.scrollBody}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={{ padding: 14, paddingBottom: TAB_H + 24 }}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor="#1e3a5f"
-                colors={["#1e3a5f"]}
+                onRefresh={() => {
+                  setRefreshing(true);
+                  fetchPatrols(true);
+                }}
+                tintColor={C.navy}
+                colors={[C.navy]}
               />
             }
           >
-            {/* ── ONGOING / UPCOMING SHIFT ── */}
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionAccent} />
-              <Text style={styles.sectionLabel}>
-                {ongoingPatrol
-                  ? "ONGOING SHIFT"
+            <SectionLabel
+              title={
+                ongoingPatrol
+                  ? "Ongoing shift"
                   : upcomingPatrol
-                    ? "UPCOMING SHIFT"
-                    : "ONGOING SHIFT"}
-              </Text>
-            </View>
+                    ? "Upcoming shift"
+                    : "Ongoing shift"
+              }
+            />
 
             {featuredPatrol && geoJSONData ? (
               <OngoingShiftCard
+                key={featuredPatrol.patrol_id}
                 patrol={featuredPatrol}
                 geoJSONData={geoJSONData}
                 myShifts={myShifts.length > 0 ? myShifts : ["AM"]}
                 isUpcoming={isUpcoming}
               />
-            ) : featuredPatrol && !geoJSONData ? (
-              <View style={styles.ongoingCard}>
-                <View style={styles.ongoingHeader}>
-                  <Text style={styles.ongoingName}>
-                    {featuredPatrol.patrol_name}
-                  </Text>
-                  <View
-                    style={[styles.livePill, isUpcoming && styles.upcomingPill]}
-                  >
-                    <View
-                      style={[styles.liveDot, isUpcoming && styles.upcomingDot]}
-                    />
-                    <Text
-                      style={[
-                        styles.liveText,
-                        isUpcoming && styles.upcomingText,
-                      ]}
-                    >
-                      {isUpcoming ? "UPCOMING" : "LIVE"}
-                    </Text>
-                  </View>
+            ) : featuredPatrol ? (
+              <View style={s.featured}>
+                <View style={s.featHead}>
+                  <Text style={s.featName}>{featuredPatrol.patrol_name}</Text>
                 </View>
-                <View style={styles.mapLoadingBox}>
-                  <ActivityIndicator size="small" color="#1e3a5f" />
-                  <Text style={styles.mapLoadingText}>Loading map...</Text>
+                <View style={s.mapLoading}>
+                  <ActivityIndicator size="small" color={C.navy} />
+                  <Text style={s.loadTxt}>Loading map...</Text>
                 </View>
               </View>
             ) : (
-              <View style={styles.noOngoingCard}>
-                <Ionicons name="shield-outline" size={36} color="#dee2e6" />
-                <View>
-                  <Text style={styles.noOngoingTitle}>
+              <View style={s.noOngoing}>
+                <View style={s.noOngoingIcon}>
+                  <Ionicons name="shield-outline" size={26} color={C.faint} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.noOngoingTitle}>
                     No active or upcoming patrol
                   </Text>
-                  <Text style={styles.noOngoingSub}>
+                  <Text style={s.noOngoingSub}>
                     You have no patrol assignment scheduled.
                   </Text>
                 </View>
               </View>
             )}
 
-            {/* ── MY PATROLS ── */}
-            <View style={[styles.sectionHeader, { marginTop: 8 }]}>
-              <View style={styles.sectionAccent} />
-              <Text style={styles.sectionLabel}>MY PATROLS</Text>
-              <View style={styles.sectionBadge}>
-                <Text style={styles.sectionBadgeText}>
-                  {filteredPatrols.length}
-                </Text>
-              </View>
-            </View>
+            <View style={{ height: 14 }} />
+            <SectionLabel title="My patrols" count={filteredPatrols.length} />
 
-            {/* ── Filter Pills ── */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.pillRow}
+              contentContainerStyle={s.chipRow}
             >
               {[
-                { key: "all", label: `All (${counts.all})` },
-                { key: "active", label: `Active (${counts.active})` },
-                { key: "upcoming", label: `Upcoming (${counts.upcoming})` },
-                { key: "completed", label: `Done (${counts.completed})` },
+                { key: "all", label: "All" },
+                { key: "active", label: "Active" },
+                { key: "upcoming", label: "Upcoming" },
+                { key: "completed", label: "Done" },
               ].map(({ key, label }) => (
-                <FilterPill
+                <Chip
                   key={key}
                   label={label}
+                  count={counts[key]}
                   active={statusFilter === key}
                   onPress={() => setStatusFilter(key)}
                 />
               ))}
             </ScrollView>
 
-            {/* ── Patrols List ── */}
             {filteredPatrols.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <Ionicons name="shield-outline" size={48} color="#dee2e6" />
-                <Text style={styles.emptyTitle}>No Patrols Found</Text>
-                <Text style={styles.emptyText}>
-                  {statusFilter === "all"
+              <EmptyState
+                title="No patrols found"
+                text={
+                  statusFilter === "all"
                     ? "You have no patrol assignments yet."
-                    : `No ${statusFilter} patrols found.`}
-                </Text>
-              </View>
+                    : `No ${statusFilter} patrols found.`
+                }
+              />
             ) : (
               filteredPatrols.map((patrol) => (
                 <PatrolCard
@@ -761,8 +609,6 @@ export default function PatrollerScheduleScreen({ navigation }) {
                 />
               ))
             )}
-
-            <View style={{ height: 100 }} />
           </ScrollView>
         )}
       </View>
@@ -770,407 +616,220 @@ export default function PatrollerScheduleScreen({ navigation }) {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0d1f3c" },
-  contentArea: { flex: 1, backgroundColor: "#f8f9fa" },
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.dark },
+  body: { flex: 1, backgroundColor: C.bg },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
+  loadTxt: { fontSize: 13, color: C.muted },
 
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#0d1f3c",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#ffffff",
-    letterSpacing: 0.3,
-  },
-  headerSub: {
-    fontSize: 12,
-    color: "#93afc9",
-    marginTop: 2,
-    fontWeight: "500",
-  },
-  refreshBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  loadingWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  loadingText: { fontSize: 14, color: "#6c757d", fontWeight: "500" },
-  scrollBody: { flex: 1 },
-  scrollContent: { padding: 16, gap: 12 },
-
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 6,
-  },
-  sectionAccent: {
-    width: 3,
-    height: 16,
-    borderRadius: 2,
-    backgroundColor: "#c1272d",
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#1e3a5f",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    flex: 1,
-  },
-  sectionBadge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#1e3a5f",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 6,
-  },
-  sectionBadgeText: { fontSize: 11, fontWeight: "700", color: "#ffffff" },
-
-  // Filter pills
-  pillRow: {
-    flexDirection: "row",
-    gap: 6,
-    paddingBottom: 4,
-  },
-  pill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#dee2e6",
-  },
-  pillActive: { backgroundColor: "#1e3a5f", borderColor: "#1e3a5f" },
-  pillText: { fontSize: 11, fontWeight: "600", color: "#6c757d" },
-  pillTextActive: { color: "#ffffff" },
-
-  // Ongoing card
-  ongoingCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#dee2e6",
+  // featured card
+  featured: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
     overflow: "hidden",
-    shadowColor: "#000",
+    borderWidth: 1,
+    borderColor: "#e8edf3",
+    shadowColor: "#0f172a",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
-    marginBottom: 4,
   },
-  ongoingHeader: {
+  featHead: {
     flexDirection: "row",
     alignItems: "flex-start",
-    justifyContent: "space-between",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f3f5",
-    backgroundColor: "rgba(30,58,95,0.03)",
+    backgroundColor: C.navy,
+    padding: 14,
   },
-  ongoingName: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#1e3a5f",
-    letterSpacing: -0.3,
-    marginBottom: 6,
-    flex: 1,
-  },
-  ongoingMeta: {
+  featName: { fontSize: 17, fontWeight: "800", color: "#fff", marginBottom: 6 },
+  featMeta: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginTop: 3,
+    marginTop: 4,
+    flexWrap: "wrap",
   },
-  ongoingDates: { fontSize: 12, fontWeight: "600", color: "#1e3a5f" },
-  ongoingUnit: { fontSize: 12, color: "#6c757d", fontWeight: "500", flex: 1 },
-
+  featMetaTxt: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.8)",
+    fontWeight: "600",
+  },
   livePill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 20,
-    backgroundColor: "rgba(22,163,74,0.1)",
-    borderWidth: 1,
-    borderColor: "#86efac",
-    flexShrink: 0,
+    borderRadius: 14,
+    backgroundColor: "rgba(34,197,94,0.2)",
     marginLeft: 8,
   },
-  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#16a34a" },
-  liveText: {
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#22c55e" },
+  liveTxt: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#16a34a",
+    color: "#86efac",
     letterSpacing: 1,
   },
-  upcomingPill: {
-    backgroundColor: "rgba(133,77,14,0.1)",
-    borderColor: "#fde047",
-  },
-  upcomingDot: { backgroundColor: "#854d0e" },
-  upcomingText: { color: "#854d0e" },
-
-  ongoingMap: {
-    height: 220,
-    position: "relative",
-    borderBottomWidth: 1,
-    borderBottomColor: "#dee2e6",
-  },
-  noAreaOverlay: {
+  featMap: { height: 210, position: "relative" },
+  noArea: {
     position: "absolute",
     bottom: 10,
     left: 10,
     right: 10,
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: "rgba(255,255,255,0.92)",
     borderRadius: 8,
     padding: 10,
     alignItems: "center",
   },
-  noAreaText: { fontSize: 12, color: "#6c757d", fontStyle: "italic" },
-  mapLoadingBox: {
-    height: 180,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    backgroundColor: "#f8f9fa",
-  },
-  mapLoadingText: { fontSize: 13, color: "#6c757d" },
-
-  schedulePanel: { paddingBottom: 4 },
-  dateTabs: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#dee2e6",
-    backgroundColor: "#f8f9fa",
-  },
-  dateTabsInner: { flexDirection: "row", paddingHorizontal: 12, gap: 2 },
-  dateTab: {
+  noAreaTxt: { fontSize: 12, color: C.muted, fontStyle: "italic" },
+  areaBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+    backgroundColor: "rgba(255,255,255,0.95)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
-  dateTabActive: { borderBottomColor: "#1e3a5f" },
-  dateTabText: { fontSize: 12, fontWeight: "500", color: "#6c757d" },
-  dateTabTextActive: { color: "#1e3a5f", fontWeight: "700" },
-  todayDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: "#c1272d",
+  areaBadgeTxt: { fontSize: 11, fontWeight: "800", color: C.navy },
+  mapLoading: {
+    height: 150,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
 
-  shiftTabRow: {
+  schedule: { paddingVertical: 10 },
+  dateChips: { paddingHorizontal: 14, gap: 6, paddingBottom: 10 },
+  dateChip: {
     flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#dee2e6",
-    paddingHorizontal: 16,
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 18,
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: C.border,
   },
-  shiftTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-    marginBottom: -1,
-  },
-  shiftTabActive: { borderBottomColor: "#1e3a5f" },
-  shiftTabText: { fontSize: 13, fontWeight: "600", color: "#6c757d" },
-  shiftTabTextActive: { color: "#1e3a5f" },
-
-  timetableLabel: {
+  dateChipOn: { backgroundColor: C.navy, borderColor: C.navy },
+  dateChipTxt: { fontSize: 12, fontWeight: "700", color: "#475569" },
+  todayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.red },
+  taskToggle: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 9,
-    backgroundColor: "#f8f9fa",
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f3f5",
+    paddingVertical: 10,
   },
-  timetableLabelText: {
-    fontSize: 10,
+  taskToggleLbl: {
+    fontSize: 10.5,
     fontWeight: "800",
-    color: "#adb5bd",
-    textTransform: "uppercase",
+    color: C.faint,
     letterSpacing: 1,
   },
-  timetableToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  timetableToggleText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#1e3a5f",
-  },
-  routeRow: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    borderTopWidth: 1,
-    borderTopColor: "#f1f3f5",
-    gap: 12,
-  },
-  routeTimeCol: { alignItems: "center", width: 55, flexShrink: 0 },
-  routeTimeText: { fontSize: 11, fontWeight: "700", color: "#1e3a5f" },
-  routeTimeLine: {
-    width: 1,
-    flex: 1,
-    minHeight: 8,
-    backgroundColor: "#dee2e6",
-    marginVertical: 3,
-  },
-  routeTask: { fontSize: 13, color: "#212529", lineHeight: 19, flex: 1 },
-  routeNoTask: { fontStyle: "italic", color: "#adb5bd" },
+  taskToggleTxt: { fontSize: 11.5, fontWeight: "800", color: C.navy },
   emptyNote: {
     fontSize: 13,
-    color: "#adb5bd",
+    color: C.faint,
     fontStyle: "italic",
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingBottom: 10,
   },
-
-  noOngoingCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
+  taskRow: { flexDirection: "row", paddingHorizontal: 14, gap: 12 },
+  taskTime: { alignItems: "center", width: 48 },
+  timeMain: { fontSize: 12, fontWeight: "800", color: C.navy },
+  timeSub: { fontSize: 11, fontWeight: "700", color: C.faint },
+  rail: {
+    width: 2,
+    flex: 1,
+    minHeight: 10,
+    backgroundColor: "#dbe3ee",
+    marginVertical: 3,
+    borderRadius: 1,
+  },
+  taskBody: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#dee2e6",
-    padding: 28,
+    borderColor: "#eef2f6",
+    padding: 12,
+    marginBottom: 8,
+  },
+  taskTxt: { fontSize: 13, color: C.text, lineHeight: 19 },
+  noTask: { fontStyle: "italic", color: C.faint },
+
+  noOngoing: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 18,
-    marginBottom: 4,
+    gap: 14,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: C.border,
   },
-  noOngoingTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#495057",
-    marginBottom: 4,
+  noOngoingIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#eef2f6",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  noOngoingSub: { fontSize: 13, color: "#adb5bd" },
+  noOngoingTitle: { fontSize: 14.5, fontWeight: "800", color: "#475569" },
+  noOngoingSub: { fontSize: 12, color: C.faint, marginTop: 2 },
 
-  patrolCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 15,
+  chipRow: { gap: 8, paddingBottom: 12 },
+
+  // patrol card
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#dee2e6",
+    borderColor: "#e8edf3",
     borderLeftWidth: 4,
-    borderLeftColor: "#dee2e6",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  patrolCardActive: { borderLeftColor: "#22c55e" },
-  patrolCardHeader: {
+  cardTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 9,
     gap: 8,
+    marginBottom: 10,
   },
-  patrolCardTitle: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1e3a5f",
-  },
-  patrolCardRow: {
+  cardTitle: { flex: 1, fontSize: 15, fontWeight: "800", color: C.dark },
+  infoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 5,
+    gap: 8,
+    marginBottom: 6,
   },
-  patrolCardUnit: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#1e3a5f",
-    flex: 1,
-  },
-  patrolCardDuration: { fontSize: 12, color: "#6c757d", fontWeight: "500" },
-  patrolCardLabel: { fontSize: 12, color: "#6c757d" },
-  patrolCardFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 9,
-    paddingTop: 9,
-    borderTopWidth: 1,
-    borderTopColor: "#f1f3f5",
-  },
-  patrolCardStat: { flexDirection: "row", alignItems: "center", gap: 4 },
-  patrolCardStatText: { fontSize: 11, fontWeight: "600", color: "#495057" },
-
-  statusBadge: {
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  statusText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.3 },
-
-  shiftPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 20,
-    flexShrink: 0,
-  },
-  shiftAM: {
-    backgroundColor: "#fef3c7",
-    borderWidth: 1,
-    borderColor: "#fcd34d",
-  },
-  shiftPM: {
-    backgroundColor: "#e0e7f0",
-    borderWidth: 1,
-    borderColor: "#93afc9",
-  },
-  shiftPillText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.3 },
-  shiftAMText: { color: "#92400e" },
-  shiftPMText: { color: "#1e3a5f" },
-
-  emptyWrap: {
+  infoIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    backgroundColor: "#e8eef6",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 40,
-    paddingVertical: 50,
-    gap: 10,
   },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#495057",
-    marginTop: 4,
+  infoTxt: { flex: 1, fontSize: 13, fontWeight: "700", color: C.navy },
+  infoTxtMuted: { flex: 1, fontSize: 12.5, color: C.muted, fontWeight: "500" },
+  cardFoot: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
   },
-  emptyText: {
-    fontSize: 13,
-    color: "#adb5bd",
-    textAlign: "center",
-    lineHeight: 20,
-  },
+  myShiftLbl: { fontSize: 11, color: C.muted, fontWeight: "600" },
+  stat: { flexDirection: "row", alignItems: "center", gap: 5 },
+  statTxt: { fontSize: 11.5, fontWeight: "700", color: "#475569" },
 });

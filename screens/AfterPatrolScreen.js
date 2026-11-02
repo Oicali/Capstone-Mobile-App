@@ -1,314 +1,252 @@
-// screens/AfterPatrolScreen.jsx
+// screens/AfterPatrolScreen.js
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert, Platform,
-  KeyboardAvoidingView, StatusBar, Image, Modal,
-  FlatList, Pressable, Animated,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  KeyboardAvoidingView,
+  Image,
+  Modal,
+  Pressable,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
+import {
+  C,
+  ScreenHeader,
+  HeaderButton,
+  ShiftPill,
+  Toast,
+  parseLocalDate,
+  todayDate,
+  toLocalDateStr,
+  generateDateRange,
+  formatDate,
+  formatDateShort,
+  getPatrolStatus,
+} from "./components/PatrolUI";
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL;
-const HISTORY_SCREEN_NAME = "AfterPatrolHistory"; // ← adjust to match your navigator
+const HISTORY_SCREEN_NAME = "AfterPatrolHistory";
+const token = async () => AsyncStorage.getItem("auth_token");
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const parseLocalDate = (d) => {
-  if (!d) return null;
-  const dt = new Date(d);
-  return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
-};
-
-const todayDate = () => {
-  const t = new Date();
-  return new Date(t.getFullYear(), t.getMonth(), t.getDate());
-};
-
-const toInputDate = (d) => {
-  if (!d) return "";
-  const dt = typeof d === "string" ? parseLocalDate(d) : d;
-  if (!dt) return "";
-  const y  = dt.getFullYear();
-  const mo = String(dt.getMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getDate()).padStart(2, "0");
-  return `${y}-${mo}-${dd}`;
-};
-
-const formatDate = (d) => {
-  const dt = parseLocalDate(d);
-  if (!dt) return "—";
-  return dt.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
-};
-
-const formatDateShort = (d) => {
-  const dt = parseLocalDate(d);
-  if (!dt) return "—";
-  return dt.toLocaleDateString("en-PH", { month: "short", day: "numeric" });
-};
-
-const getPatrolDateRange = (startDate, endDate) => {
-  const dates = [];
-  const start = parseLocalDate(startDate);
-  const end   = parseLocalDate(endDate);
-  if (!start || !end) return dates;
-  const cur = new Date(start);
-  while (cur <= end) {
-    const y  = cur.getFullYear();
-    const mo = String(cur.getMonth() + 1).padStart(2, "0");
-    const dd = String(cur.getDate()).padStart(2, "0");
-    dates.push(`${y}-${mo}-${dd}`);
-    cur.setDate(cur.getDate() + 1);
-  }
-  return dates;
-};
-
-const getPatrolStatus = (patrol) => {
-  const t     = todayDate();
-  const start = parseLocalDate(patrol.start_date);
-  const end   = parseLocalDate(patrol.end_date);
-  if (!start || !end) return "unknown";
-  if (t < start) return "upcoming";
-  if (t > end)   return "completed";
-  return "active";
-};
-
+// ── helpers ─────────────────────────────────────────────────────────────────
 const calcCreditHours = (from, to) => {
   if (!from || !to) return "";
   const [fh, fm] = from.split(":").map(Number);
   const [th, tm] = to.split(":").map(Number);
   if (isNaN(fh) || isNaN(th)) return "";
-  let fromMins = fh * 60 + fm;
-  let toMins   = th * 60 + tm;
+  const fromMins = fh * 60 + fm;
+  let toMins = th * 60 + tm;
   if (toMins <= fromMins) toMins += 24 * 60;
-  const totalMins = toMins - fromMins;
-  const hrs  = Math.floor(totalMins / 60);
-  const mins = totalMins % 60;
-  if (mins === 0) return `${hrs} hrs`;
-  return `${hrs} hrs ${mins} min`;
+  const total = toMins - fromMins;
+  const hrs = Math.floor(total / 60);
+  const mins = total % 60;
+  return mins === 0 ? `${hrs} hrs` : `${hrs} hrs ${mins} min`;
 };
 
 const DEFAULT_TIMES = {
-  AM:        { timeFrom: "08:00", timeTo: "20:00" },
-  PM:        { timeFrom: "20:00", timeTo: "08:00" },
+  AM: { timeFrom: "08:00", timeTo: "20:00" },
+  PM: { timeFrom: "20:00", timeTo: "08:00" },
   "AM & PM": { timeFrom: "08:00", timeTo: "08:00" },
 };
 
-const token = async () => AsyncStorage.getItem("auth_token");
-
-// Defaults to today when today falls within the patrol range, otherwise
-// falls back to the patrol start date — matches web's emptyForm().
 const smartDefaultDate = (patrol) => {
   const start = parseLocalDate(patrol?.start_date);
-  const end   = parseLocalDate(patrol?.end_date);
+  const end = parseLocalDate(patrol?.end_date);
   const today = todayDate();
-  if (start && end && today >= start && today <= end) return toInputDate(today);
-  return toInputDate(patrol?.start_date) || "";
+  if (start && end && today >= start && today <= end)
+    return toLocalDateStr(today);
+  return toLocalDateStr(patrol?.start_date) || "";
 };
 
-// ── Empty / row-mapping form factories ────────────────────────────────────────
 const emptyForm = (patrol, shift, dateOverride) => {
   const times = (shift && DEFAULT_TIMES[shift]) || { timeFrom: "", timeTo: "" };
-  const creditHours = calcCreditHours(times.timeFrom, times.timeTo);
   return {
-    date:           dateOverride || smartDefaultDate(patrol),
-    timeFrom:       times.timeFrom,
-    timeTo:         times.timeTo,
-    preDeployment:  "",
-    action1:        "",
-    incidents:      "",
-    action2:        "",
+    date: dateOverride || smartDefaultDate(patrol),
+    timeFrom: times.timeFrom,
+    timeTo: times.timeTo,
+    preDeployment: "",
+    action1: "",
+    incidents: "",
+    action2: "",
     safetyConcerns: "",
-    action3:        "",
-    otherServices:  "",
-    visitedAreas:   "",
+    action3: "",
+    otherServices: "",
+    visitedAreas: "",
     personsVisited: "",
-    numOfficials:   "",
-    numGovt:        "",
-    sector:         patrol?.mobile_unit_name || "",
-    mustDos:        "",
-    remarks:        "",
-    creditHours,
-    sigOfficer1:    "",
-    sigOfficer2:    "",
-    sigSupervisor:  "",
+    numOfficials: "",
+    numGovt: "",
+    sector: patrol?.mobile_unit_name || "",
+    mustDos: "",
+    remarks: "",
+    creditHours: calcCreditHours(times.timeFrom, times.timeTo),
+    sigOfficer1: "",
+    sigOfficer2: "",
+    sigSupervisor: "",
   };
 };
 
 const dbRowToForm = (row) => ({
-  date:           toInputDate(row.patrol_date),
-  timeFrom:       row.time_from             || "",
-  timeTo:         row.time_to               || "",
-  preDeployment:  row.pre_deployment        || "",
-  action1:        row.action_pre_deployment || "",
-  incidents:      row.incidents             || "",
-  action2:        row.action_incidents      || "",
-  safetyConcerns: row.safety_concerns       || "",
-  action3:        row.action_safety         || "",
-  otherServices:  row.other_services        || "",
-  visitedAreas:   row.visited_areas         || "",
-  personsVisited: row.persons_visited       || "",
-  numOfficials:   row.num_officials  != null ? String(row.num_officials)      : "",
-  numGovt:        row.num_govt_officials != null ? String(row.num_govt_officials) : "",
-  sector:         row.sector_beat    || "",
-  mustDos:        row.must_dos       || "",
-  remarks:        row.remarks        || "",
-  creditHours:    row.credit_hours   || "",
-  sigOfficer1:    row.sig_officer_1  || "",
-  sigOfficer2:    row.sig_officer_2  || "",
-  sigSupervisor:  row.sig_supervisor || "",
+  date: toLocalDateStr(row.patrol_date) || "",
+  timeFrom: row.time_from || "",
+  timeTo: row.time_to || "",
+  preDeployment: row.pre_deployment || "",
+  action1: row.action_pre_deployment || "",
+  incidents: row.incidents || "",
+  action2: row.action_incidents || "",
+  safetyConcerns: row.safety_concerns || "",
+  action3: row.action_safety || "",
+  otherServices: row.other_services || "",
+  visitedAreas: row.visited_areas || "",
+  personsVisited: row.persons_visited || "",
+  numOfficials: row.num_officials != null ? String(row.num_officials) : "",
+  numGovt: row.num_govt_officials != null ? String(row.num_govt_officials) : "",
+  sector: row.sector_beat || "",
+  mustDos: row.must_dos || "",
+  remarks: row.remarks || "",
+  creditHours: row.credit_hours || "",
+  sigOfficer1: row.sig_officer_1 || "",
+  sigOfficer2: row.sig_officer_2 || "",
+  sigSupervisor: row.sig_supervisor || "",
 });
 
 const shownFlagsFor = (row = {}) => ({
-  preDeployment:  !!(row.pre_deployment),
-  action1:        !!(row.action_pre_deployment),
-  incidents:      !!(row.incidents),
-  action2:        !!(row.action_incidents),
-  safetyConcerns: !!(row.safety_concerns),
-  action3:        !!(row.action_safety),
-  otherServices:  !!(row.other_services),
-  visitedAreas:   !!(row.visited_areas),
-  personsVisited: !!(row.persons_visited),
-  numOfficials:   !!(row.num_officials != null && row.num_officials !== ""),
-  numGovt:        !!(row.num_govt_officials != null && row.num_govt_officials !== ""),
-  mustDos:        !!(row.must_dos),
+  preDeployment: !!row.pre_deployment,
+  action1: !!row.action_pre_deployment,
+  incidents: !!row.incidents,
+  action2: !!row.action_incidents,
+  safetyConcerns: !!row.safety_concerns,
+  action3: !!row.action_safety,
+  otherServices: !!row.other_services,
+  visitedAreas: !!row.visited_areas,
+  personsVisited: !!row.persons_visited,
+  numOfficials: !!(row.num_officials != null && row.num_officials !== ""),
+  numGovt: !!(row.num_govt_officials != null && row.num_govt_officials !== ""),
+  mustDos: !!row.must_dos,
 });
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
-const Toast = ({ message, type, onHide }) => {
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.delay(3000),
-      Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-    ]).start(() => onHide?.());
-  }, []);
-
-  const colors = {
-    success: "#16a34a",
-    error:   "#dc2626",
-    warning: "#d97706",
-    info:    "#1e3a5f",
-  };
-  const bg = colors[type] || colors.success;
-
-  return (
-    <Animated.View style={[styles.toast, { backgroundColor: bg, opacity }]}>
-      <Text style={styles.toastText}>{message}</Text>
-    </Animated.View>
-  );
-};
-
-// ── Native Time Picker Modal ──────────────────────────────────────────────────
+// ── Time picker ─────────────────────────────────────────────────────────────
 const TimePickerModal = ({ visible, value, onConfirm, onClose, label }) => {
+  const insets = useSafeAreaInsets();
   const parse24 = (v) => {
     if (!v) return { h: 8, m: 0, period: "AM" };
     const [hh, mm] = v.split(":").map(Number);
-    const period = hh < 12 ? "AM" : "PM";
-    const h12    = hh % 12 === 0 ? 12 : hh % 12;
-    return { h: h12, m: mm, period };
+    return {
+      h: hh % 12 === 0 ? 12 : hh % 12,
+      m: mm,
+      period: hh < 12 ? "AM" : "PM",
+    };
   };
-
   const to24 = (h12, min, p) => {
     let hh = h12 % 12;
     if (p === "PM") hh += 12;
     return `${String(hh).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
   };
-
-  const init       = parse24(value);
-  const [h, setH]  = useState(init.h);
-  const [m, setM]  = useState(init.m);
+  const init = parse24(value);
+  const [h, setH] = useState(init.h);
+  const [m, setM] = useState(init.m);
   const [period, setPeriod] = useState(init.period);
 
   useEffect(() => {
     if (visible) {
       const p = parse24(value);
-      setH(p.h); setM(p.m); setPeriod(p.period);
+      setH(p.h);
+      setM(p.m);
+      setPeriod(p.period);
     }
   }, [visible, value]);
 
-  const hours   = Array.from({ length: 12 }, (_, i) => i + 1);
+  const hours = Array.from({ length: 12 }, (_, i) => i + 1);
   const minutes = Array.from({ length: 60 }, (_, i) => i);
 
+  const Col = ({ title, data, current, onPick }) => (
+    <View style={s.tpCol}>
+      <Text style={s.tpColLbl}>{title}</Text>
+      <ScrollView style={{ height: 190 }} showsVerticalScrollIndicator={false}>
+        {data.map((v) => (
+          <TouchableOpacity
+            key={v}
+            style={[s.tpItem, current === v && s.tpItemOn]}
+            onPress={() => onPick(v)}
+          >
+            <Text
+              style={[
+                s.tpItemTxt,
+                current === v && { color: "#fff", fontWeight: "800" },
+              ]}
+            >
+              {String(v).padStart(2, "0")}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.tpOverlay} onPress={onClose}>
-        <Pressable style={styles.tpSheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.tpHeader}>
-            <Text style={styles.tpTitle}>{label || "Select Time"}</Text>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <Pressable style={s.overlay} onPress={onClose}>
+        <Pressable
+          style={[s.sheet, { paddingBottom: Math.max(insets.bottom + 12, 20) }]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={s.handle} />
+          <View style={s.sheetTop}>
+            <Text style={s.sheetTitle}>{label || "Select time"}</Text>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={22} color="#6c757d" />
+              <Ionicons name="close" size={22} color={C.navy} />
             </TouchableOpacity>
           </View>
-
-          <View style={styles.tpBody}>
-            {/* Hour */}
-            <View style={styles.tpCol}>
-              <Text style={styles.tpColLabel}>HR</Text>
-              <ScrollView style={styles.tpScroll} showsVerticalScrollIndicator={false}>
-                {hours.map((hv) => (
-                  <TouchableOpacity
-                    key={hv}
-                    style={[styles.tpItem, h === hv && styles.tpItemActive]}
-                    onPress={() => setH(hv)}
-                  >
-                    <Text style={[styles.tpItemText, h === hv && styles.tpItemTextActive]}>
-                      {String(hv).padStart(2, "0")}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            <Text style={styles.tpSep}>:</Text>
-
-            {/* Minute */}
-            <View style={styles.tpCol}>
-              <Text style={styles.tpColLabel}>MIN</Text>
-              <ScrollView style={styles.tpScroll} showsVerticalScrollIndicator={false}>
-                {minutes.map((mv) => (
-                  <TouchableOpacity
-                    key={mv}
-                    style={[styles.tpItem, m === mv && styles.tpItemActive]}
-                    onPress={() => setM(mv)}
-                  >
-                    <Text style={[styles.tpItemText, m === mv && styles.tpItemTextActive]}>
-                      {String(mv).padStart(2, "0")}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            {/* AM/PM */}
-            <View style={styles.tpPeriodCol}>
-              <Text style={styles.tpColLabel}> </Text>
+          <View style={s.tpBody}>
+            <Col title="HOUR" data={hours} current={h} onPick={setH} />
+            <Text style={s.tpSep}>:</Text>
+            <Col title="MIN" data={minutes} current={m} onPick={setM} />
+            <View style={s.tpPeriodCol}>
+              <Text style={s.tpColLbl}> </Text>
               {["AM", "PM"].map((p) => (
                 <TouchableOpacity
                   key={p}
-                  style={[styles.tpPeriodItem, period === p && styles.tpPeriodActive]}
+                  style={[s.tpPeriod, period === p && s.tpPeriodOn]}
                   onPress={() => setPeriod(p)}
                 >
-                  <Text style={[styles.tpPeriodText, period === p && styles.tpPeriodTextActive]}>
+                  <Text
+                    style={[s.tpPeriodTxt, period === p && { color: "#fff" }]}
+                  >
                     {p}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
-
-          <View style={styles.tpFooter}>
-            <TouchableOpacity style={styles.tpCancelBtn} onPress={onClose}>
-              <Text style={styles.tpCancelText}>Cancel</Text>
+          <View style={s.sheetFoot}>
+            <TouchableOpacity style={s.btnGhost} onPress={onClose}>
+              <Text style={s.btnGhostTxt}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.tpConfirmBtn}
-              onPress={() => { onConfirm(to24(h, m, period)); onClose(); }}
+              style={s.btnPrimary}
+              onPress={() => {
+                onConfirm(to24(h, m, period));
+                onClose();
+              }}
             >
-              <Text style={styles.tpConfirmText}>Confirm</Text>
+              <Text style={s.btnPrimaryTxt}>Confirm</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -317,29 +255,35 @@ const TimePickerModal = ({ visible, value, onConfirm, onClose, label }) => {
   );
 };
 
-// ── Time Field ────────────────────────────────────────────────────────────────
 const TimeField = ({ label, value, onChange, disabled }) => {
   const [open, setOpen] = useState(false);
   const display = value
     ? (() => {
         const [hh, mm] = value.split(":").map(Number);
-        const p  = hh < 12 ? "AM" : "PM";
+        const p = hh < 12 ? "AM" : "PM";
         const h12 = hh % 12 === 0 ? 12 : hh % 12;
         return `${String(h12).padStart(2, "0")}:${String(mm).padStart(2, "0")} ${p}`;
       })()
     : "— : —";
-
   return (
-    <View style={styles.formGroup}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+    <View style={{ flex: 1 }}>
+      <Text style={s.label}>{label}</Text>
       <TouchableOpacity
-        style={[styles.timeBtn, disabled && styles.timeBtnDisabled]}
+        style={[s.timeBtn, disabled && { backgroundColor: "#eef2f7" }]}
         onPress={() => !disabled && setOpen(true)}
-        activeOpacity={disabled ? 1 : 0.7}
+        activeOpacity={disabled ? 1 : 0.8}
       >
-        <Ionicons name="time-outline" size={15} color={disabled ? "#adb5bd" : "#1e3a5f"} />
-        <Text style={[styles.timeBtnText, disabled && { color: "#adb5bd" }]}>{display}</Text>
-        {!disabled && <Ionicons name="chevron-down" size={13} color="#adb5bd" />}
+        <Ionicons
+          name="time-outline"
+          size={16}
+          color={disabled ? C.faint : C.navy}
+        />
+        <Text style={[s.timeBtnTxt, disabled && { color: C.faint }]}>
+          {display}
+        </Text>
+        {!disabled && (
+          <Ionicons name="chevron-down" size={14} color={C.faint} />
+        )}
       </TouchableOpacity>
       <TimePickerModal
         visible={open}
@@ -352,23 +296,56 @@ const TimeField = ({ label, value, onChange, disabled }) => {
   );
 };
 
-// ── Toggle Field ──────────────────────────────────────────────────────────────
-const ToggleField = ({ fieldKey, label, children, shown, onShow, onHide, required }) => (
-  <View style={styles.toggleWrap}>
+// ── Layout pieces ───────────────────────────────────────────────────────────
+const Section = ({ number, title, hint, children }) => (
+  <View style={s.section}>
+    <View style={s.secHead}>
+      <View style={s.secNum}>
+        <Text style={s.secNumTxt}>{number}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.secTitle}>{title}</Text>
+        {!!hint && <Text style={s.secHint}>{hint}</Text>}
+      </View>
+    </View>
+    <View style={s.secBody}>{children}</View>
+  </View>
+);
+
+const ToggleField = ({
+  fieldKey,
+  label,
+  children,
+  shown,
+  onShow,
+  onHide,
+  required,
+  inRow,
+}) => (
+  <View style={inRow ? { flex: 1 } : null}>
     {!shown ? (
-      <TouchableOpacity style={styles.addFieldBtn} onPress={() => onShow(fieldKey)} activeOpacity={0.7}>
-        <Ionicons name="add-circle-outline" size={15} color="#1e3a5f" />
-        <Text style={styles.addFieldText}>Add {label}</Text>
+      <TouchableOpacity
+        style={s.addBtn}
+        onPress={() => onShow(fieldKey)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add-circle" size={16} color={C.navy} />
+        <Text style={s.addTxt} numberOfLines={2}>
+          Add {label}
+        </Text>
       </TouchableOpacity>
     ) : (
       <View>
-        <View style={styles.toggleHeader}>
-          <Text style={styles.fieldLabel}>
+        <View style={s.toggleHead}>
+          <Text style={[s.label, { marginBottom: 0, flex: 1 }]}>
             {label}
-            {required && <Text style={{ color: "#dc2626" }}> *</Text>}
+            {required && <Text style={{ color: C.red }}> *</Text>}
           </Text>
-          <TouchableOpacity onPress={() => onHide(fieldKey)}>
-            <Text style={styles.removeFieldBtn}>− Remove</Text>
+          <TouchableOpacity
+            onPress={() => onHide(fieldKey)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={s.removeTxt}>Remove</Text>
           </TouchableOpacity>
         </View>
         {children}
@@ -377,243 +354,123 @@ const ToggleField = ({ fieldKey, label, children, shown, onShow, onHide, require
   </View>
 );
 
-// ── Signature Select ──────────────────────────────────────────────────────────
-const SignatureSelect = ({ label, value, onChange, patrollers, shift }) => {
-  const [open, setOpen] = useState(false);
-  const names = patrollers
-    .filter((p) => !shift || p.shift === shift || shift === "AM & PM")
-    .map((p) => p.officer_name)
-    .filter(Boolean);
-  const [custom, setCustom] = useState(false);
-
-  const display = value || "— Select officer —";
-
-  return (
-    <View style={styles.formGroup}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      {!custom ? (
-        <>
-          <TouchableOpacity style={styles.selectBtn} onPress={() => setOpen(true)} activeOpacity={0.7}>
-            <Text style={[styles.selectBtnText, !value && { color: "#adb5bd" }]} numberOfLines={1}>
-              {display}
-            </Text>
-            <Ionicons name="chevron-down" size={13} color="#adb5bd" />
-          </TouchableOpacity>
-          <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-            <Pressable style={styles.tpOverlay} onPress={() => setOpen(false)}>
-              <View style={[styles.tpSheet, { maxHeight: 400 }]}>
-                <View style={styles.tpHeader}>
-                  <Text style={styles.tpTitle}>{label}</Text>
-                  <TouchableOpacity onPress={() => setOpen(false)}>
-                    <Ionicons name="close" size={22} color="#6c757d" />
-                  </TouchableOpacity>
-                </View>
-                <ScrollView>
-                  <TouchableOpacity
-                    style={styles.optionRow}
-                    onPress={() => { onChange(""); setOpen(false); }}
-                  >
-                    <Text style={[styles.optionText, { color: "#adb5bd" }]}>— Select officer —</Text>
-                  </TouchableOpacity>
-                  {names.map((n) => (
-                    <TouchableOpacity
-                      key={n}
-                      style={[styles.optionRow, value === n && styles.optionRowActive]}
-                      onPress={() => { onChange(n); setOpen(false); }}
-                    >
-                      <Text style={[styles.optionText, value === n && styles.optionTextActive]}>{n}</Text>
-                      {value === n && <Ionicons name="checkmark" size={16} color="#1e3a5f" />}
-                    </TouchableOpacity>
-                  ))}
-                  <TouchableOpacity
-                    style={styles.optionRow}
-                    onPress={() => { setCustom(true); setOpen(false); }}
-                  >
-                    <Text style={[styles.optionText, { color: "#1e3a5f", fontWeight: "700" }]}>
-                      + Add officer manually…
-                    </Text>
-                  </TouchableOpacity>
-                </ScrollView>
-              </View>
-            </Pressable>
-          </Modal>
-        </>
-      ) : (
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <TextInput
-            style={[styles.input, { flex: 1 }]}
-            placeholder="Rank and name"
-            placeholderTextColor="#adb5bd"
-            value={value}
-            onChangeText={onChange}
-          />
-          <TouchableOpacity
-            style={styles.revertBtn}
-            onPress={() => { setCustom(false); onChange(""); }}
-          >
-            <Ionicons name="arrow-undo" size={16} color="#6c757d" />
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
-  );
-};
-
-// ── Section Header ────────────────────────────────────────────────────────────
-const SectionTitle = ({ number, title }) => (
-  <View style={styles.sectionTitle}>
-    <View style={styles.sectionAccent} />
-    <Text style={styles.sectionTitleText}>{number}. {title}</Text>
-  </View>
-);
-
-// ── Shift Badge ───────────────────────────────────────────────────────────────
-const ShiftBadge = ({ shift }) => {
-  if (!shift) return null;
-  const isAM   = shift === "AM";
-  const isBoth = shift === "AM & PM";
-  return (
-    <View style={[
-      styles.shiftBadge,
-      isAM   ? styles.shiftAM :
-      isBoth ? styles.shiftBoth : styles.shiftPM,
-    ]}>
-      <Text style={[
-        styles.shiftBadgeText,
-        isAM   ? styles.shiftAMText :
-        isBoth ? styles.shiftBothText : styles.shiftPMText,
-      ]}>
-        {shift}
-      </Text>
-    </View>
-  );
-};
-
-// ── Photo Grid ────────────────────────────────────────────────────────────────
 const PhotoGrid = ({
-  images, existingPhotos,
-  onAddCamera, onAddGallery, onRemoveNew, onRemoveExisting,
+  images,
+  existingPhotos,
+  onAddCamera,
+  onAddGallery,
+  onRemoveNew,
+  onRemoveExisting,
 }) => {
   const total = images.length + existingPhotos.length;
-  const canAdd = total < 10;
-
   return (
-    <View style={styles.photoGrid}>
-      {/* Existing photos */}
+    <View style={s.photoGrid}>
       {existingPhotos.map((url, i) => (
-        <View key={url} style={styles.photoThumb}>
-          <Image source={{ uri: url }} style={styles.photoImg} />
-          <View style={styles.photoBadge}>
-            <Text style={styles.photoBadgeText}>{i + 1}</Text>
+        <View key={url} style={s.photo}>
+          <Image source={{ uri: url }} style={s.photoImg} />
+          <View style={s.photoBadge}>
+            <Text style={s.photoBadgeTxt}>{i + 1}</Text>
           </View>
           <TouchableOpacity
-            style={styles.photoRemoveBtn}
+            style={s.photoX}
             onPress={() => onRemoveExisting(url)}
           >
-            <Ionicons name="close-circle" size={20} color="#dc2626" />
+            <Ionicons name="close" size={13} color="#fff" />
           </TouchableOpacity>
         </View>
       ))}
-
-      {/* New photos */}
-      {images.map((img, i) => (
-        <View key={img.id} style={[styles.photoThumb, styles.photoThumbNew]}>
-          <Image source={{ uri: img.uri }} style={styles.photoImg} />
-          <View style={[styles.photoBadge, { backgroundColor: "#16a34a" }]}>
-            <Text style={styles.photoBadgeText}>NEW</Text>
+      {images.map((img) => (
+        <View
+          key={img.id}
+          style={[s.photo, { borderColor: "#86efac", borderWidth: 2 }]}
+        >
+          <Image source={{ uri: img.uri }} style={s.photoImg} />
+          <View style={[s.photoBadge, { backgroundColor: "#16a34a" }]}>
+            <Text style={[s.photoBadgeTxt, { color: "#fff" }]}>NEW</Text>
           </View>
           <TouchableOpacity
-            style={styles.photoRemoveBtn}
+            style={s.photoX}
             onPress={() => onRemoveNew(img.id)}
           >
-            <Ionicons name="close-circle" size={20} color="#dc2626" />
+            <Ionicons name="close" size={13} color="#fff" />
           </TouchableOpacity>
         </View>
       ))}
-
-      {/* Add buttons */}
-      {canAdd && (
+      {total < 10 ? (
         <>
-          <TouchableOpacity style={styles.photoAddBtn} onPress={onAddCamera} activeOpacity={0.7}>
-            <Ionicons name="camera-outline" size={24} color="#1e3a5f" />
-            <Text style={styles.photoAddText}>Camera</Text>
+          <TouchableOpacity
+            style={s.photoAdd}
+            onPress={onAddCamera}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="camera" size={22} color={C.navy} />
+            <Text style={s.photoAddTxt}>Camera</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.photoAddBtn} onPress={onAddGallery} activeOpacity={0.7}>
-            <Ionicons name="image-outline" size={24} color="#1e3a5f" />
-            <Text style={styles.photoAddText}>Gallery</Text>
+          <TouchableOpacity
+            style={s.photoAdd}
+            onPress={onAddGallery}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="images" size={22} color={C.navy} />
+            <Text style={s.photoAddTxt}>Gallery</Text>
           </TouchableOpacity>
         </>
-      )}
-
-      {!canAdd && (
-        <View style={styles.photoMaxBanner}>
-          <Ionicons name="information-circle-outline" size={15} color="#92400e" />
-          <Text style={styles.photoMaxText}>Max 10 photos reached</Text>
+      ) : (
+        <View style={s.maxBanner}>
+          <Ionicons name="information-circle" size={15} color="#92400e" />
+          <Text style={s.maxTxt}>Max 10 photos reached</Text>
         </View>
       )}
     </View>
   );
 };
 
-// ── Main Screen ───────────────────────────────────────────────────────────────
+// ── Screen ──────────────────────────────────────────────────────────────────
 export default function AfterPatrolScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
   const { patrol, myShift, existingReport: initialReport } = route.params;
+  const patrolDates = generateDateRange(patrol?.start_date, patrol?.end_date);
 
-  const patrolDates = getPatrolDateRange(patrol?.start_date, patrol?.end_date);
-
-  // activeReport tracks whichever report is currently loaded for editing —
-  // starts as the report passed in (e.g. from History → Edit), but can change
-  // if the officer picks a different date that already has a submission.
   const [activeReport, setActiveReport] = useState(initialReport || null);
-
-  // form stays null until a date is actually resolved — either the report
-  // passed in, an auto-picked first-unreported date, or one chosen from the
-  // date pills. This lets us show a "Loading dates…" / empty state instead
-  // of a form that's silently wrong while existing reports are still in flight.
   const [form, setForm] = useState(
-    initialReport ? dbRowToForm(initialReport) : null
+    initialReport ? dbRowToForm(initialReport) : null,
   );
-
   const [shown, setShown] = useState(shownFlagsFor(initialReport || {}));
-
-  const [images,         setImages]         = useState([]);
-  const [existingPhotos, setExistingPhotos] = useState(initialReport?.photo_urls || []);
-  const [submitting,     setSubmitting]     = useState(false);
-  const [toast,          setToast]          = useState(null);
-  const [showSaveConfirmed, setShowSaveConfirmed] = useState(false); // guards double-fire, not shown in UI directly
-
-  // All of this officer's existing reports for this patrol, keyed by date —
-  // powers the date-pill checkmarks / missed markers and lets tapping a pill
-  // load that date's real report instead of a blank one.
-  const [existingReports,       setExistingReports]       = useState(
-    initialReport ? [initialReport] : []
+  const [images, setImages] = useState([]);
+  const [existingPhotos, setExistingPhotos] = useState(
+    initialReport?.photo_urls || [],
   );
-  const [existingReportsLoaded, setExistingReportsLoaded] = useState(!!initialReport === false ? false : false);
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [existingReports, setExistingReports] = useState(
+    initialReport ? [initialReport] : [],
+  );
+  const [existingReportsLoaded, setExistingReportsLoaded] = useState(false);
 
   const autoSelectedRef = useRef(false);
-  const patrollers = patrol?.patrollers || [];
-
-  const showToast = useCallback((message, type = "success") => {
-    setToast({ message, type, key: Date.now() });
-  }, []);
+  const showToast = useCallback(
+    (message, type = "success") => setToast({ message, type, key: Date.now() }),
+    [],
+  );
 
   const existingByDate = {};
   existingReports.forEach((rep) => {
-    existingByDate[toInputDate(rep.patrol_date)] = rep;
+    existingByDate[toLocalDateStr(rep.patrol_date)] = rep;
   });
 
-  // ── Fetch this officer's existing reports for this patrol ──────────────────
   const fetchExistingReports = useCallback(async () => {
     try {
       const tok = await token();
-      const res  = await fetch(
+      const res = await fetch(
         `${API_BASE}/patrol/patrols/${patrol.patrol_id}/after-reports/mine`,
-        { headers: { Authorization: `Bearer ${tok}` } }
+        {
+          headers: { Authorization: `Bearer ${tok}` },
+        },
       );
       const data = await res.json();
-      setExistingReports(data.success ? (data.data || []) : []);
+      setExistingReports(data.success ? data.data || [] : []);
     } catch {
-      setExistingReports((prev) => prev); // fail silently — form still usable
+      setExistingReports((prev) => prev);
     } finally {
       setExistingReportsLoaded(true);
     }
@@ -623,8 +480,7 @@ export default function AfterPatrolScreen({ route, navigation }) {
     fetchExistingReports();
   }, [fetchExistingReports]);
 
-  // ── Auto-select the first unreported allowed date on a fresh open ──────────
-  // (skipped entirely if a specific report was passed in via History → Edit)
+  // Auto-select first unreported allowed date on a fresh open
   useEffect(() => {
     if (initialReport) return;
     if (!existingReportsLoaded) return;
@@ -632,28 +488,23 @@ export default function AfterPatrolScreen({ route, navigation }) {
     autoSelectedRef.current = true;
 
     const status = getPatrolStatus(patrol);
-    const allowedDates = patrolDates.filter((key) => {
-      const pillDate = parseLocalDate(key);
-      return !(status === "active" && pillDate > todayDate());
-    });
-
+    const allowedDates = patrolDates.filter(
+      (key) => !(status === "active" && parseLocalDate(key) > todayDate()),
+    );
     const unreportedDate = allowedDates.find((key) => !existingByDate[key]);
-    if (!unreportedDate) return; // every allowed date already has a report
+    if (!unreportedDate) return;
 
-    const blank = emptyForm(patrol, myShift, unreportedDate);
-    setForm(blank);
+    setForm(emptyForm(patrol, myShift, unreportedDate));
     setActiveReport(null);
     setShown(shownFlagsFor());
     setExistingPhotos([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingReportsLoaded]);
 
-  // ── Date pill tap: load that date's real report, or start a blank one ──────
   const handleSelectDate = (key) => {
-    const pillDate = parseLocalDate(key);
-    const isFuture = getPatrolStatus(patrol) === "active" && pillDate > todayDate();
+    const isFuture =
+      getPatrolStatus(patrol) === "active" && parseLocalDate(key) > todayDate();
     if (isFuture) return;
-
     const existingForDate = existingByDate[key];
     if (existingForDate) {
       setActiveReport(existingForDate);
@@ -671,38 +522,33 @@ export default function AfterPatrolScreen({ route, navigation }) {
 
   const isEditing = !!activeReport;
 
-  // ── Form helpers ────────────────────────────────────────────────────────────
-  const set    = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
-  const setTime = (key) => (v)  => {
+  const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
+  const setTime = (key) => (v) =>
     setForm((f) => {
       const next = { ...f, [key]: v };
       next.creditHours = calcCreditHours(next.timeFrom, next.timeTo);
       return next;
     });
-  };
-
-  const toggleShow = (key) => setShown((s) => ({ ...s, [key]: true }));
+  const toggleShow = (key) => setShown((sh) => ({ ...sh, [key]: true }));
   const toggleHide = (key) => {
-    setShown((s) => ({ ...s, [key]: false }));
-    setForm((f)  => ({ ...f, [key]: "" }));
+    setShown((sh) => ({ ...sh, [key]: false }));
+    setForm((f) => ({ ...f, [key]: "" }));
   };
 
-  // ── Image picker ─────────────────────────────────────────────────────────────
+  // ── images ──
   const requestPermission = async (type) => {
-    if (type === "camera") {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      return status === "granted";
-    } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      return status === "granted";
-    }
+    const { status } =
+      type === "camera"
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    return status === "granted";
   };
 
   const pickFromCamera = async () => {
-    const total = images.length + existingPhotos.length;
-    if (total >= 10) { showToast("Maximum 10 photos allowed.", "error"); return; }
-    const ok = await requestPermission("camera");
-    if (!ok) { showToast("Camera permission denied.", "error"); return; }
+    if (images.length + existingPhotos.length >= 10)
+      return showToast("Maximum 10 photos allowed.", "error");
+    if (!(await requestPermission("camera")))
+      return showToast("Camera permission denied.", "error");
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
@@ -712,22 +558,25 @@ export default function AfterPatrolScreen({ route, navigation }) {
       const asset = result.assets[0];
       setImages((prev) => [
         ...prev,
-        { id: Math.random().toString(36).slice(2), uri: asset.uri, name: `photo_${Date.now()}.jpg` },
+        {
+          id: Math.random().toString(36).slice(2),
+          uri: asset.uri,
+          name: `photo_${Date.now()}.jpg`,
+        },
       ]);
     }
   };
 
   const pickFromGallery = async () => {
     const total = images.length + existingPhotos.length;
-    if (total >= 10) { showToast("Maximum 10 photos allowed.", "error"); return; }
-    const ok = await requestPermission("gallery");
-    if (!ok) { showToast("Gallery permission denied.", "error"); return; }
-    const remaining = 10 - total;
+    if (total >= 10) return showToast("Maximum 10 photos allowed.", "error");
+    if (!(await requestPermission("gallery")))
+      return showToast("Gallery permission denied.", "error");
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
       allowsMultipleSelection: true,
-      selectionLimit: remaining,
+      selectionLimit: 10 - total,
     });
     if (!result.canceled && result.assets?.length > 0) {
       const newImgs = result.assets.map((a) => ({
@@ -735,18 +584,22 @@ export default function AfterPatrolScreen({ route, navigation }) {
         uri: a.uri,
         name: a.fileName || `photo_${Date.now()}.jpg`,
       }));
-      setImages((prev) => [...prev, ...newImgs].slice(0, 10 - existingPhotos.length));
+      setImages((prev) =>
+        [...prev, ...newImgs].slice(0, 10 - existingPhotos.length),
+      );
     }
   };
 
-  const removeNewImage = (id) => setImages((prev) => prev.filter((i) => i.id !== id));
+  const removeNewImage = (id) =>
+    setImages((prev) => prev.filter((i) => i.id !== id));
 
   const removeExistingPhoto = async (photoUrl) => {
     if (!activeReport?.report_id) return;
-    Alert.alert("Remove Photo", "Remove this photo? This cannot be undone.", [
+    Alert.alert("Remove photo", "Remove this photo? This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Remove", style: "destructive",
+        text: "Remove",
+        style: "destructive",
         onPress: async () => {
           try {
             const tok = await token();
@@ -754,17 +607,19 @@ export default function AfterPatrolScreen({ route, navigation }) {
               `${API_BASE}/patrol/after-reports/${activeReport.report_id}/photos`,
               {
                 method: "DELETE",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${tok}`,
+                },
                 body: JSON.stringify({ photo_url: photoUrl }),
-              }
+              },
             );
             const data = await res.json();
             if (data.success) {
               setExistingPhotos(data.photo_urls);
               showToast("Photo removed.", "success");
-            } else {
+            } else
               showToast(data.message || "Failed to remove photo.", "error");
-            }
           } catch {
             showToast("Server error.", "error");
           }
@@ -773,302 +628,346 @@ export default function AfterPatrolScreen({ route, navigation }) {
     ]);
   };
 
-  // ── Submit ────────────────────────────────────────────────────────────────────
+  // ── submit ──
   const handleSubmit = async () => {
     if (!form) return;
+    if (!form.date) return showToast("Patrol date is required.", "error");
 
-    // Date validation
-    if (!form.date) { showToast("Patrol date is required.", "error"); return; }
     const chosen = parseLocalDate(form.date);
-    const start  = parseLocalDate(patrol?.start_date);
-    const end    = parseLocalDate(patrol?.end_date);
+    const start = parseLocalDate(patrol?.start_date);
+    const end = parseLocalDate(patrol?.end_date);
     if (chosen < start || chosen > end) {
-      showToast(
+      return showToast(
         `Date must be within patrol: ${formatDate(patrol?.start_date)} – ${formatDate(patrol?.end_date)}`,
-        "error"
+        "error",
       );
-      return;
+    }
+    if (getPatrolStatus(patrol) === "active" && chosen > todayDate()) {
+      return showToast(
+        "You can only report for today or a past date.",
+        "error",
+      );
     }
 
-    const status = getPatrolStatus(patrol);
-    if (status === "active" && chosen > todayDate()) {
-      showToast("You can only report for today or a past date.", "error");
-      return;
-    }
-
-    // Required-when-shown validation
     const requiredWhenShown = {
-      preDeployment:  "Specific instructions received",
-      action1:        "Action Taken (Pre-Deployment)",
-      incidents:      "Incidents / Unusual situations",
-      action2:        "Action Taken (Incidents)",
+      preDeployment: "Specific instructions received",
+      action1: "Action Taken (Pre-Deployment)",
+      incidents: "Incidents / Unusual situations",
+      action2: "Action Taken (Incidents)",
       safetyConcerns: "Safety concerns observed",
-      action3:        "Action Taken (Safety)",
-      otherServices:  "Other public safety services rendered",
-      visitedAreas:   "Visited areas",
+      action3: "Action Taken (Safety)",
+      otherServices: "Other public safety services rendered",
+      visitedAreas: "Visited areas",
       personsVisited: "Name of persons visited",
-      numOfficials:   "No. of officials visited",
-      numGovt:        "Total gov't officials in area",
-      mustDos:        "Patrolled MUST DOs",
+      numOfficials: "No. of officials visited",
+      numGovt: "Total gov't officials in area",
+      mustDos: "Patrolled MUST DOs",
     };
-
     for (const [key, label] of Object.entries(requiredWhenShown)) {
       if (shown[key] && !String(form[key] ?? "").trim()) {
-        showToast(`"${label}" is required once added. Please fill it in or remove it.`, "error");
-        return;
+        return showToast(
+          `"${label}" is required once added. Fill it in or remove it.`,
+          "error",
+        );
       }
     }
+    if (!form.remarks.trim())
+      return showToast("Remarks / Recommendations is required.", "error");
 
-    if (!form.remarks.trim()) {
-      showToast("Remarks / Recommendations is required.", "error");
-      return;
-    }
-
-    // Editing an existing report — confirm before saving.
     if (isEditing) {
       Alert.alert(
-        "Save Changes",
+        "Save changes",
         "Do you want to save the changes made to this report?",
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Save Changes", onPress: () => doSubmit() },
-        ]
+          { text: "Save changes", onPress: () => doSubmit() },
+        ],
       );
       return;
     }
 
-    // New report — check for a same-date submission from this shift first.
     try {
       const tok = await token();
       const res = await fetch(
         `${API_BASE}/patrol/patrols/${patrol.patrol_id}/after-reports/mine`,
-        { headers: { Authorization: `Bearer ${tok}` } }
+        {
+          headers: { Authorization: `Bearer ${tok}` },
+        },
       );
       const data = await res.json();
       if (data.success) {
         const existing = data.data.find(
-          (r) => toInputDate(r.patrol_date) === form.date &&
-                 (r.shift === myShift || !myShift)
+          (r) =>
+            toLocalDateStr(r.patrol_date) === form.date &&
+            (r.shift === myShift || !myShift),
         );
         if (existing) {
           Alert.alert(
-            "Report Already Exists",
-            `A report was already submitted for ${formatDate(form.date)}. Do you want to overwrite it?`,
+            "Report already exists",
+            `A report was already submitted for ${formatDate(form.date)}. Overwrite it?`,
             [
               { text: "Cancel", style: "cancel" },
-              { text: "Overwrite", style: "destructive", onPress: () => doSubmit() },
-            ]
+              {
+                text: "Overwrite",
+                style: "destructive",
+                onPress: () => doSubmit(),
+              },
+            ],
           );
           return;
         }
       }
-    } catch { /* proceed — backend upsert handles deduplication */ }
-
+    } catch {
+      /* proceed — backend upsert handles deduplication */
+    }
     doSubmit();
   };
 
   const doSubmit = async () => {
-  setSubmitting(true);
-  try {
-    const tok = await token();
-    const cleaned = {
-      ...form,
-      numOfficials: form.numOfficials !== "" && form.numOfficials != null ? Number(form.numOfficials) : null,
-      numGovt: form.numGovt !== "" && form.numGovt != null ? Number(form.numGovt) : null,
-      shift: myShift,
-    };
-
-    // ✅ RESTORE THIS — it was deleted
-    const res = await fetch(`${API_BASE}/patrol/patrols/${patrol.patrol_id}/after-report`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
-      body: JSON.stringify(cleaned),
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      const reportId = data.report_id ?? data.data?.report_id;
-     if (images.length > 0 && reportId) {
-  try {
-    const photoForm = new FormData();
-    images.forEach((img) => {
-      photoForm.append("photos", {
-        uri: img.uri,
-        type: "image/jpeg",
-        name: img.name || `photo_${Date.now()}.jpg`,
-      });
-    });
-    const uploadRes = await fetch(
-      `${API_BASE}/patrol/after-reports/${reportId}/photos`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${tok}` },
-        body: photoForm,
-      }
-    );
-    const uploadData = await uploadRes.json();
-    if (!uploadData.success) {
-      console.error("Photo upload failed:", uploadData.message);
-    }
-  } catch (err) {
-    console.error("Photo upload error:", err.message);
-  }
-}
-      showToast(isEditing ? "Report updated successfully!" : "After Patrol Report submitted!", "success");
-      setTimeout(() => navigation.goBack(), 1200);
-    } else {
-      showToast(data.message || "Something went wrong.", "error");
-    }
-  } catch {
-    showToast("Server error while submitting.", "error");
-  } finally {
-    setSubmitting(false);
-  }
-};
-
-  // ── Render ────────────────────────────────────────────────────────────────────
-  return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#0d1e3a5f1f3c" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-  style={styles.backBtn}
-  onPress={() => {
-    if (form && !submitting) {
-      Alert.alert(
-        "Leave Report?",
-        "Any unsaved changes will be lost.",
-        [
-          { text: "Stay", style: "cancel" },
-          { text: "Leave", style: "destructive", onPress: () => navigation.goBack() },
-        ]
+    setSubmitting(true);
+    try {
+      const tok = await token();
+      const cleaned = {
+        ...form,
+        numOfficials:
+          form.numOfficials !== "" && form.numOfficials != null
+            ? Number(form.numOfficials)
+            : null,
+        numGovt:
+          form.numGovt !== "" && form.numGovt != null
+            ? Number(form.numGovt)
+            : null,
+        shift: myShift,
+      };
+      const res = await fetch(
+        `${API_BASE}/patrol/patrols/${patrol.patrol_id}/after-report`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${tok}`,
+          },
+          body: JSON.stringify(cleaned),
+        },
       );
-    } else {
-      navigation.goBack();
+      const data = await res.json();
+
+      if (data.success) {
+        const reportId = data.report_id ?? data.data?.report_id;
+        if (images.length > 0 && reportId) {
+          try {
+            const photoForm = new FormData();
+            images.forEach((img) => {
+              photoForm.append("photos", {
+                uri: img.uri,
+                type: "image/jpeg",
+                name: img.name || `photo_${Date.now()}.jpg`,
+              });
+            });
+            const uploadRes = await fetch(
+              `${API_BASE}/patrol/after-reports/${reportId}/photos`,
+              {
+                method: "POST",
+                headers: { Authorization: `Bearer ${tok}` },
+                body: photoForm,
+              },
+            );
+            const uploadData = await uploadRes.json();
+            if (!uploadData.success)
+              console.error("Photo upload failed:", uploadData.message);
+          } catch (err) {
+            console.error("Photo upload error:", err.message);
+          }
+        }
+        showToast(
+          isEditing
+            ? "Report updated successfully!"
+            : "After Patrol Report submitted!",
+          "success",
+        );
+        setTimeout(() => navigation.goBack(), 1200);
+      } else showToast(data.message || "Something went wrong.", "error");
+    } catch {
+      showToast("Server error while submitting.", "error");
+    } finally {
+      setSubmitting(false);
     }
-  }}
->
-  <Ionicons name="arrow-back" size={22} color="#fff" />
-</TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <View style={styles.headerTitleRow}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {isEditing ? "Edit After Patrol Report" : "After Patrol Report"}
-            </Text>
-            {myShift && <ShiftBadge shift={myShift} />}
-          </View>
-          <Text style={styles.headerSub} numberOfLines={1}>
-            {patrol?.patrol_name} · {formatDate(patrol?.start_date)} – {formatDate(patrol?.end_date)}
-          </Text>
-          <Text style={styles.headerAnnex}>ANNEX D · PNPM-DO-DS-3-3-15 (DO)</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.historyBtn}
-          onPress={() => navigation.navigate(HISTORY_SCREEN_NAME, { patrol, myShift })}
-        >
-          <Ionicons name="time-outline" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
+  };
+
+  const handleBack = () => {
+    if (form && !submitting) {
+      Alert.alert("Leave report?", "Any unsaved changes will be lost.", [
+        { text: "Stay", style: "cancel" },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: () => navigation.goBack(),
+        },
+      ]);
+    } else navigation.goBack();
+  };
+
+  // Multi-line input helper
+  const multi = (key, placeholder, lines = 3) => (
+    <TextInput
+      style={[
+        s.input,
+        { minHeight: 20 + lines * 20, textAlignVertical: "top" },
+      ]}
+      placeholder={placeholder}
+      placeholderTextColor={C.faint}
+      multiline
+      value={form[key]}
+      onChangeText={set(key)}
+    />
+  );
+  const single = (key, placeholder) => (
+    <TextInput
+      style={s.input}
+      placeholder={placeholder}
+      placeholderTextColor={C.faint}
+      value={form[key]}
+      onChangeText={set(key)}
+    />
+  );
+
+  const tg = (fieldKey, label, children, inRow) => (
+    <ToggleField
+      fieldKey={fieldKey}
+      label={label}
+      shown={shown[fieldKey]}
+      onShow={toggleShow}
+      onHide={toggleHide}
+      required
+      inRow={inRow}
+    >
+      {children}
+    </ToggleField>
+  );
+
+  return (
+    <SafeAreaView style={s.safe} edges={["top"]}>
+      <ScreenHeader
+        title={isEditing ? "Edit After Patrol Report" : "After Patrol Report"}
+        subtitle={`${patrol?.patrol_name} · ${formatDate(patrol?.start_date)} – ${formatDate(patrol?.end_date)}`}
+        onBack={handleBack}
+        badge={myShift ? <ShiftPill shift={myShift} /> : null}
+        right={
+          <HeaderButton
+            icon="time-outline"
+            onPress={() =>
+              navigation.navigate(HISTORY_SCREEN_NAME, { patrol, myShift })
+            }
+          />
+        }
+      >
+        <Text style={s.annex}>ANNEX D · PNPM-DO-DS-3-3-15 (DO)</Text>
+      </ScreenHeader>
 
       {isEditing && (
-        <View style={styles.editingBanner}>
-          <Ionicons name="create-outline" size={13} color="#92400e" />
-          <Text style={styles.editingBannerText}>EDITING EXISTING REPORT</Text>
+        <View style={s.editBanner}>
+          <Ionicons name="create" size={14} color="#92400e" />
+          <Text style={s.editBannerTxt}>EDITING EXISTING REPORT</Text>
         </View>
       )}
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: C.bg }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          style={styles.scrollBody}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={{
+            padding: 14,
+            paddingBottom: insets.bottom + 60,
+            gap: 12,
+          }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Shift info banner */}
-          {myShift && (
-            <View style={[
-              styles.shiftBanner,
-              myShift === "AM" ? styles.shiftBannerAM :
-              myShift === "AM & PM" ? styles.shiftBannerBoth : styles.shiftBannerPM,
-            ]}>
-              <View>
-                <Text style={[
-                  styles.shiftBannerLabel,
-                  { color: myShift === "PM" ? "#1e3a5f" : "#92400e" },
-                ]}>
-                  {myShift === "AM & PM" ? "AM & PM SHIFT" : `${myShift} SHIFT`}
+          {!!myShift && (
+            <View style={s.infoCard}>
+              <View
+                style={[
+                  s.infoIcon,
+                  { backgroundColor: myShift === "AM" ? "#fef3c7" : "#e0e7f0" },
+                ]}
+              >
+                <Ionicons
+                  name={myShift === "AM" ? "sunny" : "moon"}
+                  size={18}
+                  color={myShift === "AM" ? "#92400e" : C.navy}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.infoTitle}>
+                  {myShift === "AM & PM" ? "AM & PM shift" : `${myShift} shift`}
                 </Text>
-                <Text style={styles.shiftBannerSub}>
-                  You are assigned to this shift for this patrol
+                <Text style={s.infoText}>
+                  This report is{" "}
+                  <Text style={{ fontWeight: "800" }}>shared</Text> with
+                  everyone on your shift. Any shift-mate can view and edit it.
                 </Text>
               </View>
             </View>
           )}
 
-          {myShift && (
-            <View style={styles.sharedNotice}>
-              <Ionicons name="people-outline" size={14} color="#1e3a5f" style={{ marginTop: 1 }} />
-              <Text style={styles.sharedNoticeText}>
-                This report is <Text style={{ fontWeight: "700" }}>shared</Text> with all officers in the{" "}
-                <Text style={{ fontWeight: "700" }}>{myShift} shift</Text>. Any shift-mate can view and edit it.
-              </Text>
-            </View>
-          )}
-
-          {/* ── 1. Date & Time ─────────────────────────────────────────────── */}
-          <SectionTitle number="1" title="Patrol Date & Time" />
-
-          <View style={styles.card}>
-            <Text style={styles.dateRangeInfo}>
-              Allowed dates: {formatDate(patrol?.start_date)} – {formatDate(patrol?.end_date)}
-            </Text>
-
-            {/* Date pills */}
+          {/* 1. Date & time */}
+          <Section
+            number="1"
+            title="Patrol date & time"
+            hint={`Allowed: ${formatDate(patrol?.start_date)} – ${formatDate(patrol?.end_date)}`}
+          >
             {existingReportsLoaded ? (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.datePillsRow}
+                contentContainerStyle={{ gap: 6, paddingBottom: 4 }}
               >
                 {patrolDates.map((d) => {
-                  const isSelected      = form?.date === d;
-                  const pillDate        = parseLocalDate(d);
-                  const isFuture        = getPatrolStatus(patrol) === "active" && pillDate > todayDate();
-                  const existingForDate = existingByDate[d];
-                  const isMissed        = !isFuture && !existingForDate;
-
+                  const isSelected = form?.date === d;
+                  const isFuture =
+                    getPatrolStatus(patrol) === "active" &&
+                    parseLocalDate(d) > todayDate();
+                  const done = existingByDate[d];
+                  const missed = !isFuture && !done;
                   return (
                     <TouchableOpacity
                       key={d}
                       style={[
-                        styles.datePill,
-                        isSelected && styles.datePillSelected,
-                        !isSelected && existingForDate && styles.datePillDone,
-                        !isSelected && isMissed && styles.datePillMissed,
-                        isFuture   && styles.datePillDisabled,
+                        s.datePill,
+                        !isSelected && done && s.pillDone,
+                        !isSelected && missed && s.pillMissed,
+                        isSelected && s.pillOn,
+                        isFuture && { opacity: 0.4 },
                       ]}
                       onPress={() => handleSelectDate(d)}
-                      activeOpacity={isFuture ? 1 : 0.7}
                       disabled={isFuture}
+                      activeOpacity={0.8}
                     >
-                      {existingForDate && !isSelected && (
-                        <Ionicons name="checkmark" size={11} color="#15803d" style={{ marginRight: 2 }} />
+                      {done && !isSelected && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={13}
+                          color="#15803d"
+                          style={{ marginRight: 4 }}
+                        />
                       )}
-                      {isMissed && !isSelected && (
-                        <Text style={styles.datePillMissedMark}>!</Text>
+                      {missed && !isSelected && (
+                        <Ionicons
+                          name="alert-circle"
+                          size={13}
+                          color="#b91c1c"
+                          style={{ marginRight: 4 }}
+                        />
                       )}
-                      <Text style={[
-                        styles.datePillText,
-                        isSelected && styles.datePillTextSelected,
-                        !isSelected && existingForDate && { color: "#15803d" },
-                        !isSelected && isMissed && { color: "#b91c1c" },
-                        isFuture   && styles.datePillTextDisabled,
-                      ]}>
+                      <Text
+                        style={[
+                          s.datePillTxt,
+                          isSelected && { color: "#fff" },
+                          !isSelected && done && { color: "#15803d" },
+                          !isSelected && missed && { color: "#b91c1c" },
+                        ]}
+                      >
                         {formatDateShort(d)}
                       </Text>
                     </TouchableOpacity>
@@ -1076,35 +975,45 @@ export default function AfterPatrolScreen({ route, navigation }) {
                 })}
               </ScrollView>
             ) : (
-              <View style={styles.loadingDatesRow}>
-                <ActivityIndicator size="small" color="#1e3a5f" />
-                <Text style={styles.loadingDatesText}>Loading dates…</Text>
+              <View style={s.loadingRow}>
+                <ActivityIndicator size="small" color={C.navy} />
+                <Text style={s.loadingTxt}>Loading dates…</Text>
+              </View>
+            )}
+
+            {existingReportsLoaded && (
+              <View style={s.legendRow}>
+                <View style={s.legendItem}>
+                  <Ionicons name="checkmark-circle" size={12} color="#15803d" />
+                  <Text style={s.legendTxt}> Reported</Text>
+                </View>
+                <View style={s.legendItem}>
+                  <Ionicons name="alert-circle" size={12} color="#b91c1c" />
+                  <Text style={s.legendTxt}> Missed</Text>
+                </View>
               </View>
             )}
 
             {form && (
               <>
-                <View style={styles.formRow}>
-                  <View style={[styles.formGroup, { flex: 1 }]}>
-                    <Text style={styles.fieldLabel}>Selected Date</Text>
-                    <View style={styles.readOnlyField}>
-                      <Ionicons name="calendar-outline" size={14} color="#1e3a5f" />
-                      <Text style={styles.readOnlyText}>
-                        {form.date ? formatDate(form.date) : "— tap a date above —"}
-                      </Text>
-                    </View>
+                <View>
+                  <Text style={s.label}>Selected date</Text>
+                  <View style={s.readOnly}>
+                    <Ionicons name="calendar" size={15} color={C.navy} />
+                    <Text style={s.readOnlyTxt}>
+                      {form.date ? formatDate(form.date) : "Tap a date above"}
+                    </Text>
                   </View>
                 </View>
-
-                <View style={styles.formRow}>
+                <View style={s.row}>
                   <TimeField
-                    label="Time From"
+                    label="Time from"
                     value={form.timeFrom}
                     onChange={setTime("timeFrom")}
                     disabled={!!myShift && myShift !== "AM & PM"}
                   />
                   <TimeField
-                    label="Time To"
+                    label="Time to"
                     value={form.timeTo}
                     onChange={setTime("timeTo")}
                     disabled={!!myShift && myShift !== "AM & PM"}
@@ -1112,273 +1021,243 @@ export default function AfterPatrolScreen({ route, navigation }) {
                 </View>
               </>
             )}
-          </View>
+          </Section>
 
           {!form ? (
             existingReportsLoaded && (
-              <View style={styles.emptyStateBox}>
-                <View style={styles.emptyStateIcon}>
-                  <Ionicons name="checkmark-circle-outline" size={26} color="#16a34a" />
+              <View style={s.doneBox}>
+                <View style={s.doneIcon}>
+                  <Ionicons name="checkmark-circle" size={30} color="#16a34a" />
                 </View>
-                <Text style={styles.emptyStateTitle}>No reports to do for today</Text>
-                <Text style={styles.emptyStateText}>
-                  All available dates for this patrol already have a submitted report.
-                  Select a date tab above to view or edit it.
+                <Text style={s.doneTitle}>No reports to do for today</Text>
+                <Text style={s.doneText}>
+                  All available dates for this patrol already have a submitted
+                  report. Select a date above to view or edit it.
                 </Text>
               </View>
             )
           ) : (
-          <>
-          {/* ── 2. Patrol Information ──────────────────────────────────────── */}
-          <SectionTitle number="2" title="Patrol Information" />
-
-          <View style={styles.card}>
-            <View style={styles.formRow}>
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>Sector / Beat Patrolled</Text>
-                <View style={[styles.readOnlyField, { backgroundColor: "rgba(30,58,95,0.05)" }]}>
-                  <Text style={[styles.readOnlyText, { color: "#6b7280" }]}>{form.sector || "—"}</Text>
+            <>
+              {/* 2. Patrol information */}
+              <Section number="2" title="Patrol information">
+                <View style={s.row}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.label}>Sector / beat</Text>
+                    <View style={[s.readOnly, { backgroundColor: "#f1f5f9" }]}>
+                      <Text
+                        style={[s.readOnlyTxt, { color: C.muted }]}
+                        numberOfLines={1}
+                      >
+                        {form.sector || "—"}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.label}>Credit hours</Text>
+                    <View
+                      style={[
+                        s.readOnly,
+                        form.creditHours
+                          ? {
+                              backgroundColor: "#f0fdf4",
+                              borderColor: "#bbf7d0",
+                            }
+                          : null,
+                      ]}
+                    >
+                      <Ionicons
+                        name="time"
+                        size={14}
+                        color={form.creditHours ? "#16a34a" : C.faint}
+                      />
+                      <Text
+                        style={[
+                          s.readOnlyTxt,
+                          form.creditHours
+                            ? { color: "#16a34a", fontWeight: "800" }
+                            : { color: C.faint },
+                        ]}
+                      >
+                        {form.creditHours || "Auto"}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-              </View>
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>Total Credit Hours</Text>
-                <View style={[
-                  styles.readOnlyField,
-                  form.creditHours ? { backgroundColor: "rgba(34,197,94,0.05)" } : {},
-                ]}>
-                  <Ionicons name="time-outline" size={14} color={form.creditHours ? "#16a34a" : "#adb5bd"} />
-                  <Text style={[
-                    styles.readOnlyText,
-                    form.creditHours ? { color: "#16a34a", fontWeight: "700" } : { color: "#adb5bd" },
-                  ]}>
-                    {form.creditHours || "Auto-calculated"}
-                  </Text>
+                {tg(
+                  "mustDos",
+                  "Patrolled MUST DOs",
+                  multi("mustDos", "List MUST DOs patrolled..."),
+                )}
+              </Section>
+
+              {/* 3. Pre-deployment */}
+              <Section number="3" title="Pre-deployment instructions">
+                {tg(
+                  "preDeployment",
+                  "Specific instructions received",
+                  multi(
+                    "preDeployment",
+                    "Enter pre-deployment instructions...",
+                  ),
+                )}
+                {tg(
+                  "action1",
+                  "Action taken",
+                  single("action1", "Action taken..."),
+                )}
+              </Section>
+
+              {/* 4. Incidents */}
+              <Section
+                number="4"
+                title="Incidents & unusual events"
+                hint="Crime incidents, public disturbance, major events, etc."
+              >
+                {tg(
+                  "incidents",
+                  "Incidents / unusual situations",
+                  multi("incidents", "Describe incidents or unusual events..."),
+                )}
+                {tg(
+                  "action2",
+                  "Action taken",
+                  single("action2", "Action taken..."),
+                )}
+              </Section>
+
+              {/* 5. Safety */}
+              <Section
+                number="5"
+                title="Public safety concerns"
+                hint="Uncovered manholes, busted lights, fire hazards, etc."
+              >
+                {tg(
+                  "safetyConcerns",
+                  "Safety concerns observed",
+                  multi("safetyConcerns", "Describe public safety concerns..."),
+                )}
+                {tg(
+                  "action3",
+                  "Action taken",
+                  single("action3", "Action taken..."),
+                )}
+              </Section>
+
+              {/* 6. Other services */}
+              <Section number="6" title="Other services & visited areas">
+                {tg(
+                  "otherServices",
+                  "Other public safety services rendered",
+                  multi(
+                    "otherServices",
+                    "Area security, PWD assistance, recovered property, etc.",
+                    2,
+                  ),
+                )}
+                {tg(
+                  "visitedAreas",
+                  "Visited areas",
+                  multi(
+                    "visitedAreas",
+                    "House, school, church, business, barangay, etc.",
+                    2,
+                  ),
+                )}
+              </Section>
+
+              {/* 7. Persons visited */}
+              <Section number="7" title="Persons visited">
+                {tg(
+                  "personsVisited",
+                  "Name of persons visited / local officials",
+                  multi("personsVisited", "List persons visited...", 2),
+                )}
+                <View style={s.row}>
+                  {tg(
+                    "numOfficials",
+                    "No. of officials visited",
+                    <TextInput
+                      style={s.input}
+                      placeholder="0"
+                      placeholderTextColor={C.faint}
+                      keyboardType="numeric"
+                      value={form.numOfficials}
+                      onChangeText={set("numOfficials")}
+                    />,
+                    true,
+                  )}
+                  {tg(
+                    "numGovt",
+                    "Total gov't officials in area",
+                    <TextInput
+                      style={s.input}
+                      placeholder="0"
+                      placeholderTextColor={C.faint}
+                      keyboardType="numeric"
+                      value={form.numGovt}
+                      onChangeText={set("numGovt")}
+                    />,
+                    true,
+                  )}
                 </View>
-              </View>
-            </View>
+              </Section>
 
-            <ToggleField fieldKey="mustDos" label="Patrolled MUST DOs"
-              shown={shown.mustDos} onShow={toggleShow} onHide={toggleHide} required>
-              <TextInput
-                style={[styles.input, styles.inputMulti]}
-                placeholder="List MUST DOs patrolled..."
-                placeholderTextColor="#adb5bd"
-                multiline
-                numberOfLines={3}
-                value={form.mustDos}
-                onChangeText={set("mustDos")}
-              />
-            </ToggleField>
-          </View>
-
-          {/* ── 3. Pre-Deployment ──────────────────────────────────────────── */}
-          <SectionTitle number="3" title="Pre-Deployment Instructions" />
-          <View style={styles.card}>
-            <ToggleField fieldKey="preDeployment" label="Specific instructions received"
-              shown={shown.preDeployment} onShow={toggleShow} onHide={toggleHide} required>
-              <TextInput
-                style={[styles.input, styles.inputMulti]}
-                placeholder="Enter pre-deployment instructions..."
-                placeholderTextColor="#adb5bd"
-                multiline numberOfLines={3}
-                value={form.preDeployment}
-                onChangeText={set("preDeployment")}
-              />
-            </ToggleField>
-            <ToggleField fieldKey="action1" label="Action Taken"
-              shown={shown.action1} onShow={toggleShow} onHide={toggleHide} required>
-              <TextInput
-                style={styles.input}
-                placeholder="Action taken..."
-                placeholderTextColor="#adb5bd"
-                value={form.action1}
-                onChangeText={set("action1")}
-              />
-            </ToggleField>
-          </View>
-
-          {/* ── 4. Incidents ───────────────────────────────────────────────── */}
-          <SectionTitle number="4" title="Incidents & Unusual Events" />
-          <Text style={styles.sectionHint}>Crime incidents, public disturbance, major events, etc.</Text>
-          <View style={styles.card}>
-            <ToggleField fieldKey="incidents" label="Incidents / Unusual situations"
-              shown={shown.incidents} onShow={toggleShow} onHide={toggleHide} required>
-              <TextInput
-                style={[styles.input, styles.inputMulti]}
-                placeholder="Describe incidents or unusual events..."
-                placeholderTextColor="#adb5bd"
-                multiline numberOfLines={3}
-                value={form.incidents}
-                onChangeText={set("incidents")}
-              />
-            </ToggleField>
-            <ToggleField fieldKey="action2" label="Action Taken"
-              shown={shown.action2} onShow={toggleShow} onHide={toggleHide} required>
-              <TextInput
-                style={styles.input}
-                placeholder="Action taken..."
-                placeholderTextColor="#adb5bd"
-                value={form.action2}
-                onChangeText={set("action2")}
-              />
-            </ToggleField>
-          </View>
-
-          {/* ── 5. Safety Concerns ─────────────────────────────────────────── */}
-          <SectionTitle number="5" title="Public Safety Concerns" />
-          <Text style={styles.sectionHint}>Uncovered manholes, busted lights, fire hazards, etc.</Text>
-          <View style={styles.card}>
-            <ToggleField fieldKey="safetyConcerns" label="Safety concerns observed"
-              shown={shown.safetyConcerns} onShow={toggleShow} onHide={toggleHide} required>
-              <TextInput
-                style={[styles.input, styles.inputMulti]}
-                placeholder="Describe public safety concerns..."
-                placeholderTextColor="#adb5bd"
-                multiline numberOfLines={3}
-                value={form.safetyConcerns}
-                onChangeText={set("safetyConcerns")}
-              />
-            </ToggleField>
-            <ToggleField fieldKey="action3" label="Action Taken"
-              shown={shown.action3} onShow={toggleShow} onHide={toggleHide} required>
-              <TextInput
-                style={styles.input}
-                placeholder="Action taken..."
-                placeholderTextColor="#adb5bd"
-                value={form.action3}
-                onChangeText={set("action3")}
-              />
-            </ToggleField>
-          </View>
-
-          {/* ── 6. Other Services ──────────────────────────────────────────── */}
-          <SectionTitle number="6" title="Other Services & Visited Areas" />
-          <View style={styles.card}>
-            <ToggleField fieldKey="otherServices" label="Other public safety services rendered"
-              shown={shown.otherServices} onShow={toggleShow} onHide={toggleHide} required>
-              <TextInput
-                style={[styles.input, styles.inputMulti]}
-                placeholder="Area security, PWD assistance, recovered property, etc."
-                placeholderTextColor="#adb5bd"
-                multiline numberOfLines={2}
-                value={form.otherServices}
-                onChangeText={set("otherServices")}
-              />
-            </ToggleField>
-            <ToggleField fieldKey="visitedAreas" label="Visited areas"
-              shown={shown.visitedAreas} onShow={toggleShow} onHide={toggleHide} required>
-              <TextInput
-                style={[styles.input, styles.inputMulti]}
-                placeholder="House, school, church, business, barangay, etc."
-                placeholderTextColor="#adb5bd"
-                multiline numberOfLines={2}
-                value={form.visitedAreas}
-                onChangeText={set("visitedAreas")}
-              />
-            </ToggleField>
-          </View>
-
-          {/* ── 7. Persons Visited ─────────────────────────────────────────── */}
-          <SectionTitle number="7" title="Persons Visited" />
-          <View style={styles.card}>
-            <ToggleField fieldKey="personsVisited" label="Name of persons visited / local officials"
-              shown={shown.personsVisited} onShow={toggleShow} onHide={toggleHide} required>
-              <TextInput
-                style={[styles.input, styles.inputMulti]}
-                placeholder="List persons visited..."
-                placeholderTextColor="#adb5bd"
-                multiline numberOfLines={2}
-                value={form.personsVisited}
-                onChangeText={set("personsVisited")}
-              />
-            </ToggleField>
-            <View style={styles.formRow}>
-              <ToggleField fieldKey="numOfficials" label="No. of officials visited"
-                shown={shown.numOfficials} onShow={toggleShow} onHide={toggleHide} required>
-                <TextInput
-                  style={styles.input}
-                  placeholder="0"
-                  placeholderTextColor="#adb5bd"
-                  keyboardType="numeric"
-                  value={form.numOfficials}
-                  onChangeText={set("numOfficials")}
-                />
-              </ToggleField>
-              <ToggleField fieldKey="numGovt" label="Total gov't officials in area"
-                shown={shown.numGovt} onShow={toggleShow} onHide={toggleHide} required>
-                <TextInput
-                  style={styles.input}
-                  placeholder="0"
-                  placeholderTextColor="#adb5bd"
-                  keyboardType="numeric"
-                  value={form.numGovt}
-                  onChangeText={set("numGovt")}
-                />
-              </ToggleField>
-            </View>
-          </View>
-
-          {/* ── 8. Remarks ─────────────────────────────────────────────────── */}
-          <SectionTitle number="8" title="Remarks & Recommendations" />
-          <View style={styles.card}>
-            <View style={styles.formGroup}>
-              <Text style={styles.fieldLabel}>
-                Remarks / Recommendations <Text style={{ color: "#dc2626" }}>*</Text>
-              </Text>
-              <TextInput
-                style={[styles.input, styles.inputMulti]}
-                placeholder="Best practices, traffic assistance rendered, etc."
-                placeholderTextColor="#adb5bd"
-                multiline numberOfLines={4}
-                value={form.remarks}
-                onChangeText={set("remarks")}
-              />
-            </View>
-          </View>
-
-
-          {/* ── 9. Photo Documentation ────────────────────────────────────── */}
-          <SectionTitle number="9" title="Photo Documentation" />
-          <View style={styles.card}>
-            <Text style={styles.photoCountText}>
-              {images.length + existingPhotos.length}/10 photos
-            </Text>
-            <PhotoGrid
-              images={images}
-              existingPhotos={existingPhotos}
-              onAddCamera={pickFromCamera}
-              onAddGallery={pickFromGallery}
-              onRemoveNew={removeNewImage}
-              onRemoveExisting={removeExistingPhoto}
-            />
-          </View>
-
-          {/* Submit */}
-          <TouchableOpacity
-            style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
-            onPress={handleSubmit}
-            disabled={submitting}
-            activeOpacity={0.8}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                <Text style={styles.submitBtnText}>
-                  {isEditing ? "Update After Patrol Report" : "Submit After Patrol Report"}
+              {/* 8. Remarks */}
+              <Section number="8" title="Remarks & recommendations">
+                <Text style={s.label}>
+                  Remarks / recommendations{" "}
+                  <Text style={{ color: C.red }}>*</Text>
                 </Text>
-              </>
-            )}
-          </TouchableOpacity>
-          </>
-          )}
+                {multi(
+                  "remarks",
+                  "Best practices, traffic assistance rendered, etc.",
+                  4,
+                )}
+              </Section>
 
-          <View style={{ height: 60 }} />
+              {/* 9. Photos */}
+              <Section
+                number="9"
+                title="Photo documentation"
+                hint={`${images.length + existingPhotos.length}/10 photos`}
+              >
+                <PhotoGrid
+                  images={images}
+                  existingPhotos={existingPhotos}
+                  onAddCamera={pickFromCamera}
+                  onAddGallery={pickFromGallery}
+                  onRemoveNew={removeNewImage}
+                  onRemoveExisting={removeExistingPhoto}
+                />
+              </Section>
+
+              <TouchableOpacity
+                style={[s.submit, submitting && { opacity: 0.6 }]}
+                onPress={handleSubmit}
+                disabled={submitting}
+                activeOpacity={0.85}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons
+                      name={isEditing ? "save" : "paper-plane"}
+                      size={17}
+                      color="#fff"
+                    />
+                    <Text style={s.submitTxt}>
+                      {" "}
+                      {isEditing ? "Update report" : "Submit report"}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Toast */}
       {toast && (
         <Toast
           key={toast.key}
@@ -1391,296 +1270,342 @@ export default function AfterPatrolScreen({ route, navigation }) {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
-
-  // Header
-  header: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#1e3a5f",
-    paddingHorizontal: 16, paddingVertical: 12, gap: 12,
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.dark },
+  annex: {
+    fontSize: 9.5,
+    color: "rgba(255,255,255,0.4)",
+    marginTop: 10,
+    letterSpacing: 0.5,
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center", justifyContent: "center", flexShrink: 0,
+  editBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    backgroundColor: "#fef3c7",
+    borderBottomWidth: 1,
+    borderBottomColor: "#fcd34d",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-  historyBtn: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center", justifyContent: "center", flexShrink: 0,
-  },
-  headerCenter: { flex: 1, minWidth: 0 },
-  headerTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  headerTitle:   { fontSize: 15, fontWeight: "700", color: "#fff", letterSpacing: 0.2 },
-  headerSub:     { fontSize: 11, color: "#93afc9", marginTop: 2 },
-  headerAnnex:   { fontSize: 9,  color: "rgba(255,255,255,0.35)", marginTop: 1 },
-
-  editingBanner: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "rgba(245,158,11,0.15)",
-    borderBottomWidth: 1, borderBottomColor: "#fcd34d",
-    paddingHorizontal: 16, paddingVertical: 7,
-  },
-  editingBannerText: {
-    fontSize: 11, fontWeight: "800", color: "#92400e", letterSpacing: 0.8,
+  editBannerTxt: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#92400e",
+    letterSpacing: 0.8,
   },
 
-  scrollBody: { flex: 1 },
-  scrollContent: { padding: 16, gap: 10 },
-
-  // Shift banner
-  shiftBanner: {
-    padding: "12px 16px", borderRadius: 8, marginBottom: 4,
-    paddingHorizontal: 14, paddingVertical: 10,
+  infoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
+    borderColor: "#e8edf3",
   },
-  shiftBannerAM:   { backgroundColor: "#fef3c7", borderColor: "#fcd34d" },
-  shiftBannerPM:   { backgroundColor: "#e0e7f0", borderColor: "#93afc9" },
-  shiftBannerBoth: { backgroundColor: "#fffbeb", borderColor: "#93afc9" },
-  shiftBannerLabel:{ fontSize: 12, fontWeight: "800", letterSpacing: 0.5, textTransform: "uppercase" },
-  shiftBannerSub:  { fontSize: 11, color: "#6b7280", marginTop: 2 },
-
-  sharedNotice: {
-    flexDirection: "row", alignItems: "flex-start", gap: 8,
-    backgroundColor: "rgba(30,58,95,0.05)",
-    borderWidth: 1, borderColor: "rgba(30,58,95,0.12)",
-    borderRadius: 7, paddingHorizontal: 12, paddingVertical: 9,
-    marginBottom: 4,
+  infoIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  sharedNoticeText: { flex: 1, fontSize: 12, color: "#374151", lineHeight: 18 },
-
-  // Section
-  sectionTitle: {
-    flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6,
+  infoTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: C.navy,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
-  sectionAccent: { width: 3, height: 18, borderRadius: 2, backgroundColor: "#c1272d" },
-  sectionTitleText: {
-    fontSize: 12, fontWeight: "800", color: "#1e3a5f",
-    textTransform: "uppercase", letterSpacing: 0.8,
+  infoText: { fontSize: 12, color: C.muted, lineHeight: 17, marginTop: 2 },
+
+  section: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e8edf3",
+    overflow: "hidden",
   },
-  sectionHint: { fontSize: 12, color: "#adb5bd", fontStyle: "italic", marginBottom: 4 },
-
-  // Card
-  card: {
-    backgroundColor: "#fff", borderRadius: 12,
-    borderWidth: 1, borderColor: "#dee2e6",
-    padding: 14, gap: 12,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
+  secHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    backgroundColor: "#fafbfd",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
   },
-
-  // Empty state
-  emptyStateBox: {
-    alignItems: "center", padding: 28, gap: 8, marginTop: 4,
-    backgroundColor: "rgba(34,197,94,0.05)", borderRadius: 12,
-    borderWidth: 1, borderColor: "#86efac", borderStyle: "dashed",
+  secNum: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: C.navy,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  emptyStateIcon: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: "rgba(34,197,94,0.15)",
-    alignItems: "center", justifyContent: "center",
+  secNumTxt: { color: "#fff", fontSize: 13, fontWeight: "800" },
+  secTitle: { fontSize: 14.5, fontWeight: "800", color: C.navy },
+  secHint: { fontSize: 11, color: C.faint, marginTop: 1 },
+  secBody: { padding: 14, gap: 14 },
+
+  label: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#475569",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 6,
   },
-  emptyStateTitle: { fontSize: 14.5, fontWeight: "700", color: "#1e3a5f" },
-  emptyStateText:  { fontSize: 12.5, color: "#6b7280", textAlign: "center", lineHeight: 18 },
-
-  loadingDatesRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
-  loadingDatesText: { fontSize: 12, color: "#9ca3af" },
-
-  // Form
-  formRow:   { flexDirection: "row", gap: 10 },
-  formGroup: { flex: 1, gap: 5 },
-  fieldLabel:{ fontSize: 12, fontWeight: "600", color: "#495057" },
-
   input: {
-    borderWidth: 1, borderColor: "#ced4da", borderRadius: 6,
-    paddingHorizontal: 10, paddingVertical: 9,
-    fontSize: 13, color: "#212529",
-    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    fontSize: 14,
+    color: C.text,
+    backgroundColor: "#f8fafc",
   },
-  inputMulti: {
-    minHeight: 80, textAlignVertical: "top",
+  row: { flexDirection: "row", gap: 10 },
+  readOnly: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    backgroundColor: "#f8fafc",
   },
+  readOnlyTxt: { flex: 1, fontSize: 13.5, color: C.text, fontWeight: "600" },
 
-  readOnlyField: {
-    flexDirection: "row", alignItems: "center", gap: 7,
-    borderWidth: 1, borderColor: "#ced4da", borderRadius: 6,
-    paddingHorizontal: 10, paddingVertical: 10,
-    backgroundColor: "rgba(30,58,95,0.03)",
-  },
-  readOnlyText: { fontSize: 13, color: "#495057", flex: 1 },
-
-  // Toggle field
-  toggleWrap: { gap: 5, flex: 1 },
-  toggleHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
-addFieldBtn: {
-  flexDirection: "row", alignItems: "center", gap: 6,
-  paddingHorizontal: 12, paddingVertical: 8,
-  borderRadius: 6, borderWidth: 1, borderStyle: "dashed", borderColor: "#93afc9",
-  backgroundColor: "rgba(30,58,95,0.04)", alignSelf: "stretch",
-},
-  addFieldText:   { fontSize: 12, fontWeight: "700", color: "#1e3a5f", flexShrink: 1, flexWrap: "wrap" },
-  removeFieldBtn: { fontSize: 11, fontWeight: "600", color: "#dc2626" },
-
-  // Time button
   timeBtn: {
-    flexDirection: "row", alignItems: "center", gap: 7,
-    borderWidth: 1, borderColor: "#ced4da", borderRadius: 6,
-    paddingHorizontal: 10, paddingVertical: 10,
-    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    backgroundColor: "#f8fafc",
   },
-  timeBtnDisabled: { backgroundColor: "rgba(30,58,95,0.04)", borderColor: "#e9ecef" },
-  timeBtnText:     { flex: 1, fontSize: 13, color: "#1e3a5f", fontWeight: "600" },
+  timeBtnTxt: { flex: 1, fontSize: 13.5, color: C.navy, fontWeight: "700" },
 
-  // Time picker modal
-  tpOverlay:  { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  tpSheet:    {
-    backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16,
-    paddingBottom: 20,
-  },
-  tpHeader:   {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingHorizontal: 20, paddingVertical: 16,
-    borderBottomWidth: 1, borderBottomColor: "#f1f3f5",
-  },
-  tpTitle:    { fontSize: 16, fontWeight: "700", color: "#1e3a5f" },
-  tpBody:     { flexDirection: "row", alignItems: "flex-start", paddingHorizontal: 20, paddingTop: 12 },
-  tpCol:      { flex: 1, alignItems: "center" },
-  tpColLabel: { fontSize: 10, fontWeight: "700", color: "#adb5bd", letterSpacing: 0.8, marginBottom: 6 },
-  tpScroll:   { height: 180 },
-  tpItem:     { paddingVertical: 9, alignItems: "center", borderRadius: 6 },
-  tpItemActive:{ backgroundColor: "#1e3a5f", borderRadius: 6 },
-  tpItemText: { fontSize: 16, color: "#495057", fontWeight: "500" },
-  tpItemTextActive: { color: "#fff", fontWeight: "700" },
-  tpSep:      { fontSize: 22, fontWeight: "700", color: "#adb5bd", paddingTop: 28, paddingHorizontal: 4 },
-  tpPeriodCol:{ width: 56, alignItems: "center" },
-  tpPeriodItem: {
-    width: 44, paddingVertical: 10, alignItems: "center",
-    borderRadius: 6, borderWidth: 1, borderColor: "#dee2e6", marginBottom: 6,
-  },
-  tpPeriodActive: { backgroundColor: "#1e3a5f", borderColor: "#1e3a5f" },
-  tpPeriodText:   { fontSize: 13, fontWeight: "700", color: "#495057" },
-  tpPeriodTextActive: { color: "#fff" },
-  tpFooter: {
-    flexDirection: "row", gap: 12,
-    paddingHorizontal: 20, paddingTop: 16,
-    borderTopWidth: 1, borderTopColor: "#f1f3f5",
-  },
-  tpCancelBtn: {
-    flex: 1, paddingVertical: 12, borderRadius: 8,
-    borderWidth: 1, borderColor: "#dee2e6", alignItems: "center",
-  },
-  tpCancelText: { fontSize: 14, fontWeight: "600", color: "#6c757d" },
-  tpConfirmBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, backgroundColor: "#1e3a5f", alignItems: "center" },
-  tpConfirmText:{ fontSize: 14, fontWeight: "700", color: "#fff" },
-
-  // Select
-  selectBtn: {
-    flexDirection: "row", alignItems: "center",
-    borderWidth: 1, borderColor: "#ced4da", borderRadius: 6,
-    paddingHorizontal: 10, paddingVertical: 10,
-    backgroundColor: "#fff",
-  },
-  selectBtnText: { flex: 1, fontSize: 13, color: "#212529" },
-  optionRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: "#f1f3f5",
-  },
-  optionRowActive: { backgroundColor: "rgba(30,58,95,0.05)" },
-  optionText:      { fontSize: 14, color: "#212529" },
-  optionTextActive:{ color: "#1e3a5f", fontWeight: "700" },
-  revertBtn: {
-    width: 40, height: 42, borderRadius: 6,
-    borderWidth: 1, borderColor: "#ced4da",
-    alignItems: "center", justifyContent: "center",
-    backgroundColor: "#fff",
-  },
-
-  // Date pills
-  dateRangeInfo: {
-    fontSize: 11, color: "#1e3a5f", fontWeight: "600", marginBottom: 4,
-  },
-  datePillsRow: { flexDirection: "row", gap: 6, paddingBottom: 4 },
   datePill: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-    borderWidth: 1, borderColor: "#93afc9", backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: "#f8fafc",
   },
-  datePillSelected: { backgroundColor: "#1e3a5f", borderColor: "#1e3a5f" },
-  datePillDone:     { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "#86efac" },
-  datePillMissed:   { backgroundColor: "rgba(220,38,38,0.08)", borderColor: "#fca5a5" },
-  datePillDisabled: { backgroundColor: "#f3f4f6", borderColor: "#e5e7eb", opacity: 0.5 },
-  datePillText:         { fontSize: 12, fontWeight: "700", color: "#1e3a5f" },
-  datePillTextSelected: { color: "#fff" },
-  datePillTextDisabled: { color: "#d1d5db" },
-  datePillMissedMark:   { fontSize: 11, fontWeight: "900", color: "#b91c1c", marginRight: 3 },
+  datePillTxt: { fontSize: 12.5, fontWeight: "700", color: C.navy },
+  pillOn: { backgroundColor: C.navy, borderColor: C.navy },
+  pillDone: { backgroundColor: "#f0fdf4", borderColor: "#86efac" },
+  pillMissed: { backgroundColor: "#fef2f2", borderColor: "#fca5a5" },
+  loadingRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  loadingTxt: { fontSize: 12, color: C.faint },
+  legendRow: { flexDirection: "row", gap: 14, marginTop: -4 },
+  legendItem: { flexDirection: "row", alignItems: "center" },
+  legendTxt: { fontSize: 11, color: C.muted, fontWeight: "600" },
 
-  // Shift badge
-  shiftBadge: {
-    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20,
-    borderWidth: 1, flexShrink: 0,
+  addBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "#b6c3d4",
+    backgroundColor: "#f8fafc",
   },
-  shiftAM:        { backgroundColor: "#fef3c7", borderColor: "#fcd34d" },
-  shiftPM:        { backgroundColor: "#e0e7f0", borderColor: "#93afc9" },
-  shiftBoth:      { backgroundColor: "#fffbeb", borderColor: "#93afc9" },
-  shiftBadgeText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.3 },
-  shiftAMText:    { color: "#92400e" },
-  shiftPMText:    { color: "#1e3a5f" },
-  shiftBothText:  { color: "#1e3a5f" },
+  addTxt: { flex: 1, fontSize: 12.5, fontWeight: "800", color: C.navy },
+  toggleHead: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  removeTxt: { fontSize: 11.5, fontWeight: "800", color: "#dc2626" },
 
-  // Photos
-  photoCountText: { fontSize: 12, fontWeight: "600", color: "#6b7280", marginBottom: 4 },
-  photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  photoThumb: {
-    width: 88, height: 88, borderRadius: 8,
-    borderWidth: 1, borderColor: "#dee2e6",
-    overflow: "hidden", position: "relative",
+  photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  photo: {
+    width: 88,
+    height: 88,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: C.border,
   },
-  photoThumbNew: { borderWidth: 2, borderColor: "#86efac" },
-  photoImg:      { width: "100%", height: "100%", resizeMode: "cover" },
+  photoImg: { width: "100%", height: "100%", resizeMode: "cover" },
   photoBadge: {
-    position: "absolute", top: 4, left: 4,
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1,
+    position: "absolute",
+    top: 5,
+    left: 5,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
   },
-  photoBadgeText: { fontSize: 9, fontWeight: "700", color: "#1e3a5f" },
-  photoRemoveBtn: {
-    position: "absolute", top: 2, right: 2,
-    backgroundColor: "#fff", borderRadius: 10,
+  photoBadgeTxt: { fontSize: 9, fontWeight: "800", color: C.navy },
+  photoX: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#dc2626",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  photoAddBtn: {
-    width: 88, height: 88, borderRadius: 8,
-    borderWidth: 2, borderStyle: "dashed", borderColor: "#93afc9",
-    alignItems: "center", justifyContent: "center", gap: 5,
-    backgroundColor: "rgba(30,58,95,0.03)",
+  photoAdd: {
+    width: 88,
+    height: 88,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "#b6c3d4",
+    backgroundColor: "#f8fafc",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
   },
-  photoAddText: { fontSize: 10, fontWeight: "700", color: "#1e3a5f" },
-  photoMaxBanner: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "rgba(245,158,11,0.08)",
-    borderWidth: 1, borderColor: "#fcd34d",
-    borderRadius: 7, paddingHorizontal: 12, paddingVertical: 9,
+  photoAddTxt: { fontSize: 11, fontWeight: "800", color: C.navy },
+  maxBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    backgroundColor: "#fef3c7",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     width: "100%",
   },
-  photoMaxText: { fontSize: 12, fontWeight: "600", color: "#92400e" },
+  maxTxt: { fontSize: 12, fontWeight: "700", color: "#92400e" },
 
-  // Submit button
-  submitBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    backgroundColor: "#1e3a5f", borderRadius: 10,
-    paddingVertical: 15, marginTop: 8,
+  doneBox: {
+    alignItems: "center",
+    padding: 28,
+    gap: 8,
+    backgroundColor: "#f0fdf4",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#86efac",
+    borderStyle: "dashed",
   },
-  submitBtnDisabled: { opacity: 0.7 },
-  submitBtnText: { fontSize: 15, fontWeight: "700", color: "#fff" },
+  doneIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#dcfce7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  doneTitle: { fontSize: 15, fontWeight: "800", color: C.navy },
+  doneText: {
+    fontSize: 12.5,
+    color: C.muted,
+    textAlign: "center",
+    lineHeight: 18,
+  },
 
-  // Toast
-  toast: {
-    position: "absolute", bottom: 30, left: 20, right: 20,
-    borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18, shadowRadius: 8, elevation: 8,
+  submit: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: C.red,
+    borderRadius: 14,
+    paddingVertical: 16,
+    shadowColor: C.red,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  toastText: { fontSize: 13, fontWeight: "600", color: "#fff", textAlign: "center" },
+  submitTxt: { color: "#fff", fontSize: 15, fontWeight: "800" },
+
+  // sheets
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "#dee2e6",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  sheetTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sheetTitle: { fontSize: 17, fontWeight: "800", color: C.navy },
+  sheetFoot: { flexDirection: "row", gap: 10, marginTop: 16 },
+  btnGhost: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  btnGhostTxt: { fontSize: 14, fontWeight: "700", color: "#475569" },
+  btnPrimary: {
+    flex: 2,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: C.red,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  btnPrimaryTxt: { fontSize: 15, fontWeight: "800", color: "#fff" },
+
+  tpBody: { flexDirection: "row", alignItems: "flex-start", marginTop: 12 },
+  tpCol: { flex: 1, alignItems: "stretch" },
+  tpColLbl: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: C.faint,
+    letterSpacing: 1,
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  tpItem: { paddingVertical: 10, alignItems: "center", borderRadius: 10 },
+  tpItemOn: { backgroundColor: C.navy },
+  tpItemTxt: { fontSize: 17, color: "#475569", fontWeight: "600" },
+  tpSep: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: C.faint,
+    paddingTop: 30,
+    paddingHorizontal: 4,
+  },
+  tpPeriodCol: { width: 62, alignItems: "center", marginLeft: 6 },
+  tpPeriod: {
+    width: 54,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    marginBottom: 8,
+  },
+  tpPeriodOn: { backgroundColor: C.navy, borderColor: C.navy },
+  tpPeriodTxt: { fontSize: 14, fontWeight: "800", color: "#475569" },
 });
