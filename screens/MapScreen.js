@@ -26,6 +26,7 @@ import {
   ScrollView,
   TextInput,
   Image,
+  Switch,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
@@ -899,7 +900,37 @@ export default function MapScreen({ navigation }) {
 
   const [styleReady, setStyleReady] = useState(false);
   const [brgyLock, setBrgyLock] = useState(null);
+  // ── Map options ──
+  const [showMapOptions, setShowMapOptions] = useState(false);
+  const [satelliteMode, setSatelliteMode] = useState(false);
+  const [view3D, setView3D] = useState(false);
+  const [showOfficers, setShowOfficers] = useState(true);
+  const [showBrgyTooltip, setShowBrgyTooltip] = useState(true);
+  const [showPins, setShowPins] = useState(true);
+  const [showPinIcons, setShowPinIcons] = useState(true);
+  const [showLabels, setShowLabels] = useState(true);
+  const [showFillColors, setShowFillColors] = useState(true);
+  const [showClusters, setShowClusters] = useState(false);
+  const [selectedBrgy, setSelectedBrgy] = useState(null);
 
+  const mapStyleURL = satelliteMode
+    ? "mapbox://styles/mapbox/satellite-streets-v12"
+    : heatmapMode
+      ? "mapbox://styles/mapbox/dark-v11"
+      : "mapbox://styles/mapbox/light-v11";
+
+  // Reset layers whenever the actual style URL changes
+  useEffect(() => {
+    setStyleReady(false);
+  }, [mapStyleURL]);
+
+  // 3D = tilt camera
+  useEffect(() => {
+    cameraRef.current?.setCamera({
+      pitch: view3D ? 60 : 0,
+      animationDuration: 800,
+    });
+  }, [view3D]);
   // Get user role on mount
   useEffect(() => {
     const getUserRole = async () => {
@@ -1328,30 +1359,35 @@ export default function MapScreen({ navigation }) {
     if (heatmapMode) {
       fetchHeatmap(); // always refetch — filters/dates may have changed while in choropleth mode
     }
-    setSelectedPin(null);
+      setSelectedPin(null);
     setSelectedCluster(null);
-    setStyleReady(false); // style is about to reload (styleURL changes) — wait for it again
-  }, [heatmapMode]); // eslint-disable-line react-hooks/exhaustive-deps
+    setSelectedBrgy(null);
+  }, [heatmapMode]);
 
   // ── Layer styles ─────────────────────────────────────────
+    const darkBase = heatmapMode || satelliteMode;
+
   const fillLayerStyle = {
     fillColor: ["get", "fillColor"],
-    fillOpacity: heatmapMode
-      ? 0
-      : ["case", ["==", ["get", "isSelected"], false], 0.15, 0.55],
+    fillOpacity:
+      heatmapMode || !showFillColors
+        ? 0
+        : ["case", ["==", ["get", "isSelected"], false], 0.15, 0.55],
   };
   const outlineLayerStyle = {
-    lineColor: heatmapMode ? "#96c8ff" : "#1e3a5f",
+    lineColor: satelliteMode ? "#ffffff" : heatmapMode ? "#96c8ff" : "#1e3a5f",
     lineWidth: ["case", ["==", ["get", "isSelected"], false], 0.4, 1.4],
-    lineOpacity: heatmapMode
-      ? ["case", ["==", ["get", "isSelected"], false], 0.08, 0.75]
-      : ["case", ["==", ["get", "isSelected"], false], 0.15, 0.5],
+    lineOpacity: satelliteMode
+      ? ["case", ["==", ["get", "isSelected"], false], 0.2, 0.9]
+      : heatmapMode
+        ? ["case", ["==", ["get", "isSelected"], false], 0.08, 0.75]
+        : ["case", ["==", ["get", "isSelected"], false], 0.15, 0.5],
   };
   const labelLayerStyle = {
-    textField: ["get", "name_db"],
+    textField: showLabels ? ["get", "name_db"] : "",
     textSize: 10,
-    textColor: heatmapMode ? "rgba(220,235,255,0.9)" : "#0a1628",
-    textHaloColor: heatmapMode ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.85)",
+    textColor: darkBase ? "rgba(255,255,255,0.95)" : "#0a1628",
+    textHaloColor: darkBase ? "rgba(0,0,0,0.75)" : "rgba(255,255,255,0.85)",
     textHaloWidth: 1.5,
     textMaxWidth: 8,
     textAllowOverlap: false,
@@ -1541,9 +1577,11 @@ export default function MapScreen({ navigation }) {
         type: "Feature",
         id: pin.blotter_id,
         geometry: { type: "Point", coordinates: [pin.lng, pin.lat] },
-        properties: {
+              properties: {
           blotter_id: pin.blotter_id,
           iconKey: normalizeIconKey(pin.incident_type),
+          color:
+            INCIDENT_COLORS[normalizeIconKey(pin.incident_type)] || "#6b7280",
         },
       })),
     }),
@@ -1650,16 +1688,13 @@ const myLocationGeoJSON = React.useMemo(
       <View style={styles.mapContainer}>
         <MapView
           style={[styles.map, { marginBottom: TAB_BAR_HEIGHT }]}
-          styleURL={
-            heatmapMode
-              ? "mapbox://styles/mapbox/dark-v11"
-              : "mapbox://styles/mapbox/light-v11"
-          }
+                  styleURL={mapStyleURL}
           onDidFinishLoadingStyle={() => setStyleReady(true)}
           onPress={() => {
             setSelectedPin(null);
             setSelectedCluster(null);
             setSelectedOfficer(null);
+                        setSelectedBrgy(null);
           }}
           onRegionDidChange={(feature) => {
             const z = feature?.properties?.zoomLevel;
@@ -1695,7 +1730,21 @@ const myLocationGeoJSON = React.useMemo(
           />
 
           {styleReady && geoJSON && (
-            <ShapeSource id="barangays" shape={geoJSON}>
+                      <ShapeSource
+              id="barangays"
+              shape={geoJSON}
+              onPress={(e) => {
+                if (!showBrgyTooltip || heatmapMode) return;
+                const name = e.features?.[0]?.properties?.name_db;
+                if (!name) return;
+                const b = boundaries.find((x) => x.name_db === name);
+                setSelectedBrgy({
+                  name,
+                  count: b?.crime_count ?? 0,
+                  risk: b?.risk ?? "None",
+                });
+              }}
+            >
               <FillLayer id="barangay-fill" style={fillLayerStyle} />
               <LineLayer id="barangay-outline" style={outlineLayerStyle} />
               <SymbolLayer id="barangay-labels" style={labelLayerStyle} />
@@ -1708,7 +1757,30 @@ const myLocationGeoJSON = React.useMemo(
               <HeatmapLayer id="crime-heat" style={heatmapLayerStyle} />
             </ShapeSource>
           )}
-
+          {styleReady && heatmapMode && showClusters && clusterGeoJSON && (
+            <ShapeSource id="heat-clusters" shape={clusterGeoJSON}>
+              <CircleLayer
+                id="cluster-circles"
+                filter={["==", ["get", "cluster"], true]}
+                style={{
+                  circleRadius: [
+                    "interpolate",
+                    ["exponential", 2],
+                    ["zoom"],
+                    10, ["/", ["get", "radius_m"], 12],
+                    12, ["/", ["get", "radius_m"], 5],
+                    14, ["/", ["get", "radius_m"], 1.8],
+                    16, ["/", ["get", "radius_m"], 0.45],
+                    18, ["/", ["get", "radius_m"], 0.11],
+                  ],
+                  circleColor: "rgba(255,255,255,0)",
+                  circleStrokeWidth: 2,
+                  circleStrokeColor: "#ff2020",
+                  circleOpacity: 0.9,
+                }}
+              />
+            </ShapeSource>
+          )}
           {/* Cluster tap markers (invisible tap targets over cluster centers) */}
           {heatmapMode &&
             clusterGeoJSON?.features?.map((f, i) => (
@@ -1784,7 +1856,24 @@ const myLocationGeoJSON = React.useMemo(
         iconAllowOverlap: true,
         iconIgnorePlacement: true,
         iconAnchor: "bottom",
-        visibility: !heatmapMode && mapZoom >= 13 ? "visible" : "none",
+              visibility:
+          !heatmapMode && showPins && showPinIcons && mapZoom >= 13
+            ? "visible"
+            : "none",
+      }}
+    />
+    <CircleLayer
+      id="crime-pin-dots"
+      aboveLayerID="barangay-labels"
+      style={{
+        circleRadius: 6,
+        circleColor: ["get", "color"],
+        circleStrokeWidth: 2,
+        circleStrokeColor: "#ffffff",
+        visibility:
+          !heatmapMode && showPins && !showPinIcons && mapZoom >= 13
+            ? "visible"
+            : "none",
       }}
     />
   </ShapeSource>
@@ -1792,7 +1881,10 @@ const myLocationGeoJSON = React.useMemo(
           {/* Officer avatars — profile photo if available, initials otherwise.
               Nudged apart from "my location" puck when they'd otherwise
               fully overlap, so both stay visible/tappable. */}
-          {officers.map((officer) => {
+                   {showOfficers &&
+            !isBarangayUser &&
+            !isInvestigator &&
+            officers.map((officer) => {
             const rawCoord = [
               parseFloat(officer.longitude),
               parseFloat(officer.latitude),
@@ -1914,9 +2006,27 @@ const myLocationGeoJSON = React.useMemo(
         >
           <Ionicons name="map" size={18} color="#1e3a5f" />
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.mapOptionsBtn}
+          onPress={() => setShowMapOptions(true)}
+        >
+          <Ionicons name="settings-outline" size={20} color="#1e3a5f" />
+        </TouchableOpacity>
 
+        {showBrgyTooltip && !heatmapMode && selectedBrgy && !selectedPin && (
+          <View style={styles.brgyTooltip}>
+            <Text style={styles.brgyTooltipName}>
+              {formatBarangayLabel(selectedBrgy.name)}
+            </Text>
+            <Text style={styles.brgyTooltipSub}>
+              {selectedBrgy.count === 0
+                ? "No recorded incidents"
+                : `${selectedBrgy.count} incident${selectedBrgy.count > 1 ? "s" : ""} · ${selectedBrgy.risk}`}
+            </Text>
+          </View>
+        )}
         {/* Risk legend (bottom-left) */}
-        {!heatmapMode && (
+        {!heatmapMode && showFillColors && (
           <View style={styles.riskLegend}>
             {[
               { color: "#b91c1c", label: `High (${thresholds.medMax + 1}+)` },
@@ -2748,7 +2858,49 @@ const myLocationGeoJSON = React.useMemo(
           </ScrollView>
         </View>
       </Modal>
-
+      <Modal
+        visible={showMapOptions}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowMapOptions(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowMapOptions(false)}
+        />
+        <View
+          style={[
+            styles.sidebar,
+            { paddingBottom: insets.bottom + 12, paddingHorizontal: 16 },
+          ]}
+        >
+          <View style={styles.sidebarHandle} />
+          <Text style={styles.optTitle}>Map Options</Text>
+          {[
+            { label: "Satellite View", value: satelliteMode, set: setSatelliteMode, show: true },
+            { label: "3D View (tilt map)", value: view3D, set: setView3D, show: true },
+            { label: "Officer Locations", value: showOfficers, set: setShowOfficers, show: !isBarangayUser && !isInvestigator },
+            { label: "Cluster Rings", value: showClusters, set: setShowClusters, show: heatmapMode },
+            { label: "Incidence Colors (fill)", value: showFillColors, set: setShowFillColors, show: !heatmapMode },
+            { label: "Barangay Tooltip", value: showBrgyTooltip, set: setShowBrgyTooltip, show: !heatmapMode },
+            { label: "Crime Pins", value: showPins, set: setShowPins, show: !heatmapMode },
+            { label: "Pin Icons", value: showPinIcons, set: setShowPinIcons, show: !heatmapMode },
+            { label: "Barangay Labels", value: showLabels, set: setShowLabels, show: true },
+          ]
+            .filter((o) => o.show)
+            .map((o) => (
+              <View key={o.label} style={styles.optRow}>
+                <Text style={styles.optLabel}>{o.label}</Text>
+                <Switch
+                  value={o.value}
+                  onValueChange={o.set}
+                  trackColor={{ true: "#1e3a5f", false: "#d1d5db" }}
+                />
+              </View>
+            ))}
+        </View>
+      </Modal>
       <MultiSelect
         visible={showCrimeTypeFilter}
         title="Incident Type"
@@ -2941,7 +3093,49 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-
+  mapOptionsBtn: {
+    position: "absolute",
+    top: 12,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  brgyTooltip: {
+    position: "absolute",
+    top: 12,
+    alignSelf: "center",
+    backgroundColor: "rgba(10,40,92,0.92)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    maxWidth: "65%",
+  },
+  brgyTooltipName: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  brgyTooltipSub: { color: "#cbd5e1", fontSize: 11, marginTop: 2 },
+  optTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0a285c",
+    marginVertical: 10,
+  },
+  optRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  optLabel: { fontSize: 14, color: "#374151", fontWeight: "500" },
   riskLegend: {
     position: "absolute",
     bottom: 120,
