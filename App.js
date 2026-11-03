@@ -52,6 +52,10 @@ import NotificationsScreen from "./screens/NotificationsScreen";
 import PatrolLogScreen from "./screens/PatrolLogScreen";
 import ChangePasswordScreen from "./screens/ChangePasswordScreen";
 import PatrolDetailScreen from "./screens/PatrolDetailScreen";
+// New patrol schedule form (root stack so it sits above the tab bar)
+import AddPatrolScreen from "./screens/AddPatrolScreen";
+// Patroller picker for the Add Patrol form
+import PatrolPickerScreen from "./screens/PatrolPickerScreen";
 import RoleBasedPatrolScreen from "./screens/RoleBasedPatrolScreen";
 import AfterPatrolScreen from "./screens/AfterPatrolScreen";
 import AfterPatrolHistoryScreen from "./screens/AfterPatrolHistoryScreen";
@@ -466,6 +470,17 @@ startSessionWatch();
             options={{ animation: "slide_from_right" }}
           />
         
+          {/* Add patrol form: root stack so it renders above the tab bar */}
+          <Stack.Screen
+            name="AddPatrol"
+            component={AddPatrolScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+                    <Stack.Screen
+            name="PickPatrollers"
+            component={PatrolPickerScreen}
+            options={{ animation: "slide_from_right" }}
+          />
           <Stack.Screen
             name="AfterPatrolReport"
             component={AfterPatrolScreen}

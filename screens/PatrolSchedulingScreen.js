@@ -9,8 +9,6 @@ import {
   TextInput,
   RefreshControl,
   ActivityIndicator,
-  Platform,
-  Modal,
 } from "react-native";
 import {
   SafeAreaView,
@@ -18,7 +16,9 @@ import {
 } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import DateTimePicker from "@react-native-community/datetimepicker";
+// Refetch the list every time this screen regains focus (e.g. after creating a patrol)
+import { useFocusEffect } from "@react-navigation/native";
+
 import {
   C,
   ScreenHeader,
@@ -32,120 +32,11 @@ import {
   STATUS_ORDER,
   STATUS_META,
 } from "./components/PatrolUI";
+// Shared date picker + date helpers (moved to their own file)
+import DatePickerBtn, { isoDate, fmtISODate } from "./components/DatePickerBtn";
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL;
 const getToken = async () => AsyncStorage.getItem("auth_token");
-const pad = (n) => String(n).padStart(2, "0");
-const isoDate = (iso) => (iso ? new Date(iso + "T00:00:00") : new Date());
-const fmtISODate = (d) =>
-  d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` : "";
-
-// ── Date picker button (Android calendar / iOS spinner sheet) ───────────────
-const DatePickerBtn = React.memo(function DatePickerBtn({
-  label,
-  value,
-  onChange,
-  minimumDate,
-  maximumDate,
-}) {
-  const [show, setShow] = useState(false);
-  const [temp, setTemp] = useState(new Date());
-  const disp = value
-    ? (() => {
-        const d = isoDate(value);
-        return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()}`;
-      })()
-    : "";
-  const current = useMemo(() => {
-    const base = value ? isoDate(value) : new Date();
-    return maximumDate && base > maximumDate ? maximumDate : base;
-  }, [value, maximumDate]);
-
-  const trigger = (
-    <TouchableOpacity
-      style={s.dateBtn}
-      activeOpacity={0.8}
-      onPress={() => {
-        setTemp(current);
-        setShow(true);
-      }}
-    >
-      <Ionicons
-        name="calendar-outline"
-        size={15}
-        color={value ? C.navy : C.faint}
-      />
-      <Text style={[s.dateBtnTxt, !value && { color: C.faint }]}>
-        {disp || "Select date"}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  if (Platform.OS === "ios") {
-    return (
-      <View style={{ flex: 1 }}>
-        <Text style={s.lbl}>{label}</Text>
-        {trigger}
-        <Modal
-          visible={show}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShow(false)}
-        >
-          <View style={s.iosOv}>
-            <View style={s.iosSheet}>
-              <View style={s.iosHdr}>
-                <TouchableOpacity onPress={() => setShow(false)}>
-                  <Text style={s.iosCancel}>Cancel</Text>
-                </TouchableOpacity>
-                <Text style={s.iosTitle}>{label}</Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    onChange(temp);
-                    setShow(false);
-                  }}
-                >
-                  <Text style={s.iosDone}>Done</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={temp}
-                mode="date"
-                display="spinner"
-                onChange={(_, d) =>
-                  d && setTemp(maximumDate && d > maximumDate ? maximumDate : d)
-                }
-                minimumDate={minimumDate}
-                maximumDate={maximumDate}
-                style={{ height: 180 }}
-              />
-            </View>
-          </View>
-        </Modal>
-      </View>
-    );
-  }
-
-  return (
-    <View style={{ flex: 1 }}>
-      <Text style={s.lbl}>{label}</Text>
-      {trigger}
-      {show && (
-        <DateTimePicker
-          value={current}
-          mode="date"
-          display="calendar"
-          onChange={(e, d) => {
-            setShow(false);
-            if (e.type !== "dismissed" && d) onChange(d);
-          }}
-          minimumDate={minimumDate}
-          maximumDate={maximumDate}
-        />
-      )}
-    </View>
-  );
-});
 
 // ── Patrol card ─────────────────────────────────────────────────────────────
 const PatrolCard = ({ patrol, onPress }) => {
@@ -234,11 +125,8 @@ export default function PatrolSchedulingScreen({ navigation }) {
   const [dateTo, setDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
-  const todayMax = useMemo(() => new Date(), []);
-  const maxFrom = useMemo(
-    () => (dateTo ? isoDate(dateTo) : todayMax),
-    [dateTo, todayMax],
-  );
+// "From" can't pass the chosen "To"; no cap otherwise, so active/upcoming patrols are filterable
+const maxFrom = useMemo(() => (dateTo ? isoDate(dateTo) : undefined), [dateTo]);
   const minTo = useMemo(
     () => (dateFrom ? isoDate(dateFrom) : undefined),
     [dateFrom],
@@ -260,9 +148,12 @@ export default function PatrolSchedulingScreen({ navigation }) {
     }
   }, []);
 
-  useEffect(() => {
-    fetchPatrols();
-  }, []);
+  // Runs on first focus and on every return to this screen; silent = no full-screen spinner
+  useFocusEffect(
+    useCallback(() => {
+      fetchPatrols(true);
+    }, [fetchPatrols]),
+  );
 
   const extraCount =
     (barangayFilter ? 1 : 0) + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
@@ -328,7 +219,14 @@ export default function PatrolSchedulingScreen({ navigation }) {
         title="Patrol Schedule"
         subtitle={`${counts.all} total · ${counts.active} active · ${counts.upcoming} upcoming`}
         right={
-          <HeaderButton icon="sync-outline" onPress={() => fetchPatrols()} />
+          // Refresh + Add side by side in the header
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <HeaderButton icon="sync-outline" onPress={() => fetchPatrols()} />
+            <HeaderButton
+              icon="add"
+              onPress={() => navigation.navigate("AddPatrol")}
+            />
+          </View>
         }
       />
 
@@ -401,7 +299,6 @@ export default function PatrolSchedulingScreen({ navigation }) {
                 value={dateTo}
                 onChange={(d) => setDateTo(fmtISODate(d))}
                 minimumDate={minTo}
-                maximumDate={todayMax}
               />
             </View>
 
@@ -575,18 +472,6 @@ const s = StyleSheet.create({
   },
   panelInputTxt: { flex: 1, fontSize: 13, color: C.text, padding: 0 },
   dateRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  dateBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    height: 42,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    borderRadius: 10,
-    backgroundColor: "#f8fafc",
-    paddingHorizontal: 12,
-  },
-  dateBtnTxt: { fontSize: 13, color: C.text, fontWeight: "600", flex: 1 },
   resetLink: {
     flexDirection: "row",
     alignItems: "center",
@@ -662,28 +547,4 @@ const s = StyleSheet.create({
     borderRadius: 10,
   },
   emptyBtnTxt: { color: "#fff", fontWeight: "800", fontSize: 13 },
-
-  iosOv: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
-  iosSheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    paddingBottom: 34,
-  },
-  iosHdr: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
-  },
-  iosCancel: { fontSize: 15, color: C.muted, fontWeight: "600" },
-  iosTitle: { fontSize: 15, fontWeight: "800", color: C.navy },
-  iosDone: { fontSize: 15, color: C.navy, fontWeight: "800" },
 });
