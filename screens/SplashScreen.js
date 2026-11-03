@@ -109,7 +109,7 @@ export default function SplashScreen({ navigation, route }) {
   style={styles.wordmarkCard}
 >
   <Image
-    source={require("../assets/Long-logo.png")}
+    source={require("../assets/logo3.png")}
     style={styles.wordmarkImage}
     resizeMode="contain"
   />

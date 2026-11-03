@@ -1783,9 +1783,9 @@ const myLocationGeoJSON = React.useMemo(
           )}
           {/* Cluster tap markers (invisible tap targets over cluster centers) */}
           {heatmapMode &&
-            clusterGeoJSON?.features?.map((f, i) => (
+            styleReady && clusterGeoJSON?.features?.map((f, i) => (
               <MarkerView
-                key={`cluster-${i}`}
+                key={`cluster-${i}-${mapStyleURL}`}
                 coordinate={f.geometry.coordinates}
                 anchor={{ x: 0.5, y: 0.5 }}
               >
@@ -1881,7 +1881,7 @@ const myLocationGeoJSON = React.useMemo(
           {/* Officer avatars — profile photo if available, initials otherwise.
               Nudged apart from "my location" puck when they'd otherwise
               fully overlap, so both stay visible/tappable. */}
-                   {showOfficers &&
+                   {styleReady && showOfficers &&
             !isBarangayUser &&
             !isInvestigator &&
             officers.map((officer) => {
@@ -1897,7 +1897,7 @@ const myLocationGeoJSON = React.useMemo(
             );
             return (
               <MarkerView
-                key={`officer-${officer.user_id}`}
+                key={`officer-${officer.user_id}-${mapStyleURL}`}
                 id={`officer-${officer.user_id}`}
                 coordinate={displayCoord}
                 anchor={{ x: 0.5, y: 0.5 }}

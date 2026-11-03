@@ -30,6 +30,8 @@ import {
   badRange,
   overlaps,
 } from "./components/patrolTime";
+// Toast bar (same look as ProfileScreen) + its hook
+import Toast, { useToast } from "./components/Toast";
 
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL;
@@ -73,6 +75,7 @@ const Block = ({ title, badge, icon, children }) => (
 
 export default function AddPatrolScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
+  const { toast, showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState("details");
   // Core fields; dates are "YYYY-MM-DD" strings like the web modal
@@ -133,11 +136,9 @@ export default function AddPatrolScreen({ navigation, route }) {
         const data = await res.json();
         if (cancelled) return;
         if (data.success) setAvailableUnits(data.data);
-        else
-          Alert.alert("Error", "Could not check mobile unit availability.");
+        else showToast("Could not check mobile unit availability.");
       } catch {
-        if (!cancelled)
-          Alert.alert("Error", "Could not check mobile unit availability.");
+        if (!cancelled) showToast("Could not check mobile unit availability.");
       } finally {
         if (!cancelled) setLoadingUnits(false);
       }
@@ -155,8 +156,7 @@ export default function AddPatrolScreen({ navigation, route }) {
       (form.end_date < newStart ||
         diffDaysInclusive(newStart, form.end_date) > MAX_PATROL_DAYS);
     if (endInvalid)
-      Alert.alert(
-        "End date cleared",
+      showToast(
         `Patrol length is limited to ${MAX_PATROL_DAYS} days. Please pick the end date again.`,
       );
     setForm((p) => ({
@@ -169,7 +169,7 @@ export default function AddPatrolScreen({ navigation, route }) {
   // End date needs a start date first (picker bounds do the rest)
   const handleEndChange = (d) => {
     if (!form.start_date) {
-      Alert.alert("Start date needed", "Please select a start date first.");
+      showToast("Please select a start date first.");
       return;
     }
     setForm((p) => ({ ...p, end_date: fmtISODate(d) }));
@@ -213,14 +213,14 @@ export default function AddPatrolScreen({ navigation, route }) {
     const last = shiftTasks[shiftTasks.length - 1];
     if (last?.time_end) {
       if (activeShift === "AM" && toMin(last.time_end) >= 20 * 60) {
-        Alert.alert("Limit reached", "AM shift tasks cannot go past 8:00 PM.");
+        showToast("AM shift tasks cannot go past 8:00 PM.");
         return;
       }
       if (
         activeShift === "PM" &&
         shiftMin(last.time_end, "PM") - 20 * 60 >= 12 * 60
       ) {
-        Alert.alert("Limit reached", "PM shift tasks cannot go past 8:00 AM.");
+        showToast("PM shift tasks cannot go past 8:00 AM.");
         return;
       }
     }
@@ -320,7 +320,7 @@ export default function AddPatrolScreen({ navigation, route }) {
     const problem = validate();
     if (problem) {
       setActiveTab(problem.tab);
-      Alert.alert("Check the form", problem.message);
+      showToast(problem.message);
       return;
     }
 
@@ -360,10 +360,10 @@ export default function AddPatrolScreen({ navigation, route }) {
           { text: "OK", onPress: () => navigation.goBack() },
         ], { cancelable: false });
       } else {
-        Alert.alert("Could not create patrol", data.message || "Something went wrong.");
+        showToast(data.message || "Something went wrong.");
       }
     } catch {
-      Alert.alert("Server error", "Could not reach the server. Please try again.");
+      showToast("Could not reach the server. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -645,6 +645,8 @@ export default function AddPatrolScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </View>
+          {/* Error toast, lifted above the sticky bottom bar */}
+      <Toast toast={toast} bottom={insets.bottom + 90} />
     </SafeAreaView>
   );
 }
