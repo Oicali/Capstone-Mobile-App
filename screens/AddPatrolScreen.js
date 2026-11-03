@@ -32,6 +32,8 @@ import {
 } from "./components/patrolTime";
 // Toast bar (same look as ProfileScreen) + its hook
 import Toast, { useToast } from "./components/Toast";
+// Same success modal EBlotter uses
+import { SuccessModal } from "./eblotter/Dialogs";
 
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL;
@@ -98,6 +100,8 @@ export default function AddPatrolScreen({ navigation, route }) {
   const taskSeq = useRef(0);
   // True while the POST is in flight (blocks double taps)
   const [saving, setSaving] = useState(false);
+  // Success modal state; name is snapshotted so it displays what was saved
+  const [successModal, setSuccessModal] = useState({ show: false, name: "" });
   const [geoJSONData, setGeoJSONData] = useState(null);
   const [geoLoading, setGeoLoading] = useState(true);
 
@@ -355,10 +359,8 @@ export default function AddPatrolScreen({ navigation, route }) {
       });
       const data = await res.json();
       if (data.success) {
-        // Not cancelable, so the user can't dismiss it and tap Create a second time
-        Alert.alert("Patrol created", "The schedule has been saved.", [
-          { text: "OK", onPress: () => navigation.goBack() },
-        ], { cancelable: false });
+        // Show the success modal; goBack happens when the user taps Done
+        setSuccessModal({ show: true, name: form.patrol_name.trim() });
       } else {
         showToast(data.message || "Something went wrong.");
       }
@@ -646,6 +648,18 @@ export default function AddPatrolScreen({ navigation, route }) {
         </View>
       </View>
           {/* Error toast, lifted above the sticky bottom bar */}
+      {/* Success modal: Done and Android back both return to the list */}
+      <SuccessModal
+        visible={successModal.show}
+        message="Patrol Created Successfully!"
+        idLabel="Patrol Name"
+        reportId={successModal.name}
+        subtitle="The patrol schedule has been saved."
+        onClose={() => {
+          setSuccessModal({ show: false, name: "" });
+          navigation.goBack();
+        }}
+      />
       <Toast toast={toast} bottom={insets.bottom + 90} />
     </SafeAreaView>
   );

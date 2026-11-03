@@ -509,7 +509,15 @@ export const RemindPatrolModal = memo(function RemindPatrolModal({
 });
 
 /* ------------------------------ SuccessModal ------------------------------ */
-export function SuccessModal({ visible, message, reportId, onClose }) {
+// Added idLabel/subtitle props so other screens can reuse this modal
+export function SuccessModal({
+  visible,
+  message,
+  reportId,
+  onClose,
+  idLabel = "Report ID",
+  subtitle = "Your report has been successfully recorded.",
+}) {
   return (
     <Modal
       visible={visible}
@@ -567,6 +575,7 @@ export function SuccessModal({ visible, message, reportId, onClose }) {
             </Text>
           </View>
           <View style={{ padding: 24 }}>
+            {/* ID box uses the custom label from props */}
             <View
               style={{
                 backgroundColor: "#f0fdf4",
@@ -586,7 +595,7 @@ export function SuccessModal({ visible, message, reportId, onClose }) {
                   textTransform: "uppercase",
                 }}
               >
-                Report ID
+                {idLabel}
               </Text>
               <Text
                 style={{
@@ -607,7 +616,7 @@ export function SuccessModal({ visible, message, reportId, onClose }) {
                 textAlign: "center",
               }}
             >
-              Your report has been successfully recorded.
+              {subtitle}
             </Text>
           </View>
           <View
