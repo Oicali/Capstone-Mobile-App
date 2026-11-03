@@ -60,7 +60,7 @@ export default function AppLockScreen({ visible, onUnlock, onLogout }) {
           </View>
         </View>
 
-        <Text style={s.title}>B.A.N.T.A.Y. is locked</Text>
+        <Text style={s.title}>BANTAY is locked</Text>
         <Text style={s.sub}>
           {name ? `Welcome back, ${name}. ` : ""}Verify it's you to continue.
         </Text>

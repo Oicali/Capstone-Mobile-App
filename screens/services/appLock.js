@@ -71,6 +71,8 @@ export const authenticate = async (message = "Unlock BANTAY") => {
   try {
     const res = await LocalAuthentication.authenticateAsync({
       promptMessage: message,
+      promptSubtitle: "Verify it's you to view patrol data",
+      promptDescription: "Use your fingerprint or screen lock",
       cancelLabel: "Cancel",
       disableDeviceFallback: false, // allows phone PIN / pattern as a fallback
     });
