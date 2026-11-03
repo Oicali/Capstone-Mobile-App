@@ -41,7 +41,8 @@ import Mapbox, {
   ShapeSource,
   FillLayer,
   LineLayer,
-  SymbolLayer,
+   SymbolLayer,
+  CircleLayer,
   MarkerView,
   HeatmapLayer,
   Images,
@@ -1548,7 +1549,22 @@ export default function MapScreen({ navigation }) {
     }),
     [pins],
   );
-
+const myLocationGeoJSON = React.useMemo(
+  () =>
+    myLocation
+      ? {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: { type: "Point", coordinates: myLocation },
+              properties: {},
+            },
+          ],
+        }
+      : null,
+  [myLocation],
+);
   const allBarangays = React.useMemo(() => {
     if (!rawGeoJSON?.features) return [];
     const names = rawGeoJSON.features
@@ -1736,44 +1752,89 @@ export default function MapScreen({ navigation }) {
             />
           )}
 
-          {styleReady && (
-            <ShapeSource
-              id="crime-pins"
-              shape={pinsGeoJSON}
-              onPress={(e) => {
-                const id = e.features?.[0]?.properties?.blotter_id;
-                const found = pins.find((p) => p.blotter_id === id);
-                if (found) {
-                  setSelectedPin(found);
-                  setShowMorePopup(false);
-                }
-              }}
-            >
-              <SymbolLayer
-                id="crime-pin-icons"
-                aboveLayerID="barangay-labels"
-                style={{
-                  iconImage: ["get", "iconKey"],
-                  iconSize: [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    12,
-                    0.14,
-                    15,
-                    0.2,
-                    18,
-                    0.28,
-                  ],
-                  iconAllowOverlap: true,
-                  iconIgnorePlacement: true,
-                  iconAnchor: "bottom",
-                  visibility:
-                    !heatmapMode && mapZoom >= 13 ? "visible" : "none",
-                }}
-              />
-            </ShapeSource>
-          )}
+        {styleReady && (
+  <ShapeSource
+    id="crime-pins"
+    shape={pinsGeoJSON}
+    cluster
+    clusterRadius={45}
+    clusterMaxZoomLevel={14}
+    onPress={(e) => {
+      const f = e.features?.[0];
+      if (!f) return;
+
+      // Tapped a cluster bubble: zoom into it
+      if (f.properties?.cluster) {
+        cameraRef.current?.setCamera({
+          centerCoordinate: f.geometry.coordinates,
+          zoomLevel: Math.min(mapZoom + 2.5, 16),
+          animationDuration: 500,
+        });
+        return;
+      }
+
+      // Tapped a single pin
+      const found = pins.find((p) => p.blotter_id === f.properties?.blotter_id);
+      if (found) {
+        setSelectedPin(found);
+        setShowMorePopup(false);
+      }
+    }}
+  >
+    {/* Cluster bubbles (zoomed out) */}
+    <CircleLayer
+      id="crime-pin-clusters"
+      filter={["has", "point_count"]}
+      style={{
+        circleColor: [
+          "step",
+          ["get", "point_count"],
+          "#f97316", 10,
+          "#ef4444", 50,
+          "#b91c1c",
+        ],
+        circleRadius: ["step", ["get", "point_count"], 14, 10, 18, 50, 24],
+        circleStrokeWidth: 2,
+        circleStrokeColor: "#ffffff",
+        circleOpacity: 0.9,
+        visibility: heatmapMode ? "none" : "visible",
+      }}
+    />
+    <SymbolLayer
+      id="crime-pin-cluster-count"
+      filter={["has", "point_count"]}
+      style={{
+        textField: ["get", "point_count_abbreviated"],
+        textSize: 11,
+        textColor: "#ffffff",
+        textAllowOverlap: true,
+        textIgnorePlacement: true,
+        visibility: heatmapMode ? "none" : "visible",
+      }}
+    />
+
+    {/* Individual teardrop pins (zoomed in) */}
+    <SymbolLayer
+      id="crime-pin-icons"
+      aboveLayerID="barangay-labels"
+      filter={["!", ["has", "point_count"]]}
+      style={{
+        iconImage: ["get", "iconKey"],
+        iconSize: [
+          "interpolate", ["linear"], ["zoom"],
+          10, 0.1,
+          12, 0.14,
+          15, 0.2,
+          18, 0.28,
+        ],
+        iconAllowOverlap: true,
+        iconIgnorePlacement: true,
+        iconAnchor: "bottom",
+        visibility: heatmapMode ? "none" : "visible",
+      }}
+    />
+  </ShapeSource>
+)}
 
           {/* Officer avatars — profile photo if available, initials otherwise.
               Nudged apart from "my location" puck when they'd otherwise
@@ -1825,19 +1886,28 @@ export default function MapScreen({ navigation }) {
               first. Sorted so the key is order-independent (only changes on
               actual join/leave, not on every 5s poll when membership is
               unchanged) — avoids remounting/flickering every poll cycle. */}
-          {styleReady && userRole === "Patrol" && gpsEnabled && myLocation && (
-            <MarkerView
-              key={`my-location-puck-${styleReady}-${officers
-                .map((o) => o.user_id)
-                .sort()
-                .join("-")}`}
-              id="my-location-puck"
-              coordinate={myLocation}
-              anchor={{ x: 0.5, y: 0.5 }}
-            >
-              <View style={styles.myLocationPuck} />
-            </MarkerView>
-          )}
+        {styleReady &&
+  userRole === "Patrol" &&
+  gpsEnabled &&
+  myLocationGeoJSON && (
+    <ShapeSource id="my-location" shape={myLocationGeoJSON}>
+      <CircleLayer
+        id="my-location-outer"
+        style={{
+          circleRadius: 10,
+          circleColor: "#ffffff",
+          circlePitchAlignment: "map",
+        }}
+      />
+      <CircleLayer
+        id="my-location-inner"
+        style={{
+          circleRadius: 7,
+          circleColor: "#1d4ed8",
+        }}
+      />
+    </ShapeSource>
+  )}
         </MapView>
 
         {/* Map overlay buttons */}
