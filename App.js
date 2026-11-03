@@ -27,6 +27,7 @@ import {
   clearSession,
   setSessionDeadHandler,
   startSessionWatch,
+  logout,
 } from "./screens/services/api";
 import {
   registerForPushNotifications,
@@ -57,6 +58,8 @@ import AfterPatrolHistoryScreen from "./screens/AfterPatrolHistoryScreen";
 import AIAssessmentScreen from "./screens/AIAssessmentScreen";
 import BarangayReportScreen from "./screens/BarangayReportScreen";
 import ResidentsScreen from "./screens/ResidentsScreen";
+import AppLockScreen from "./screens/AppLockScreen";
+import { useAppLock } from "./screens/services/appLock";
 
 // Module-level — runs once before anything mounts
 Notifications.setNotificationHandler({
@@ -295,6 +298,26 @@ export default function App() {
   const [sessionLogoutVisible, setSessionLogoutVisible] = useState(false);
 const [sessionLogoutMessage, setSessionLogoutMessage] = useState("");
 
+
+  const { locked, unlock } = useAppLock(isLoggedIn);
+
+  const handleLockLogout = async () => {
+    try {
+      await clearPushToken();
+    } catch {}
+    try {
+      const s = await getSession();
+      await logout(s?.token);
+    } catch {}
+    await clearSession();
+    unlock();
+    if (navigationRef.isReady()) {
+      navigationRef.dispatch(
+        CommonActions.reset({ index: 0, routes: [{ name: "Login" }] }),
+      );
+    }
+  };
+
   useEffect(() => {
     if (Platform.OS === "android") {
     }
@@ -442,6 +465,20 @@ startSessionWatch();
             component={PatrolDetailScreen}
             options={{ animation: "slide_from_right" }}
           />
+<<<<<<< HEAD
+=======
+          {/* Add patrol form: root stack so it renders above the tab bar */}
+          <Stack.Screen
+            name="AddPatrol"
+            component={AddPatrolScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+            name="PickPatrollers"
+            component={PatrolPickerScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+>>>>>>> 57999ef (add app lock)
           <Stack.Screen
             name="AfterPatrolReport"
             component={AfterPatrolScreen}
@@ -466,6 +503,11 @@ startSessionWatch();
         </Stack.Navigator>
       </NavigationContainer>
       <LoginApprovalModal />
+      <AppLockScreen
+        visible={locked}
+        onUnlock={unlock}
+        onLogout={handleLockLogout}
+      />
       <Modal
         visible={sessionLogoutVisible}
         transparent

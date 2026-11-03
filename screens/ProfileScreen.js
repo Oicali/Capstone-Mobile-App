@@ -65,7 +65,8 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { clearPushToken } from "../screens/services/pushNotifications"; // ← adjust path to match your actual file location
-
+import AppLockToggle from "./components/AppLockToggle";
+import { suspendLockOnce } from "./services/appLock";
 const PSGC_API = "https://psgc.gitlab.io/api";
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
@@ -1405,6 +1406,7 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const pickFromGallery = async () => {
+    suspendLockOnce();
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       setErrorMsg("Gallery permission required");
@@ -1421,6 +1423,7 @@ export default function ProfileScreen({ navigation }) {
     }
   };
   const takeWithCamera = async () => {
+    suspendLockOnce();
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
       setErrorMsg("Camera permission required");
@@ -2368,12 +2371,12 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={st.safe}>
- <ScrollView
-  style={[st.scroll, { backgroundColor: C.bg }]}
-  keyboardShouldPersistTaps="handled"
-  showsVerticalScrollIndicator={false}
-  bounces={false}
-  overScrollMode="never"
+      <ScrollView
+        style={[st.scroll, { backgroundColor: C.bg }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        overScrollMode="never"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -2484,12 +2487,13 @@ export default function ProfileScreen({ navigation }) {
                   style={st.rolePill}
                 >
                   <Ionicons name="shield-checkmark" size={11} color="#4A3B00" />
-                  <Text style={st.rolePillTxt}>{roleLabel(profileData.role)}</Text>
+                  <Text style={st.rolePillTxt}>
+                    {roleLabel(profileData.role)}
+                  </Text>
                 </LinearGradient>
               )}
             </View>
           </View>
-
         </LinearGradient>
 
         {/* ════════════ ACTION CARDS (grouped) ════════════ */}
@@ -2551,7 +2555,11 @@ export default function ProfileScreen({ navigation }) {
             activeOpacity={0.75}
           >
             <View style={[st.actionIcon, { backgroundColor: C.navyMid }]}>
-              <Ionicons name="phone-portrait-outline" size={18} color={C.white} />
+              <Ionicons
+                name="phone-portrait-outline"
+                size={18}
+                color={C.white}
+              />
             </View>
             <View style={st.actionText}>
               <Text style={st.actionLabel}>Login Activity</Text>
@@ -2560,7 +2568,10 @@ export default function ProfileScreen({ navigation }) {
             <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
           </TouchableOpacity>
         </View>
-
+        {/* App lock switch */}
+        <View style={{ marginHorizontal: 16, marginTop: 12 }}>
+          <AppLockToggle />
+        </View>
         {/* ════════════ TABS ════════════ */}
         <View style={st.tabsWrapper}>
           <View style={st.tabsRow}>
@@ -2800,15 +2811,15 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
- <ConfirmModal
-    visible={confirm.visible}
-    title={confirm.title}
-    message={confirm.message}
-    onConfirm={confirm.onConfirm}
-    onCancel={hideConfirm}
-    confirmText={confirm.confirmText}
-    confirmColor={confirm.confirmColor}
-  />
+      <ConfirmModal
+        visible={confirm.visible}
+        title={confirm.title}
+        message={confirm.message}
+        onConfirm={confirm.onConfirm}
+        onCancel={hideConfirm}
+        confirmText={confirm.confirmText}
+        confirmColor={confirm.confirmColor}
+      />
       {/* Toasts */}
       {!!successMsg && (
         <View style={[st.toastWrap, { bottom: insets.bottom + 100 }]}>
@@ -2836,9 +2847,8 @@ export default function ProfileScreen({ navigation }) {
         visible={emailModalVisible}
         animationType="slide"
         transparent={false}
-       
       >
-      <View style={[em.safe, { paddingTop: insets.top }]}>
+        <View style={[em.safe, { paddingTop: insets.top }]}>
           <View style={em.header}>
             <TouchableOpacity
               onPress={closeEmailModal}
@@ -3251,15 +3261,9 @@ export default function ProfileScreen({ navigation }) {
       </Modal>
 
       {/* EDIT PROFILE MODAL — unchanged */}
-      <Modal
-        visible={isEditing}
-        animationType="slide"
-        transparent={false}
-     
-      >
+      <Modal visible={isEditing} animationType="slide" transparent={false}>
         <View style={[ef.safe, { paddingTop: insets.top }]}>
- 
-  <View style={ef.header}>
+          <View style={ef.header}>
             <TouchableOpacity
               onPress={cancelEdit}
               style={ef.headerBackWrap}
@@ -3677,12 +3681,7 @@ export default function ProfileScreen({ navigation }) {
       </Modal>
 
       {/* Photo picker sheet — unchanged */}
-      <Modal
-        visible={showPhotoModal}
-        animationType="slide"
-        transparent
-       
-      >
+      <Modal visible={showPhotoModal} animationType="slide" transparent>
         <View style={st.photoOverlay}>
           <View style={st.photoSheet}>
             <View style={st.photoHandle} />
@@ -3717,7 +3716,6 @@ export default function ProfileScreen({ navigation }) {
 
       <LoadingOverlay visible={isSaving} message="Saving your profile…" />
       <LoadingOverlay visible={uploadingPhoto} message="Uploading photo…" />
-  
     </SafeAreaView>
   );
 }
