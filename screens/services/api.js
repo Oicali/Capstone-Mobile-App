@@ -3,6 +3,10 @@ import { Platform, AppState } from "react-native";
 
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
+// How long the app waits for the slow AI endpoint before giving up.
+// (Was 120s. The server may still need longer for big date ranges.)
+const AI_TIMEOUT_MS = 180000;
+
 // ─── GLOBAL SESSION GUARD ──────────────────────────────────────────────────
 // Any authenticated request that comes back 401 with a "session is dead"
 // code triggers one app-wide logout, from whatever screen the user is on.
@@ -29,13 +33,15 @@ if (!global.__sessionGuardInstalled) {
   global.fetch = async (input, init) => {
     const res = await originalFetch(input, init);
     try {
-
       if (res.status === 401 && !sessionDeadHandled) {
         const url = typeof input === "string" ? input : input?.url;
         const h = init?.headers || {};
         const hadAuth = !!(h.Authorization || h.authorization);
         if (hadAuth && url && BASE_URL && url.startsWith(BASE_URL)) {
-          const body = await res.clone().json().catch(() => null);
+          const body = await res
+            .clone()
+            .json()
+            .catch(() => null);
           if (body && SESSION_DEAD_CODES.includes(body.code) && onSessionDead) {
             sessionDeadHandled = true;
             stopSessionWatch();
@@ -173,7 +179,10 @@ export const resendDeviceLogin = async (pendingId) => {
     });
     return await validateResponse(response);
   } catch (error) {
-    return { success: false, message: error.message || "Failed to resend code" };
+    return {
+      success: false,
+      message: error.message || "Failed to resend code",
+    };
   }
 };
 
@@ -190,20 +199,28 @@ export const requestDeviceApproval = async (pendingId) => {
     });
     return await validateResponse(response);
   } catch (error) {
-    return { success: false, message: error.message || "Failed to request approval" };
+    return {
+      success: false,
+      message: error.message || "Failed to request approval",
+    };
   }
 };
 
 export const pollDeviceLogin = async (pendingId) => {
   try {
-    const response = await fetch(`${BASE_URL}/auth/device/poll?pendingId=${pendingId}`);
+    const response = await fetch(
+      `${BASE_URL}/auth/device/poll?pendingId=${pendingId}`,
+    );
     const data = await validateResponse(response);
     if (data.success && data.status === "approved" && data.token) {
       await saveSession(data.token, data.user);
     }
     return data;
   } catch (error) {
-    return { success: false, message: error.message || "Failed to check status" };
+    return {
+      success: false,
+      message: error.message || "Failed to check status",
+    };
   }
 };
 
@@ -355,11 +372,35 @@ export const removeTrustedDevice = async (tokenId) => {
 // Pings an authenticated endpoint so a session revoked from another device
 // is noticed within seconds, even if the user isn't doing anything. The
 // global fetch guard above turns the 401 SESSION_REVOKED into a logout.
-const SESSION_WATCH_MS = 2000;
+//
+// FIXES vs. the old version:
+//  - Was every 2s with no timeout and no "already running" check. When the
+//    server was busy (e.g. generating an AI assessment) pings piled up and
+//    added load. Now: 5s interval, 8s timeout, and only one ping at a time.
+//  - Pings are paused while a slow request (AI assessment) is running. That
+//    request is authenticated too, so a revoked session is still caught by
+//    the global fetch guard above.
+const SESSION_WATCH_MS = 5000;
+const PING_TIMEOUT_MS = 8000;
 let watchTimer = null;
 let watchAppStateSub = null;
+let pingInFlight = false;
+let watchPauseCount = 0;
+
+export const pauseSessionWatch = () => {
+  watchPauseCount += 1;
+};
+export const resumeSessionWatch = () => {
+  watchPauseCount = Math.max(0, watchPauseCount - 1);
+};
 
 const pingSession = async () => {
+  if (watchPauseCount > 0 || pingInFlight) return;
+  pingInFlight = true;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PING_TIMEOUT_MS);
+
   try {
     const token = await AsyncStorage.getItem("auth_token");
 
@@ -368,43 +409,46 @@ const pingSession = async () => {
       return;
     }
 
-    const response = await fetch(`${BASE_URL}/auth/session-check?t=${Date.now()}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Cache-Control": "no-cache",
+    const response = await fetch(
+      `${BASE_URL}/auth/session-check?t=${Date.now()}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Cache-Control": "no-cache",
+        },
+        signal: controller.signal,
       },
-    });
-
-
+    );
 
     if (response.status === 401) {
-  let data = {};
+      let data = {};
 
-  try {
-    data = await response.json();
-  } catch {}
+      try {
+        data = await response.json();
+      } catch {}
 
-  const code = data?.code || "SESSION_REVOKED";
+      const code = data?.code || "SESSION_REVOKED";
 
+      // The session-check endpoint exists specifically to determine
+      // whether this device's session is still valid.
+      if (onSessionDead && !sessionDeadHandled) {
+        sessionDeadHandled = true;
+        stopSessionWatch();
 
-  // The session-check endpoint exists specifically to determine
-  // whether this device's session is still valid.
-  if (onSessionDead && !sessionDeadHandled) {
-    sessionDeadHandled = true;
-    stopSessionWatch();
+        await onSessionDead(
+          code,
+          data?.message || "This device was logged out from another device.",
+        );
+      }
 
-    await onSessionDead(
-      code,
-      data?.message || "This device was logged out from another device."
-    );
-  }
-
-  return;
-}
+      return;
+    }
   } catch (e) {
-    
-    
+    // network error / timeout: ignore, next tick will try again
+  } finally {
+    clearTimeout(timer);
+    pingInFlight = false;
   }
 };
 
@@ -577,19 +621,22 @@ export const getCrimeDashboard = async (filters) => {
   }
 };
 
-// Slow AI POST: own 120s timeout + external abort so the screen can cancel on unmount
+// Slow AI POST: own timeout + external abort so the screen can cancel on unmount.
+// The session watch is paused while this runs so pings don't compete with it.
 export const generateAIAssessment = async (payload, externalSignal) => {
   const session = await getSession();
   if (!session?.token) throw new Error("No auth token found");
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 120000);
+  const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
   const onExternalAbort = () => controller.abort();
 
   if (externalSignal) {
     if (externalSignal.aborted) controller.abort();
     else externalSignal.addEventListener("abort", onExternalAbort);
   }
+
+  pauseSessionWatch();
 
   try {
     const response = await fetch(`${BASE_URL}/ai-assessment/generate`, {
@@ -608,6 +655,8 @@ export const generateAIAssessment = async (payload, externalSignal) => {
       const err = new Error(json.message || "Failed to generate assessment");
       err.status = response.status;
       err.code = json.code;
+      // A proxy/gateway timing out (408/504/524) is a "took too long", not a crash
+      if ([408, 504, 524].includes(response.status)) err.timedOut = true;
       throw err;
     }
     return json;
@@ -623,6 +672,7 @@ export const generateAIAssessment = async (payload, externalSignal) => {
   } finally {
     clearTimeout(timeout);
     externalSignal?.removeEventListener("abort", onExternalAbort);
+    resumeSessionWatch();
   }
 };
 
@@ -739,17 +789,23 @@ export const approveLoginNotification = async (notificationId, trustDevice) => {
   try {
     const session = await getSession();
     if (!session?.token) return { success: false };
-    const res = await fetch(`${BASE_URL}/notifications/${notificationId}/approve-login`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${session.token}`,
-        "Content-Type": "application/json",
+    const res = await fetch(
+      `${BASE_URL}/notifications/${notificationId}/approve-login`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ trustDevice }),
       },
-      body: JSON.stringify({ trustDevice }),
-    });
+    );
     return await res.json();
   } catch (err) {
-    return { success: false, message: err.message || "Failed to approve login" };
+    return {
+      success: false,
+      message: err.message || "Failed to approve login",
+    };
   }
 };
 
@@ -757,10 +813,13 @@ export const denyLoginNotification = async (notificationId) => {
   try {
     const session = await getSession();
     if (!session?.token) return { success: false };
-    const res = await fetch(`${BASE_URL}/notifications/${notificationId}/deny-login`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${session.token}` },
-    });
+    const res = await fetch(
+      `${BASE_URL}/notifications/${notificationId}/deny-login`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.token}` },
+      },
+    );
     return await res.json();
   } catch (err) {
     return { success: false, message: err.message || "Failed to deny login" };
