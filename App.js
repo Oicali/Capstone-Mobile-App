@@ -469,6 +469,7 @@ startSessionWatch();
             component={PatrolDetailScreen}
             options={{ animation: "slide_from_right" }}
           />
+        
           {/* Add patrol form: root stack so it renders above the tab bar */}
           <Stack.Screen
             name="AddPatrol"
