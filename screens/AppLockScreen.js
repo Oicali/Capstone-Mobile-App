@@ -1,9 +1,10 @@
-// screens/AppLockScreen.js
+// ===== FILE: screens/AppLockScreen.js (replace the whole file) =====
 import React, { useEffect, useState } from "react";
 import {
   Modal,
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   StatusBar,
@@ -54,29 +55,47 @@ export default function AppLockScreen({ visible, onUnlock, onLogout }) {
       <View style={s.container}>
         <StatusBar barStyle="light-content" backgroundColor="#0a1628" />
 
-        <View style={s.iconOuter}>
-          <View style={s.iconInner}>
-            <Ionicons name="lock-closed" size={34} color="#fff" />
+        {/* decorative background circles (no gradient module needed) */}
+        <View style={s.bgCircleTop} />
+        <View style={s.bgCircleBottom} />
+
+        {/* logo */}
+        <View style={s.logoRing}>
+          <View style={s.logoInner}>
+            <Image
+              source={require("../assets/Bantay-logo.png")}
+              style={s.logo}
+              resizeMode="contain"
+            />
+          </View>
+          <View style={s.lockBadge}>
+            <Ionicons name="lock-closed" size={14} color="#fff" />
           </View>
         </View>
 
-        <Text style={s.title}>BANTAY is locked</Text>
+        <Text style={s.brand}>BANTAY</Text>
+        <Text style={s.title}>Secure Access</Text>
         <Text style={s.sub}>
-          {name ? `Welcome back, ${name}. ` : ""}Verify it's you to continue.
+          {name ? `Welcome back, ${name}. ` : ""}
+          Verify it's you to continue.
         </Text>
 
+        {/* unlock button */}
         <TouchableOpacity
-          style={[s.btn, busy && { opacity: 0.6 }]}
+          style={[s.btn, busy && { opacity: 0.7 }]}
           onPress={tryUnlock}
           disabled={busy}
           activeOpacity={0.85}
         >
           {busy ? (
-            <ActivityIndicator color="#fff" />
+            <>
+              <ActivityIndicator color="#fff" />
+              <Text style={s.btnTxt}> Verifying...</Text>
+            </>
           ) : (
             <>
               <Ionicons name="finger-print" size={22} color="#fff" />
-              <Text style={s.btnTxt}> Unlock</Text>
+              <Text style={s.btnTxt}> UNLOCK</Text>
             </>
           )}
         </TouchableOpacity>
@@ -97,9 +116,15 @@ export default function AppLockScreen({ visible, onUnlock, onLogout }) {
           <Text style={s.logoutTxt}> Log out instead</Text>
         </TouchableOpacity>
 
-        <Text style={s.foot}>
-          Protected by your phone's fingerprint or screen lock
-        </Text>
+        {/* security notice, styled like the login screen */}
+        <View style={s.notice}>
+          <Ionicons name="shield-checkmark" size={16} color="#93c5fd" />
+          <Text style={s.noticeTxt}>
+            <Text style={s.noticeBold}>Security Notice: </Text>
+            BANTAY locks itself when you leave the app. Your phone's fingerprint
+            or screen lock is required to continue.
+          </Text>
+        </View>
       </View>
     </Modal>
   );
@@ -112,31 +137,74 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 28,
+    overflow: "hidden",
   },
-  iconOuter: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(59,130,246,0.1)",
+  bgCircleTop: {
+    position: "absolute",
+    top: -120,
+    right: -100,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: "rgba(30,58,95,0.55)",
+  },
+  bgCircleBottom: {
+    position: "absolute",
+    bottom: -140,
+    left: -120,
+    width: 340,
+    height: 340,
+    borderRadius: 170,
+    backgroundColor: "rgba(193,39,45,0.10)",
+  },
+
+  logoRing: {
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    backgroundColor: "rgba(59,130,246,0.10)",
     borderWidth: 1,
-    borderColor: "rgba(59,130,246,0.3)",
+    borderColor: "rgba(59,130,246,0.35)",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 26,
+    marginBottom: 22,
   },
-  iconInner: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#1e3a5f",
+  logoInner: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "#122a4a",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  logo: { width: 64, height: 64 },
+  lockBadge: {
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#c1272d",
+    borderWidth: 3,
+    borderColor: "#0a1628",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  brand: {
+    color: "#93c5fd",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 4,
   },
   title: {
     color: "#fff",
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "800",
     textAlign: "center",
+    marginTop: 6,
   },
   sub: {
     color: "rgba(255,255,255,0.65)",
@@ -146,6 +214,7 @@ const s = StyleSheet.create({
     marginBottom: 32,
     lineHeight: 20,
   },
+
   btn: {
     flexDirection: "row",
     alignItems: "center",
@@ -154,23 +223,46 @@ const s = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 48,
     borderRadius: 14,
-    minWidth: 220,
+    alignSelf: "stretch",
+    elevation: 4,
   },
-  btnTxt: { color: "#fff", fontSize: 16, fontWeight: "800" },
+  btnTxt: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
+
   failBox: { flexDirection: "row", alignItems: "center", marginTop: 16 },
   failTxt: { color: "#fca5a5", fontSize: 13, fontWeight: "600" },
+
   logout: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 26,
+    marginTop: 22,
     padding: 8,
   },
   logoutTxt: { color: "#93c5fd", fontSize: 14, fontWeight: "700" },
-  foot: {
+
+  notice: {
     position: "absolute",
-    bottom: 36,
-    color: "rgba(255,255,255,0.35)",
-    fontSize: 11,
-    textAlign: "center",
+    bottom: 32,
+    left: 24,
+    right: 24,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "rgba(30,58,95,0.45)",
+    borderLeftWidth: 3,
+    borderLeftColor: "#3b82f6",
+    borderRadius: 8,
+    padding: 12,
   },
+  noticeTxt: {
+    flex: 1,
+    marginLeft: 10,
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  noticeBold: { color: "#fff", fontWeight: "700" },
 });
