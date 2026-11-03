@@ -1752,90 +1752,43 @@ const myLocationGeoJSON = React.useMemo(
             />
           )}
 
-        {styleReady && (
+   {styleReady && (
   <ShapeSource
     id="crime-pins"
     shape={pinsGeoJSON}
-    cluster
-    clusterRadius={45}
-    clusterMaxZoomLevel={14}
     onPress={(e) => {
-      const f = e.features?.[0];
-      if (!f) return;
-
-      // Tapped a cluster bubble: zoom into it
-      if (f.properties?.cluster) {
-        cameraRef.current?.setCamera({
-          centerCoordinate: f.geometry.coordinates,
-          zoomLevel: Math.min(mapZoom + 2.5, 16),
-          animationDuration: 500,
-        });
-        return;
-      }
-
-      // Tapped a single pin
-      const found = pins.find((p) => p.blotter_id === f.properties?.blotter_id);
+      const id = e.features?.[0]?.properties?.blotter_id;
+      const found = pins.find((p) => p.blotter_id === id);
       if (found) {
         setSelectedPin(found);
         setShowMorePopup(false);
       }
     }}
   >
-    {/* Cluster bubbles (zoomed out) */}
-    <CircleLayer
-      id="crime-pin-clusters"
-      filter={["has", "point_count"]}
-      style={{
-        circleColor: [
-          "step",
-          ["get", "point_count"],
-          "#f97316", 10,
-          "#ef4444", 50,
-          "#b91c1c",
-        ],
-        circleRadius: ["step", ["get", "point_count"], 14, 10, 18, 50, 24],
-        circleStrokeWidth: 2,
-        circleStrokeColor: "#ffffff",
-        circleOpacity: 0.9,
-        visibility: heatmapMode ? "none" : "visible",
-      }}
-    />
-    <SymbolLayer
-      id="crime-pin-cluster-count"
-      filter={["has", "point_count"]}
-      style={{
-        textField: ["get", "point_count_abbreviated"],
-        textSize: 11,
-        textColor: "#ffffff",
-        textAllowOverlap: true,
-        textIgnorePlacement: true,
-        visibility: heatmapMode ? "none" : "visible",
-      }}
-    />
-
-    {/* Individual teardrop pins (zoomed in) */}
     <SymbolLayer
       id="crime-pin-icons"
       aboveLayerID="barangay-labels"
-      filter={["!", ["has", "point_count"]]}
       style={{
         iconImage: ["get", "iconKey"],
         iconSize: [
-          "interpolate", ["linear"], ["zoom"],
-          10, 0.1,
-          12, 0.14,
-          15, 0.2,
-          18, 0.28,
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          12,
+          0.14,
+          15,
+          0.2,
+          18,
+          0.28,
         ],
         iconAllowOverlap: true,
         iconIgnorePlacement: true,
         iconAnchor: "bottom",
-        visibility: heatmapMode ? "none" : "visible",
+        visibility: !heatmapMode && mapZoom >= 13 ? "visible" : "none",
       }}
     />
   </ShapeSource>
 )}
-
           {/* Officer avatars — profile photo if available, initials otherwise.
               Nudged apart from "my location" puck when they'd otherwise
               fully overlap, so both stay visible/tappable. */}
